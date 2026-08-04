@@ -308,10 +308,14 @@ grant execute on function public.renew_listing(uuid) to authenticated;
 -- create-boost-payment/verify-boost-payment/dpay-webhook Edge Functions
 -- (service-role client bypasses RLS) — no insert/update policy for
 -- authenticated, same lockdown model as the column revoke above.
+-- listing_id is nullable and SET NULL on delete (not CASCADE) — see
+-- migration_boost_payment_survives_listing_delete.sql. This is a financial
+-- record; it must survive the listing it was for later being deleted,
+-- rather than silently disappearing along with it.
 create table if not exists boost_payment_sessions (
   id uuid primary key default gen_random_uuid(),
   dpay_session_id bigint not null unique,
-  listing_id uuid not null references listings(id) on delete cascade,
+  listing_id uuid references listings(id) on delete set null,
   owner_id uuid not null references auth.users(id) on delete cascade,
   pay_method text not null check (pay_method in ('edfali', 'sadad', 'moamalat', 'masrefypay')),
   duration_days integer not null check (duration_days in (3, 7, 14)),
