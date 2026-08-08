@@ -20,9 +20,9 @@ import { isVideoUrl } from '../utils/media';
 import MediaGalleryModal from '../components/MediaGalleryModal';
 import GalleryImageItem from '../components/GalleryImageItem';
 
-export default function ListingDetailScreen({ route }) {
+export default function ListingDetailScreen({ route, navigation }) {
   const { listingId } = route.params;
-  const { listings, saved, toggleSave, requireAuth, theme } = useAppContext();
+  const { listings, saved, toggleSave, requireAuth, theme, getMyId } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -35,6 +35,13 @@ export default function ListingDetailScreen({ route }) {
   }
 
   const isSaved = saved.includes(listing.id);
+  // The owner viewing their own listing gets an Edit button instead of
+  // Call/WhatsApp — contacting yourself isn't a real action.
+  const isOwner = listing.agentId === getMyId();
+
+  const handleEdit = () => {
+    navigation.navigate('AddListing', { listingId: listing.id });
+  };
 
   const handleCall = () => {
     requireAuth(() => callAgent(listing.agentPhone));
@@ -172,14 +179,25 @@ export default function ListingDetailScreen({ route }) {
       )}
 
       <View style={styles.actionRow}>
-        <ActionButton icon="call" label={t('callButton')} colors={colors} onPress={handleCall} />
-        <ActionButton
-          icon="logo-whatsapp"
-          label={t('whatsappButton')}
-          colors={colors}
-          backgroundColor={WHATSAPP_GREEN}
-          onPress={handleWhatsapp}
-        />
+        {isOwner ? (
+          <ActionButton
+            icon="create-outline"
+            label={t('editListingButton')}
+            colors={colors}
+            onPress={handleEdit}
+          />
+        ) : (
+          <>
+            <ActionButton icon="call" label={t('callButton')} colors={colors} onPress={handleCall} />
+            <ActionButton
+              icon="logo-whatsapp"
+              label={t('whatsappButton')}
+              colors={colors}
+              backgroundColor={WHATSAPP_GREEN}
+              onPress={handleWhatsapp}
+            />
+          </>
+        )}
       </View>
     </ScrollView>
   );

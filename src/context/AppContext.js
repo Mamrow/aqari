@@ -636,6 +636,17 @@ export function AppProvider({ children }) {
     );
   }, []);
 
+  // One-way — same security-definer, owner-gated RPC pattern as
+  // renewListing. Nothing to undo from the app side; a sold listing stays
+  // sold (matches mark_listing_sold's own doc comment in schema.sql).
+  const markListingSold = useCallback(async (listingId) => {
+    const { error } = await supabase.rpc('mark_listing_sold', { p_listing_id: listingId });
+    if (error) throw error;
+    setListings((prev) =>
+      prev.map((item) => (item.id === listingId ? { ...item, listingState: 'sold' } : item))
+    );
+  }, []);
+
   // Opens a Dpay payment session for Featured (server looks up the real
   // price and confirms listing ownership — never trusts amount/ownership
   // from the client). Returns Dpay's session info so the UI can show an OTP
@@ -718,6 +729,7 @@ export function AppProvider({ children }) {
     deleteListing,
     getMyId,
     renewListing,
+    markListingSold,
     fetchListings,
     createBoostPayment,
     verifyBoostPayment,

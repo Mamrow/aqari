@@ -9,8 +9,11 @@ import SearchBar from '../components/SearchBar';
 import { useT } from '../i18n/useT';
 import { dayWord } from '../i18n/pluralDays';
 import { useThemeColors } from '../theme/useThemeColors';
+import { friendlyErrorMessage } from '../utils/friendlyError';
 
-const EXPIRING_SOON_DAYS = 5;
+// Only the last day gets a banner — a 30-day-out countdown nagging on every
+// approved listing was more noise than signal.
+const EXPIRING_SOON_DAYS = 1;
 
 // Whole days between now and the given ISO timestamp, rounded up so
 // "expires in a few hours" still reads as 1 day left, not 0.
@@ -20,8 +23,16 @@ const daysUntil = (iso) => {
 };
 
 export default function MyListingsScreen({ navigation }) {
-  const { listings, getMyId, deleteListing, dataLoading, requireAuth, renewListing, language } =
-    useAppContext();
+  const {
+    listings,
+    getMyId,
+    deleteListing,
+    dataLoading,
+    requireAuth,
+    renewListing,
+    markListingSold,
+    language,
+  } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,11 +52,35 @@ export default function MyListingsScreen({ navigation }) {
           try {
             await renewListing(listing.id);
           } catch (error) {
-            Alert.alert(t('errorGenericTitle'), error.message ?? String(error));
+            console.warn('renewListing failed', error);
+            Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
           }
         },
       },
     ]);
+  };
+
+  const handleMarkSold = (listing) => {
+    const isRent = listing.listingType === 'rent';
+    Alert.alert(
+      isRent ? t('markAsRentedConfirmTitle') : t('markAsSoldConfirmTitle'),
+      isRent ? t('markAsRentedConfirmMessage') : t('markAsSoldConfirmMessage'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: isRent ? t('markAsRentedButton') : t('markAsSoldButton'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await markListingSold(listing.id);
+            } catch (error) {
+              console.warn('markListingSold failed', error);
+              Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleDelete = (listing) => {
@@ -87,54 +122,60 @@ export default function MyListingsScreen({ navigation }) {
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.listContent}
               renderItem={({ item }) => {
+                const isSold = item.listingState === 'sold';
                 const isExpired = item.listingState === 'expired';
                 const daysLeft = daysUntil(item.expiresAt);
                 const isExpiringSoon =
-                  !isExpired && daysLeft !== null && daysLeft <= EXPIRING_SOON_DAYS;
+                  !isSold && !isExpired && daysLeft !== null && daysLeft <= EXPIRING_SOON_DAYS;
+                const isRent = item.listingType === 'rent';
                 return (
                   <ListingCard
                     listing={item}
                     showStatus
                     showSaveButton={false}
-                    onPress={() => navigation.navigate('AddListing', { listingId: item.id })}
+                    onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
                     onDelete={() => handleDelete(item)}
                     footer={
                       item.status === 'approved' ? (
                         <View style={styles.footerStack}>
-                          {daysLeft !== null && (
-                            <View style={styles.expiryRow}>
-                              <Text
-                                style={[
-                                  styles.expiryText,
-                                  {
-                                    color:
-                                      isExpired || isExpiringSoon ? colors.danger : colors.textMuted,
-                                  },
-                                ]}
-                              >
-                                {isExpired
-                                  ? t('listingExpiredBanner')
-                                  : isExpiringSoon
-                                  ? t('listingExpiringSoonBanner')
-                                      .replace('{days}', String(daysLeft))
-                                      .replace('{daysWord}', dayWord(daysLeft, language))
-                                  : t('listingDaysLeftLabel')
-                                      .replace('{days}', String(daysLeft))
-                                      .replace('{daysWord}', dayWord(daysLeft, language))}
+                          {isSold ? (
+                            <View style={[styles.soldBadge, { backgroundColor: `${colors.textMuted}22` }]}>
+                              <Text style={[styles.soldBadgeText, { color: colors.textMuted }]}>
+                                {isRent ? t('markedRentedBadge') : t('markedSoldBadge')}
                               </Text>
-                              {(isExpired || isExpiringSoon) && (
-                                <Pressable
-                                  style={[styles.renewButton, { backgroundColor: colors.accent }]}
-                                  onPress={() => handleRenew(item)}
-                                >
-                                  <Text style={[styles.renewButtonText, { color: colors.accentText }]}>
-                                    {t('renewListingButton')}
-                                  </Text>
-                                </Pressable>
-                              )}
                             </View>
+                          ) : (
+                            <>
+                              {(isExpired || isExpiringSoon) && (
+                                <View style={styles.expiryRow}>
+                                  <Text style={[styles.expiryText, { color: colors.danger }]}>
+                                    {isExpired
+                                      ? t('listingExpiredBanner')
+                                      : t('listingExpiringSoonBanner')
+                                          .replace('{days}', String(daysLeft))
+                                          .replace('{daysWord}', dayWord(daysLeft, language))}
+                                  </Text>
+                                  <Pressable
+                                    style={[styles.renewButton, { backgroundColor: colors.accent }]}
+                                    onPress={() => handleRenew(item)}
+                                  >
+                                    <Text style={[styles.renewButtonText, { color: colors.accentText }]}>
+                                      {t('renewListingButton')}
+                                    </Text>
+                                  </Pressable>
+                                </View>
+                              )}
+                              <Pressable
+                                style={[styles.markSoldButton, { borderColor: colors.inputBorder }]}
+                                onPress={() => handleMarkSold(item)}
+                              >
+                                <Text style={[styles.markSoldButtonText, { color: colors.textMuted }]}>
+                                  {isRent ? t('markAsRentedButton') : t('markAsSoldButton')}
+                                </Text>
+                              </Pressable>
+                              <BoostListingSection listing={item} colors={colors} />
+                            </>
                           )}
-                          <BoostListingSection listing={item} colors={colors} />
                         </View>
                       ) : null
                     }
@@ -189,6 +230,27 @@ const styles = StyleSheet.create({
   renewButtonText: {
     fontWeight: '700',
     fontSize: 13,
+  },
+  markSoldButton: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  markSoldButtonText: {
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  soldBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  soldBadgeText: {
+    fontWeight: '700',
+    fontSize: 12,
   },
   searchBar: {
     marginHorizontal: 12,

@@ -16,6 +16,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import BoostListingSection from '../components/BoostListingSection';
+import StatusScreen from '../components/StatusScreen';
+import { friendlyErrorMessage } from '../utils/friendlyError';
 import { TRIPOLI_CENTER } from '../data/constants';
 import { CITIES, DISTRICTS, PRIORITY_CITY_KEYS } from '../data/districts';
 import {
@@ -120,6 +122,8 @@ export default function AddListingScreen({ navigation, route }) {
   );
   const [submitting, setSubmitting] = useState(false);
   const [submittedListing, setSubmittedListing] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(null);
 
   useEffect(() => {
     navigation.setOptions({ title: editingId ? t('editListingTitle') : t('addListingTitle') });
@@ -188,23 +192,35 @@ export default function AddListingScreen({ navigation, route }) {
   const handleSubmit = async () => {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       // Only freshly-picked local media needs uploading — items already on an
       // existing listing (editing) are already public Supabase Storage URLs.
-      // Uploads and the DB save are wrapped separately so the alert can say
-      // which stage actually failed instead of one generic message for both.
+      // Uploads and the DB save are wrapped separately so the failure screen
+      // can say which stage actually failed instead of one generic message
+      // for both. Progress ticks up per-file as each upload resolves — the
+      // uploads run concurrently (Promise.all), so this isn't "file 1, then
+      // file 2," just a live count of however many have finished so far.
+      const toUploadCount = images.filter((uri) => !isRemoteMediaUrl(uri)).length;
+      let uploadedSoFar = 0;
+      if (toUploadCount > 0) setUploadProgress({ current: 0, total: toUploadCount });
       let uploadedImages;
       try {
         uploadedImages = await Promise.all(
-          images.map((uri) => {
+          images.map(async (uri) => {
             if (isRemoteMediaUrl(uri)) return uri;
-            return isVideoUrl(uri) ? uploadListingVideo(uri) : uploadListingImage(uri);
+            const result = isVideoUrl(uri) ? await uploadListingVideo(uri) : await uploadListingImage(uri);
+            uploadedSoFar += 1;
+            setUploadProgress({ current: uploadedSoFar, total: toUploadCount });
+            return result;
           })
         );
       } catch (uploadError) {
         console.warn('Photo upload failed', uploadError);
-        Alert.alert(t('submitErrorTitle'), `${t('uploadErrorMessage')}\n\n${uploadError?.message ?? ''}`);
+        setSubmitError(friendlyErrorMessage(uploadError, t));
         return;
+      } finally {
+        setUploadProgress(null);
       }
 
       const data = {
@@ -241,34 +257,46 @@ export default function AddListingScreen({ navigation, route }) {
       }
     } catch (error) {
       console.warn('Listing save failed', error);
-      Alert.alert(t('submitErrorTitle'), `${t('submitErrorMessage')}\n\n${error?.message ?? ''}`);
+      setSubmitError(friendlyErrorMessage(error, t));
     } finally {
       setSubmitting(false);
     }
   };
 
+  if (submitting) {
+    return (
+      <StatusScreen
+        variant="loading"
+        title={t('listingSubmittingTitle')}
+        subtitle={t('listingSubmittingSubtitle')}
+        progress={uploadProgress}
+      />
+    );
+  }
+
+  if (submitError) {
+    return (
+      <StatusScreen
+        variant="error"
+        title={t('submitErrorTitle')}
+        subtitle={submitError}
+        primaryAction={{ label: t('tryAgainButton'), onPress: () => setSubmitError(null) }}
+      />
+    );
+  }
+
   if (submittedListing) {
     return (
-      <View style={[styles.successContainer, { backgroundColor: colors.background }]}>
-        <Ionicons name="checkmark-circle" size={56} color={colors.accent} />
-        <Text style={[styles.successTitle, { color: colors.text }]}>
-          {t('listingSubmittedTitle')}
-        </Text>
-        <Text style={[styles.successSubtitle, { color: colors.textMuted }]}>
-          {t('listingSubmittedMessage')}
-        </Text>
+      <StatusScreen
+        variant="success"
+        title={t('listingSubmittedTitle')}
+        subtitle={t('listingSubmittedMessage')}
+        secondaryAction={{ label: t('skipForNowButton'), onPress: goToMyListings }}
+      >
         <View style={styles.successBoostSection}>
           <BoostListingSection listing={submittedListing} colors={colors} />
         </View>
-        <Pressable
-          style={[styles.skipButton, { borderColor: colors.inputBorder }]}
-          onPress={goToMyListings}
-        >
-          <Text style={[styles.skipButtonText, { color: colors.textMuted }]}>
-            {t('skipForNowButton')}
-          </Text>
-        </Pressable>
-      </View>
+      </StatusScreen>
     );
   }
 
@@ -661,37 +689,9 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
   },
-  successContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  successTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  successSubtitle: {
-    fontSize: 14,
-    marginTop: 6,
-    textAlign: 'center',
-  },
   successBoostSection: {
     width: '100%',
-    marginTop: 24,
-  },
-  skipButton: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  skipButtonText: {
-    fontWeight: '600',
-    fontSize: 14,
+    marginTop: 8,
   },
   label: {
     fontSize: 14,

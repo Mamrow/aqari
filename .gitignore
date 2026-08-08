@@ -41,6 +41,16 @@ yarn-error.*
 # not source)
 supabase/.temp/
 
+# Claude Code skills installed via `npx skills add` / marketplace plugins —
+# local tooling for whoever's working on this repo, not part of the app.
+.agents/
+.claude/skills/
+skills-lock.json
+
+# Playwright CLI's own working directory (snapshots, console logs) — created
+# ad hoc while driving a browser for a task, not project output.
+.playwright-cli/
+
 # generated native folders
 /ios
 /android

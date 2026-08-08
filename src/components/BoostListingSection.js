@@ -1,21 +1,13 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { dayWord } from '../i18n/pluralDays';
 import { FEATURED_GOLD } from '../theme/colors';
+import { friendlyErrorMessage } from '../utils/friendlyError';
+import StatusScreen from './StatusScreen';
 import EdfaliLogo from '../../assets/edfali.svg';
 import MoamalatLogo from '../../assets/moamalat.svg';
 import SadadLogo from '../../assets/sadad.svg';
@@ -70,12 +62,24 @@ export default function BoostListingSection({ listing, colors }) {
   const [otp, setOtp] = useState('');
   const [session, setSession] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  // 'processing'/'success'/'error' are terminal-ish visual states that
+  // replace the whole card (no progress dots) rather than steps within the
+  // form flow — see the render branch below. outcome holds the title/
+  // subtitle for whichever of success/error is showing; errorReturnStep is
+  // which real step "Try Again" drops back into (review after a failed
+  // session open, otp after a failed code — no reason to make them re-enter
+  // their mobile number just because the code was wrong).
+  const [outcome, setOutcome] = useState(null);
+  const [errorReturnStep, setErrorReturnStep] = useState('review');
 
   // Featuring is allowed while a listing is still pending admin review, not
   // just once approved — sellers should be able to pay for Featured right at
   // submission time. A rejected listing never becomes publicly visible
   // regardless of is_featured, so there's nothing to offer once rejected.
-  if (listing.status === 'rejected') {
+  // Same for a listing already marked sold/rented — it's excluded from
+  // buyer-facing browsing regardless of is_featured, so paying to feature it
+  // would just be money spent on a listing nobody can see.
+  if (listing.status === 'rejected' || listing.listingState === 'sold') {
     return null;
   }
 
@@ -93,10 +97,13 @@ export default function BoostListingSection({ listing, colors }) {
     setOtp('');
     setSession(null);
     setSubmitting(false);
+    setOutcome(null);
+    setErrorReturnStep('review');
   };
 
   const handleOpenSession = async () => {
     setSubmitting(true);
+    setStep('processing');
     try {
       const params = { listing_id: listing.id, duration_days: duration, pay_method: gateway };
       if (gateway === 'edfali' || gateway === 'sadad') params.customer_mobile = mobile.trim();
@@ -110,14 +117,17 @@ export default function BoostListingSection({ listing, colors }) {
         // afterwards once Dpay sends payment.paid.
         setSession(data);
         await WebBrowser.openAuthSessionAsync(data.payment_link);
-        Alert.alert(t('featuredPaymentPendingTitle'), t('featuredPaymentPendingMessage'));
-        resetAndClose();
+        setOutcome({ title: t('featuredPaymentPendingTitle'), subtitle: t('featuredPaymentPendingMessage') });
+        setStep('success');
       } else {
         setSession(data);
         setStep('otp');
       }
     } catch (error) {
-      Alert.alert(t('submitErrorTitle'), error.message ?? t('submitErrorMessage'));
+      console.warn('createBoostPayment failed', error);
+      setOutcome({ title: t('submitErrorTitle'), subtitle: friendlyErrorMessage(error, t) });
+      setErrorReturnStep('review');
+      setStep('error');
     } finally {
       setSubmitting(false);
     }
@@ -125,12 +135,17 @@ export default function BoostListingSection({ listing, colors }) {
 
   const handleVerify = async () => {
     setSubmitting(true);
+    setStep('processing');
     try {
       await verifyBoostPayment(session.session_id, otp.trim());
-      Alert.alert(t('featuredPaymentSuccessTitle'), t('featuredPaymentSuccessMessage'));
-      resetAndClose();
+      setOutcome({ title: t('featuredPaymentSuccessTitle'), subtitle: t('featuredPaymentSuccessMessage') });
+      setStep('success');
     } catch (error) {
-      Alert.alert(t('submitErrorTitle'), error.message ?? t('submitErrorMessage'));
+      console.warn('verifyBoostPayment failed', error);
+      setOtp('');
+      setOutcome({ title: t('submitErrorTitle'), subtitle: friendlyErrorMessage(error, t) });
+      setErrorReturnStep('otp');
+      setStep('error');
     } finally {
       setSubmitting(false);
     }
@@ -206,29 +221,51 @@ export default function BoostListingSection({ listing, colors }) {
           onPress={submitting ? undefined : resetAndClose}
         >
           <Pressable style={[styles.card, { backgroundColor: colors.surface }]} onPress={() => {}}>
-            <Text style={[styles.title, { color: colors.text }]}>{t('featuredModalTitle')}</Text>
+            {step === 'processing' || step === 'success' || step === 'error' ? (
+              <StatusScreen
+                inline
+                variant={step === 'processing' ? 'loading' : step}
+                title={
+                  step === 'processing'
+                    ? session
+                      ? t('featuredVerifyingTitle')
+                      : t('featuredProcessingTitle')
+                    : outcome?.title
+                }
+                subtitle={step === 'processing' ? t('featuredProcessingSubtitle') : outcome?.subtitle}
+                primaryAction={
+                  step === 'success'
+                    ? { label: t('ok'), onPress: resetAndClose }
+                    : step === 'error'
+                      ? { label: t('tryAgainButton'), onPress: () => setStep(errorReturnStep) }
+                      : undefined
+                }
+              />
+            ) : (
+              <>
+                <Text style={[styles.title, { color: colors.text }]}>{t('featuredModalTitle')}</Text>
 
-            <View style={styles.progressRow}>
-              {steps.map((s, i) => (
-                <View
-                  key={s}
-                  style={[
-                    styles.progressDot,
-                    { backgroundColor: i <= stepIndex ? colors.accent : colors.border },
-                    i === stepIndex && styles.progressDotActive,
-                  ]}
-                />
-              ))}
-            </View>
+                <View style={styles.progressRow}>
+                  {steps.map((s, i) => (
+                    <View
+                      key={s}
+                      style={[
+                        styles.progressDot,
+                        { backgroundColor: i <= stepIndex ? colors.accent : colors.border },
+                        i === stepIndex && styles.progressDotActive,
+                      ]}
+                    />
+                  ))}
+                </View>
 
-            <View style={styles.trustRow}>
-              <Ionicons name="lock-closed" size={12} color={colors.textMuted} />
-              <Text style={[styles.trustText, { color: colors.textMuted }]}>
-                {t('securedByDpay')}
-              </Text>
-            </View>
+                <View style={styles.trustRow}>
+                  <Ionicons name="lock-closed" size={12} color={colors.textMuted} />
+                  <Text style={[styles.trustText, { color: colors.textMuted }]}>
+                    {t('securedByDpay')}
+                  </Text>
+                </View>
 
-            <ScrollView keyboardShouldPersistTaps="handled">
+                <ScrollView keyboardShouldPersistTaps="handled">
               {step === 'duration' && (
                 <>
                   <Text style={[styles.stepLabel, { color: colors.textMuted }]}>
@@ -447,27 +484,16 @@ export default function BoostListingSection({ listing, colors }) {
                     </View>
                   </View>
                   <Pressable
-                    style={[
-                      styles.payButton,
-                      { backgroundColor: FEATURED_GOLD },
-                      submitting && styles.disabledButton,
-                    ]}
-                    disabled={submitting}
+                    style={[styles.payButton, { backgroundColor: FEATURED_GOLD }]}
                     onPress={handleOpenSession}
                   >
-                    {submitting ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <>
-                        <Ionicons name="lock-closed" size={15} color="#fff" />
-                        <Text style={styles.payButtonText}>
-                          {t('featuredPaySecurelyButton').replace(
-                            '{amount}',
-                            `${FEATURED_PRICES[duration]} ${t('priceCurrency')}`
-                          )}
-                        </Text>
-                      </>
-                    )}
+                    <Ionicons name="lock-closed" size={15} color="#fff" />
+                    <Text style={styles.payButtonText}>
+                      {t('featuredPaySecurelyButton').replace(
+                        '{amount}',
+                        `${FEATURED_PRICES[duration]} ${t('priceCurrency')}`
+                      )}
+                    </Text>
                   </Pressable>
                   <View style={styles.trustRow}>
                     <Ionicons name="shield-checkmark" size={12} color={colors.textMuted} />
@@ -504,23 +530,19 @@ export default function BoostListingSection({ listing, colors }) {
                     style={[
                       styles.payButton,
                       { backgroundColor: FEATURED_GOLD },
-                      (!otp.trim() || submitting) && styles.disabledButton,
+                      !otp.trim() && styles.disabledButton,
                     ]}
-                    disabled={!otp.trim() || submitting}
+                    disabled={!otp.trim()}
                     onPress={handleVerify}
                   >
-                    {submitting ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <>
-                        <Ionicons name="lock-closed" size={15} color="#fff" />
-                        <Text style={styles.payButtonText}>{t('featuredVerifyButton')}</Text>
-                      </>
-                    )}
+                    <Ionicons name="lock-closed" size={15} color="#fff" />
+                    <Text style={styles.payButtonText}>{t('featuredVerifyButton')}</Text>
                   </Pressable>
                 </>
               )}
-            </ScrollView>
+                </ScrollView>
+              </>
+            )}
           </Pressable>
         </Pressable>
       </Modal>

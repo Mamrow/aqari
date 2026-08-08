@@ -17,6 +17,7 @@ import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import Avatar from '../components/Avatar';
 import { uploadAvatarImage } from '../utils/uploadImage';
+import { friendlyErrorMessage } from '../utils/friendlyError';
 import appConfig from '../../app.json';
 
 export default function SettingsScreen({ navigation }) {
@@ -115,7 +116,7 @@ export default function SettingsScreen({ navigation }) {
       setPasswordDraft('');
     } catch (error) {
       console.warn('updateAccountPassword error', error);
-      Alert.alert(t('authErrorTitle'), error.message ?? t('submitErrorMessage'));
+      Alert.alert(t('authErrorTitle'), friendlyErrorMessage(error, t));
     } finally {
       setSavingPassword(false);
     }

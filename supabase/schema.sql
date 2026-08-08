@@ -261,8 +261,11 @@ alter table listings add column if not exists is_featured boolean not null defau
 -- Listing lifecycle — see migration_listing_lifecycle.sql. `now()` is
 -- volatile, so Postgres computes this default per existing row at ALTER
 -- time too, not just for future inserts.
+-- migration_mark_listing_sold.sql extends this to also allow 'sold' — one
+-- value covering both "sold" (sale listings) and "rented" (rent listings);
+-- the app picks the display word from listing_type.
 alter table listings add column if not exists listing_state text not null default 'active'
-  check (listing_state in ('active', 'expired'));
+  check (listing_state in ('active', 'expired', 'sold'));
 alter table listings add column if not exists expires_at timestamptz not null default (now() + interval '30 days');
 alter table listings add column if not exists renewed_at timestamptz;
 alter table listings add column if not exists featured_until timestamptz;
@@ -302,6 +305,30 @@ end;
 $$;
 
 grant execute on function public.renew_listing(uuid) to authenticated;
+
+-- migration_mark_listing_sold.sql — one-way from the seller's side (no
+-- "unsold" RPC), same security-definer/owner-gated pattern as renew_listing
+-- above. Deliberately doesn't touch expires_at/featured_until: a sold
+-- listing keeps whatever countdown it had, it just no longer matters once
+-- excluded from buyer-facing queries.
+create or replace function public.mark_listing_sold(p_listing_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update listings
+  set listing_state = 'sold'
+  where id = p_listing_id and owner_id = auth.uid();
+
+  if not found then
+    raise exception 'Listing not found or not owned by you';
+  end if;
+end;
+$$;
+
+grant execute on function public.mark_listing_sold(uuid) to authenticated;
 
 -- Instant self-serve Featured payment via Dpay — see
 -- migration_boost_payment_sessions.sql. Populated/updated only by the

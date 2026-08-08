@@ -155,7 +155,9 @@ export default function HomeMapScreen({ navigation }) {
   const filteredListings = listings
     .filter((listing) => {
       if (listing.status !== 'approved' || listing.listingType !== listingType) return false;
-      if (listing.listingState === 'expired') return false;
+      // Sold/rented is excluded the same way expired is — gone from buyer
+      // browsing regardless of which one, just for a different reason.
+      if (listing.listingState === 'expired' || listing.listingState === 'sold') return false;
       if (propertyType !== 'all' && listing.propertyType !== propertyType) return false;
       if (minPrice.trim() && listing.price < Number(minPrice)) return false;
       if (maxPrice.trim() && listing.price > Number(maxPrice)) return false;
@@ -179,6 +181,7 @@ export default function HomeMapScreen({ navigation }) {
     (listing) =>
       listing.status === 'approved' &&
       listing.listingState !== 'expired' &&
+      listing.listingState !== 'sold' &&
       listing.isFeatured &&
       listing.listingType === listingType
   );

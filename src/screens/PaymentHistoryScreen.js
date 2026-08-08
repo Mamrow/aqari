@@ -113,7 +113,14 @@ export default function PaymentHistoryScreen({ navigation }) {
                         : t('featuredLabel')}
                     </Text>
                     <Pressable
-                      onPress={() => navigation.getParent()?.navigate('MyListings')}
+                      onPress={() =>
+                        navigation
+                          .getParent()
+                          ?.navigate('MyListings', {
+                            screen: 'ListingDetail',
+                            params: { listingId: item.id },
+                          })
+                      }
                       hitSlop={8}
                     >
                       <Text style={[styles.manageLink, { color: colors.accent }]}>

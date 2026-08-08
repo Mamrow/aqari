@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
+import { friendlyErrorMessage } from '../utils/friendlyError';
 
 // Shown instead of the normal navigator whenever AppContext.isPasswordRecovery
 // is true — i.e. the user tapped a "reset password" link from their email and
@@ -25,7 +26,7 @@ export default function ResetPasswordScreen() {
       await updatePasswordAfterReset(password);
     } catch (error) {
       console.warn('Password reset failed', error);
-      Alert.alert(t('authErrorTitle'), error?.message ?? t('authErrorGeneric'));
+      Alert.alert(t('authErrorTitle'), friendlyErrorMessage(error, t));
     } finally {
       setSubmitting(false);
     }
