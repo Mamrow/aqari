@@ -202,9 +202,18 @@ create policy "owner or admin can delete listings" on listings for delete
 
 -- Favorites: scoped to the real account that saved each row (owner_id), not
 -- just "any signed-in session" — otherwise any authenticated account could
--- read or delete another account's saved-listings list.
+-- read or delete another account's saved-listings list. migration_favorites_
+-- user_id_check.sql tightened the insert/update check further: user_id (the
+-- phone AppContext.js's fetchFavorites queries by) must match the caller's
+-- own profiles.phone, not just any value paired with a valid owner_id — a
+-- crafted insert could otherwise plant a favorite under someone else's
+-- phone number even while correctly owning the row itself.
 create policy "own account manages favorites" on favorites for all
-  using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+  using (owner_id = auth.uid())
+  with check (
+    owner_id = auth.uid()
+    and user_id = (select phone from profiles where auth_uid = auth.uid())
+  );
 -- Agents: the directory itself is intentionally readable by any signed-in
 -- session (it's a public "browse agents" list), but only the owning account
 -- can register/update its own entry, and only admin can remove one.
