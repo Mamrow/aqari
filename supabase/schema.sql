@@ -284,7 +284,10 @@ revoke update (status, is_featured, featured_until, listing_state, expires_at, r
 
 -- Free renewal — resets the 30-day clock and clears 'expired' back to
 -- 'active'. security definer so it can touch the now-locked-down columns;
--- still owner-gated internally.
+-- still owner-gated internally. migration_renew_listing_blocks_sold.sql
+-- added the listing_state != 'sold' guard — the UI never offers Renew on a
+-- sold listing, but that's not a security boundary; without this a direct
+-- RPC call could silently undo mark_listing_sold's "one-way" state.
 create or replace function public.renew_listing(p_listing_id uuid)
 returns void
 language plpgsql
@@ -296,10 +299,10 @@ begin
   set expires_at = now() + interval '30 days',
       listing_state = 'active',
       renewed_at = now()
-  where id = p_listing_id and owner_id = auth.uid();
+  where id = p_listing_id and owner_id = auth.uid() and listing_state != 'sold';
 
   if not found then
-    raise exception 'Listing not found or not owned by you';
+    raise exception 'Listing not found, not owned by you, or already marked sold';
   end if;
 end;
 $$;
