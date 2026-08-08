@@ -45,6 +45,12 @@ export function listingToRow(listing) {
     district: listing.district,
     latitude: listing.latitude,
     longitude: listing.longitude,
+    // Neither caller ever sets this anymore — INSERT/UPDATE privilege on the
+    // column is revoked for authenticated (migration_fix_listings_column_
+    // lockdown.sql); status only ever changes via admin_set_listing_status
+    // or resubmit_rejected_listing now. Kept here (always undefined, always
+    // dropped from the request body) only so a stray `status` on the input
+    // object can't silently leak into the row.
     status: listing.status,
     agent_id: listing.agentId,
     // Only present on insert (submitListing) — undefined on update, which is

@@ -540,7 +540,11 @@ export function AppProvider({ children }) {
   const submitListing = useCallback(
     async (data) => {
       const agentId = getMyId();
-      const row = listingToRow({ ...data, agentId, status: 'pending', ownerId: authUid });
+      // No explicit status here — INSERT privilege on that column is
+      // revoked for authenticated (see migration_fix_listings_column_
+      // lockdown.sql), so it's left out entirely and picks up the column's
+      // own 'pending' default server-side instead of being client-set.
+      const row = listingToRow({ ...data, agentId, ownerId: authUid });
       const { data: inserted, error } = await supabase
         .from('listings')
         .insert(row)
@@ -589,14 +593,17 @@ export function AppProvider({ children }) {
     setListings((prev) => prev.map((item) => (item.id === listingId ? listing : item)));
   }, []);
 
+  // status is column-locked from a plain client update (see migration_fix_
+  // listings_column_lockdown.sql) — admin_set_listing_status is the only
+  // path left, security-definer + private.is_admin()-gated internally.
   const approveListing = useCallback(async (listingId) => {
     setListings((prev) =>
       prev.map((item) => (item.id === listingId ? { ...item, status: 'approved' } : item))
     );
-    const { error } = await supabase
-      .from('listings')
-      .update({ status: 'approved' })
-      .eq('id', listingId);
+    const { error } = await supabase.rpc('admin_set_listing_status', {
+      p_listing_id: listingId,
+      p_status: 'approved',
+    });
     if (error) console.warn('approveListing error', error);
   }, []);
 
@@ -606,11 +613,23 @@ export function AppProvider({ children }) {
     setListings((prev) =>
       prev.map((item) => (item.id === listingId ? { ...item, status: 'rejected' } : item))
     );
-    const { error } = await supabase
-      .from('listings')
-      .update({ status: 'rejected' })
-      .eq('id', listingId);
+    const { error } = await supabase.rpc('admin_set_listing_status', {
+      p_listing_id: listingId,
+      p_status: 'rejected',
+    });
     if (error) console.warn('rejectListing error', error);
+  }, []);
+
+  // Owner-gated (not admin-gated) — the seller's own "fix and resubmit" path
+  // after a rejection, same column-lockdown reasoning as above but via
+  // resubmit_rejected_listing instead, which only ever moves rejected ->
+  // pending and refuses anything else server-side.
+  const resubmitRejectedListing = useCallback(async (listingId) => {
+    const { error } = await supabase.rpc('resubmit_rejected_listing', { p_listing_id: listingId });
+    if (error) throw error;
+    setListings((prev) =>
+      prev.map((item) => (item.id === listingId ? { ...item, status: 'pending' } : item))
+    );
   }, []);
 
   const deleteListing = useCallback(async (listingId) => {
@@ -726,6 +745,7 @@ export function AppProvider({ children }) {
     updateListing,
     approveListing,
     rejectListing,
+    resubmitRejectedListing,
     deleteListing,
     getMyId,
     renewListing,

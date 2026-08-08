@@ -49,7 +49,8 @@ const ROOM_OPTIONS = ['1', '2', '3', '4', '5+'];
 const ROOMS_APPLICABLE_TYPES = ['apartment', 'villa'];
 
 export default function AddListingScreen({ navigation, route }) {
-  const { listings, submitListing, updateListing, theme, auth, language } = useAppContext();
+  const { listings, submitListing, updateListing, resubmitRejectedListing, theme, auth, language } =
+    useAppContext();
   const t = useT();
   // Sorted by the currently displayed label, not by the fixed key order in
   // districts.js — Arabic and English alphabetical order aren't the same,
@@ -241,11 +242,14 @@ export default function AddListingScreen({ navigation, route }) {
         longitude: location.longitude,
       };
       if (editingId) {
-        // Resubmitting a rejected listing puts it back in front of admin for review.
-        if (existing?.status === 'rejected') {
-          data.status = 'pending';
-        }
         await updateListing(editingId, data);
+        // Resubmitting a rejected listing puts it back in front of admin for
+        // review — a separate owner-gated RPC, not a plain field update
+        // (status is column-locked from a direct client write; see
+        // migration_fix_listings_column_lockdown.sql).
+        if (existing?.status === 'rejected') {
+          await resubmitRejectedListing(editingId);
+        }
         Alert.alert(t('listingUpdatedTitle'), t('listingUpdatedMessage'), [
           { text: t('ok'), onPress: goToMyListings },
         ]);

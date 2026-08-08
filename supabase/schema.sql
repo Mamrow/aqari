@@ -273,14 +273,41 @@ alter table listings add column if not exists featured_until timestamptz;
 -- Column-level lockdown: "owner or admin can update listings" above is a
 -- row-level policy — it lets an owner set ANY column on their own row,
 -- including status, which would otherwise let a seller self-approve their
--- own listing via a raw REST call. RLS can't express a column-level
--- restriction, so this uses Postgres's own privilege system instead. The
--- app's normal edit-listing save (mappers.js's listingToRow) never sends
--- these columns; every legitimate change goes through a security-definer RPC
--- or a service-role Edge Function, both unaffected by a revoke targeted at
--- `authenticated`.
-revoke update (status, is_featured, featured_until, listing_state, expires_at, renewed_at)
-  on listings from authenticated;
+-- own listing via a raw REST call (or set is_featured=true for free on
+-- insert/update, bypassing Dpay entirely). RLS can't express a column-level
+-- restriction, so this uses Postgres's own privilege system instead.
+--
+-- migration_fix_listings_column_lockdown.sql: a plain column-level REVOKE
+-- alone does NOT work here — Supabase grants 'authenticated'/'anon' a broad
+-- TABLE-level INSERT/UPDATE on every table by default, and a table-level
+-- grant is never overridden by a narrower column-level revoke (a privilege
+-- check passes if ANY applicable grant allows it). A live check
+-- (has_column_privilege) confirmed this: the column-level revoke that used
+-- to be here had never actually been in effect. The real fix is to revoke
+-- the table-level grant entirely and re-grant only the specific columns a
+-- seller's own listing form actually sends — everything except id (auto),
+-- created_at (auto), owner_id (insert-only, never updated after), and the
+-- six lifecycle/moderation columns below, which are only ever touched by a
+-- SECURITY DEFINER RPC (renew_listing, mark_listing_sold,
+-- admin_set_listing_status, resubmit_rejected_listing) or a service-role
+-- Edge Function (create/verify-boost-payment, dpay-webhook, lifecycle-cron)
+-- — none of which are affected by revoking the calling role's own column
+-- privilege, since SECURITY DEFINER runs as the function owner and
+-- service-role bypasses grants/RLS entirely.
+revoke insert, update on listings from anon;
+revoke insert, update on listings from authenticated;
+
+grant insert (
+  title, price, area, description, agent_phone, listing_type, property_type,
+  rooms, images, latitude, longitude, agent_id, amenities, audience_target,
+  owner_id, district, city
+) on listings to authenticated;
+
+grant update (
+  title, price, area, description, agent_phone, listing_type, property_type,
+  rooms, images, latitude, longitude, agent_id, amenities, audience_target,
+  district, city
+) on listings to authenticated;
 
 -- Free renewal — resets the 30-day clock and clears 'expired' back to
 -- 'active'. security definer so it can touch the now-locked-down columns;
@@ -332,6 +359,59 @@ end;
 $$;
 
 grant execute on function public.mark_listing_sold(uuid) to authenticated;
+
+-- migration_fix_listings_column_lockdown.sql — approveListing/rejectListing
+-- (AppContext.js) used to run a plain client update({status}) using admin's
+-- own authenticated session; that's the one legitimate authenticated-side
+-- write to status the column lockdown above would otherwise also block, so
+-- it moves here instead. Admin-gated (not owner-gated) via private.is_admin().
+create or replace function public.admin_set_listing_status(p_listing_id uuid, p_status text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not private.is_admin() then
+    raise exception 'Admin only';
+  end if;
+  if p_status not in ('pending', 'approved', 'rejected') then
+    raise exception 'Invalid status';
+  end if;
+
+  update listings set status = p_status where id = p_listing_id;
+
+  if not found then
+    raise exception 'Listing not found';
+  end if;
+end;
+$$;
+
+grant execute on function public.admin_set_listing_status(uuid, text) to authenticated;
+
+-- migration_resubmit_rejected_listing.sql — AddListingScreen's "resubmit a
+-- rejected listing puts it back in front of admin" used the same
+-- now-blocked plain update path as approve/reject, but owner-gated instead
+-- of admin-gated: only moves rejected -> pending, nothing else, same
+-- security-definer pattern as renew_listing/mark_listing_sold.
+create or replace function public.resubmit_rejected_listing(p_listing_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update listings
+  set status = 'pending'
+  where id = p_listing_id and owner_id = auth.uid() and status = 'rejected';
+
+  if not found then
+    raise exception 'Listing not found, not owned by you, or not currently rejected';
+  end if;
+end;
+$$;
+
+grant execute on function public.resubmit_rejected_listing(uuid) to authenticated;
 
 -- Instant self-serve Featured payment via Dpay — see
 -- migration_boost_payment_sessions.sql. Populated/updated only by the
