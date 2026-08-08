@@ -39,8 +39,16 @@ export default function ListingDetailScreen({ route, navigation }) {
   // Call/WhatsApp — contacting yourself isn't a real action.
   const isOwner = listing.agentId === getMyId();
 
+  // This screen is reachable from three different stacks (Home, Favorites,
+  // My Listings) — 'AddListing' only actually exists inside MyListingsStack,
+  // so a plain navigation.navigate('AddListing', ...) works when reached via
+  // My Listings but silently fails from Home/Favorites (e.g. an owner
+  // browsing the map who taps their own listing, or one they'd favorited).
+  // Routing explicitly through the MyListings tab works from all three.
   const handleEdit = () => {
-    navigation.navigate('AddListing', { listingId: listing.id });
+    navigation
+      .getParent()
+      ?.navigate('MyListings', { screen: 'AddListing', params: { listingId: listing.id } });
   };
 
   const handleCall = () => {
