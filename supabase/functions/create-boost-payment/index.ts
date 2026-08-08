@@ -52,14 +52,25 @@ Deno.serve(async (req) => {
   );
 
   // Confirm the caller actually owns this listing before opening a paid
-  // session for it — never trust listing_id alone.
+  // session for it — never trust listing_id alone. Also refuses a rejected
+  // or already-sold/rented listing: the client UI already hides the button
+  // for both (BoostListingSection), but that's not a security boundary —
+  // without this, a direct call here could charge a seller real money to
+  // feature something that's excluded from buyer-facing browsing regardless
+  // (same reasoning as renew_listing's listing_state != 'sold' guard).
   const { data: listing, error: listingError } = await adminClient
     .from('listings')
-    .select('id, owner_id')
+    .select('id, owner_id, status, listing_state')
     .eq('id', listing_id)
     .single();
   if (listingError || !listing || listing.owner_id !== userId) {
     return new Response(JSON.stringify({ error: 'Listing not found or not owned by you' }), { status: 403 });
+  }
+  if (listing.status === 'rejected' || listing.listing_state === 'sold') {
+    return new Response(
+      JSON.stringify({ error: 'This listing is not eligible to be featured' }),
+      { status: 400 }
+    );
   }
 
   const dpayBody: Record<string, unknown> = {
