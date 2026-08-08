@@ -65,7 +65,19 @@ export default function StatusScreen({
   const iconName = variant === 'success' ? 'checkmark-circle' : variant === 'error' ? 'close-circle' : null;
 
   return (
-    <View style={[styles.container, !inline && { backgroundColor: colors.background }]}>
+    <View
+      style={[
+        styles.container,
+        // Full-screen usage (AddListingScreen) needs flex:1 to fill the
+        // screen. Inline usage (inside BoostListingSection's modal card,
+        // which sizes itself to its content) must NOT have flex:1 — a flex
+        // child inside a content-sized parent gets stretched to claim all
+        // available space up to the parent's maxHeight, ballooning a small
+        // icon+text card into a nearly-empty box instead of staying compact.
+        inline ? styles.containerInline : styles.containerFullScreen,
+        !inline && { backgroundColor: colors.background },
+      ]}
+    >
       <View style={[styles.iconCircle, { backgroundColor: `${iconColor}18` }]}>
         {variant === 'loading' ? (
           <ActivityIndicator size="large" color={colors.accent} />
@@ -127,10 +139,15 @@ export default function StatusScreen({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
+  },
+  containerFullScreen: {
+    flex: 1,
+  },
+  containerInline: {
+    paddingVertical: 24,
   },
   iconCircle: {
     width: 96,
