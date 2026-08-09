@@ -31,6 +31,7 @@ export default function MyListingsScreen({ navigation }) {
     requireAuth,
     renewListing,
     markListingSold,
+    markListingAvailable,
     language,
   } = useAppContext();
   const t = useT();
@@ -75,6 +76,28 @@ export default function MyListingsScreen({ navigation }) {
               await markListingSold(listing.id);
             } catch (error) {
               console.warn('markListingSold failed', error);
+              Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleMarkAvailable = (listing) => {
+    const isRent = listing.listingType === 'rent';
+    Alert.alert(
+      isRent ? t('markAsRentedAvailableConfirmTitle') : t('markAsSoldAvailableConfirmTitle'),
+      t('markAsAvailableConfirmMessage'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('markAsAvailableButton'),
+          onPress: async () => {
+            try {
+              await markListingAvailable(listing.id);
+            } catch (error) {
+              console.warn('markListingAvailable failed', error);
               Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
             }
           },
@@ -139,10 +162,20 @@ export default function MyListingsScreen({ navigation }) {
                       item.status === 'approved' ? (
                         <View style={styles.footerStack}>
                           {isSold ? (
-                            <View style={[styles.soldBadge, { backgroundColor: `${colors.textMuted}22` }]}>
-                              <Text style={[styles.soldBadgeText, { color: colors.textMuted }]}>
-                                {isRent ? t('markedRentedBadge') : t('markedSoldBadge')}
-                              </Text>
+                            <View style={styles.soldRow}>
+                              <View style={[styles.soldBadge, { backgroundColor: `${colors.textMuted}22` }]}>
+                                <Text style={[styles.soldBadgeText, { color: colors.textMuted }]}>
+                                  {isRent ? t('markedRentedBadge') : t('markedSoldBadge')}
+                                </Text>
+                              </View>
+                              <Pressable
+                                style={[styles.markAvailableButton, { borderColor: colors.accent }]}
+                                onPress={() => handleMarkAvailable(item)}
+                              >
+                                <Text style={[styles.markAvailableButtonText, { color: colors.accent }]}>
+                                  {t('markAsAvailableButton')}
+                                </Text>
+                              </Pressable>
                             </View>
                           ) : (
                             <>
@@ -242,6 +275,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 12,
   },
+  soldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   soldBadge: {
     alignSelf: 'flex-start',
     borderRadius: 10,
@@ -250,6 +288,17 @@ const styles = StyleSheet.create({
   },
   soldBadgeText: {
     fontWeight: '700',
+    fontSize: 12,
+  },
+  markAvailableButton: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  markAvailableButtonText: {
+    fontWeight: '600',
     fontSize: 12,
   },
   searchBar: {

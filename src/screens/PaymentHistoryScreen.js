@@ -113,14 +113,23 @@ export default function PaymentHistoryScreen({ navigation }) {
                         : t('featuredLabel')}
                     </Text>
                     <Pressable
-                      onPress={() =>
-                        navigation
-                          .getParent()
-                          ?.navigate('MyListings', {
-                            screen: 'ListingDetail',
-                            params: { listingId: item.id },
-                          })
-                      }
+                      onPress={() => {
+                        // Two calls, not one: navigating straight to
+                        // 'ListingDetail' the first time the My Listings tab
+                        // is ever visited this session can initialize that
+                        // stack with ListingDetail as its only route — no
+                        // MyListingsHome underneath it, so there's nothing
+                        // to go back to and the header shows no back button.
+                        // Landing on the tab's default screen first
+                        // guarantees the stack is already initialized before
+                        // pushing the detail screen on top of it.
+                        const parent = navigation.getParent();
+                        parent?.navigate('MyListings', { screen: 'MyListingsHome' });
+                        parent?.navigate('MyListings', {
+                          screen: 'ListingDetail',
+                          params: { listingId: item.id },
+                        });
+                      }}
                       hitSlop={8}
                     >
                       <Text style={[styles.manageLink, { color: colors.accent }]}>

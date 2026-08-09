@@ -23,6 +23,7 @@ import LoadingView from '../components/LoadingView';
 import SearchBar from '../components/SearchBar';
 import PriceMarkerCapture from '../components/PriceMarkerCapture';
 import { TRIPOLI_CENTER } from '../data/constants';
+import { toEnglishDigits } from '../utils/digits';
 import { CITIES, DISTRICTS, PRIORITY_CITY_KEYS } from '../data/districts';
 import {
   LISTING_TYPES,
@@ -42,9 +43,13 @@ const FEATURED_CARD_WIDTH = 160;
 const FEATURED_CARD_GAP = 12;
 // Continuous-drift speed, not a per-card jump interval — see the auto-scroll
 // effect below. Slow on purpose: a card (160px + 12px gap) takes ~7s to
-// drift by at this rate.
+// drift by at this rate. Tick is 100ms, not the original 50ms — same speed
+// (increment is scaled to match), but half as many scrollToOffset/bridge
+// calls per second, which is what was making a light tap sometimes lose to
+// the scroll view's own gesture recognition and occasionally showing a
+// laggy "catch up" jump under any JS-thread pressure.
 const FEATURED_SCROLL_SPEED = 25; // px/second
-const FEATURED_SCROLL_TICK_MS = 50;
+const FEATURED_SCROLL_TICK_MS = 100;
 
 // Static images, not live-rendered View content — Marker's `image` prop uses a
 // plain native bitmap render path, sidestepping the Android custom-View-marker
@@ -58,13 +63,13 @@ const TRIPOLI_REGION = {
   longitudeDelta: 0.15,
 };
 
-// Roughly the greater Tripoli metro area — generous on purpose (covers
-// Janzour through Tajura), just enough to rule out "somewhere else in the
-// world entirely." Only zooming to the device's real GPS position when it
-// falls inside this box is what stops the map opening on a user's actual
-// location if they're browsing from overseas — this app is Tripoli-only,
-// so that would never be useful.
-const TRIPOLI_BOUNDS = { minLat: 32.6, maxLat: 33.05, minLon: 12.9, maxLon: 13.6 };
+// The whole country, not just Tripoli metro — the app now covers Benghazi,
+// Misrata, Sabha, and more (see data/districts.js), so someone opening the
+// app from any of those should still get their real location, not get
+// silently forced back to Tripoli. Only zooming to the device's real GPS
+// position when it falls inside this box is what stops the map opening on a
+// user's actual location if they're browsing from genuinely overseas.
+const LIBYA_BOUNDS = { minLat: 19.5, maxLat: 33.2, minLon: 9.3, maxLon: 25.2 };
 
 export default function HomeMapScreen({ navigation }) {
   const { listings, theme, dataLoading, language } = useAppContext();
@@ -202,6 +207,15 @@ export default function HomeMapScreen({ navigation }) {
   // resting to tap a card, which is enough for the tap gesture to read as a
   // scroll and get swallowed instead of opening the listing.
   const featuredDraggingRef = useRef(false);
+  // Guards every scrollToOffset call (both below) until the FlatList has
+  // actually measured its content at least once. Calling scrollToOffset
+  // before that — which the old code did immediately on mount via the
+  // listingType effect below — is what RN's own
+  // "scrollToOffset may not be called in RTL before content is laid out"
+  // warning is about, and in Arabic (RTL) it wasn't just a harmless
+  // console warning: the offset it computed before layout was wrong, which
+  // is what made the carousel occasionally lag then jump/"glitch."
+  const featuredCarouselReadyRef = useRef(false);
 
   const oneSetWidth = featuredListings.length * (FEATURED_CARD_WIDTH + FEATURED_CARD_GAP);
 
@@ -210,6 +224,7 @@ export default function HomeMapScreen({ navigation }) {
   // new list, or drifting from a stale offset that no longer matches it.
   useEffect(() => {
     featuredScrollXRef.current = 0;
+    if (!featuredCarouselReadyRef.current) return;
     featuredListRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [listingType]);
 
@@ -223,7 +238,7 @@ export default function HomeMapScreen({ navigation }) {
     if (featuredListings.length <= 1) return undefined;
     const incrementPerTick = FEATURED_SCROLL_SPEED * (FEATURED_SCROLL_TICK_MS / 1000);
     const interval = setInterval(() => {
-      if (featuredDraggingRef.current) return;
+      if (featuredDraggingRef.current || !featuredCarouselReadyRef.current) return;
       featuredScrollXRef.current += incrementPerTick;
       if (featuredScrollXRef.current >= oneSetWidth) {
         featuredScrollXRef.current -= oneSetWidth;
@@ -276,14 +291,15 @@ export default function HomeMapScreen({ navigation }) {
       if (status !== 'granted') return;
       const position = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = position.coords;
-      const isInTripoli =
-        latitude >= TRIPOLI_BOUNDS.minLat &&
-        latitude <= TRIPOLI_BOUNDS.maxLat &&
-        longitude >= TRIPOLI_BOUNDS.minLon &&
-        longitude <= TRIPOLI_BOUNDS.maxLon;
-      // Outside Tripoli (e.g. browsing from overseas): keep the default
-      // TRIPOLI_REGION instead of zooming to wherever the device actually is.
-      if (!isInTripoli) return;
+      const isInLibya =
+        latitude >= LIBYA_BOUNDS.minLat &&
+        latitude <= LIBYA_BOUNDS.maxLat &&
+        longitude >= LIBYA_BOUNDS.minLon &&
+        longitude <= LIBYA_BOUNDS.maxLon;
+      // Outside Libya (e.g. browsing from genuinely overseas): keep the
+      // default TRIPOLI_REGION instead of zooming to wherever the device
+      // actually is.
+      if (!isInLibya) return;
       setRegion({
         latitude,
         longitude,
@@ -299,6 +315,17 @@ export default function HomeMapScreen({ navigation }) {
   }, []);
 
   const selectedListing = filteredListings.find((item) => item.id === selectedId);
+
+  // The carousel below only actually renders (and its FlatList only exists
+  // as a live native instance) when this is true — a fresh mount means a
+  // fresh instance with nothing measured yet, so the "ready" gate above
+  // must be reset in step with it, not just set once and left stale across
+  // a hide/show cycle (e.g. selecting then deselecting a map pin).
+  const featuredCarouselVisible =
+    viewMode === 'map' && !selectedListing && featuredListings.length > 0;
+  if (!featuredCarouselVisible) {
+    featuredCarouselReadyRef.current = false;
+  }
 
   const openDetail = useCallback(
     (listingId) => navigation.navigate('ListingDetail', { listingId }),
@@ -383,6 +410,18 @@ export default function HomeMapScreen({ navigation }) {
             styles.listContent,
             { paddingTop: insets.top + 230 },
           ]}
+          // filteredListings is already sorted featured-first — this just
+          // labels that leading run, right under the filter row above.
+          ListHeaderComponent={
+            filteredListings[0]?.isFeatured ? (
+              <View style={styles.featuredSectionHeader}>
+                <Ionicons name="star" size={14} color={FEATURED_GOLD} />
+                <Text style={[styles.featuredSectionHeaderText, { color: FEATURED_GOLD }]}>
+                  {t('featuredLabel')}
+                </Text>
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => (
             <ListingCard listing={item} onPress={() => openDetail(item.id)} />
           )}
@@ -562,7 +601,7 @@ export default function HomeMapScreen({ navigation }) {
                   placeholderTextColor={colors.placeholderText}
                   keyboardType="number-pad"
                   value={minPrice}
-                  onChangeText={setMinPrice}
+                  onChangeText={(text) => setMinPrice(toEnglishDigits(text))}
                 />
                 <Text style={[styles.priceInputSeparator, { color: colors.textMuted }]}>—</Text>
                 <TextInput
@@ -574,7 +613,7 @@ export default function HomeMapScreen({ navigation }) {
                   placeholderTextColor={colors.placeholderText}
                   keyboardType="number-pad"
                   value={maxPrice}
-                  onChangeText={setMaxPrice}
+                  onChangeText={(text) => setMaxPrice(toEnglishDigits(text))}
                 />
               </View>
               <View style={styles.priceButtonRow}>
@@ -742,7 +781,7 @@ export default function HomeMapScreen({ navigation }) {
 
       {/* Hidden while a pin's own preview card is showing (above) — the two
           would otherwise occupy the same space near the bottom of the map. */}
-      {viewMode === 'map' && !selectedListing && featuredListings.length > 0 && (
+      {featuredCarouselVisible && (
         <FlatList
           ref={featuredListRef}
           horizontal
@@ -756,6 +795,12 @@ export default function HomeMapScreen({ navigation }) {
             offset: (FEATURED_CARD_WIDTH + FEATURED_CARD_GAP) * index,
             index,
           })}
+          // The one signal that this specific native instance has actually
+          // measured its content and it's now safe to call scrollToOffset
+          // against it — see featuredCarouselReadyRef above.
+          onContentSizeChange={() => {
+            featuredCarouselReadyRef.current = true;
+          }}
           // Paused for the whole touch, not just a confirmed drag/scroll —
           // see featuredDraggingRef above for why a tap needs this too.
           onTouchStart={() => {
@@ -826,6 +871,18 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 12,
     gap: 10,
+  },
+  featuredSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+    marginStart: 4,
+  },
+  featuredSectionHeaderText: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   listEmptyContainer: {
     flex: 1,

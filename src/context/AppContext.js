@@ -666,6 +666,20 @@ export function AppProvider({ children }) {
     );
   }, []);
 
+  // Reverses markListingSold — a deliberate seller action (see
+  // mark_listing_available's own comment for why it's not automatic).
+  // Refreshes expiresAt locally to match what the RPC itself does server-side.
+  const markListingAvailable = useCallback(async (listingId) => {
+    const { error } = await supabase.rpc('mark_listing_available', { p_listing_id: listingId });
+    if (error) throw error;
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    setListings((prev) =>
+      prev.map((item) =>
+        item.id === listingId ? { ...item, listingState: 'active', expiresAt } : item
+      )
+    );
+  }, []);
+
   // Opens a Dpay payment session for Featured (server looks up the real
   // price and confirms listing ownership — never trusts amount/ownership
   // from the client). Returns Dpay's session info so the UI can show an OTP
@@ -750,6 +764,7 @@ export function AppProvider({ children }) {
     getMyId,
     renewListing,
     markListingSold,
+    markListingAvailable,
     fetchListings,
     createBoostPayment,
     verifyBoostPayment,

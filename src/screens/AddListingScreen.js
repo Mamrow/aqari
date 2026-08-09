@@ -47,6 +47,8 @@ const INITIAL_REGION = {
 
 const ROOM_OPTIONS = ['1', '2', '3', '4', '5+'];
 const ROOMS_APPLICABLE_TYPES = ['apartment', 'villa'];
+const MIN_PHOTOS = 3;
+const MAX_PHOTOS = 15;
 
 export default function AddListingScreen({ navigation, route }) {
   const { listings, submitListing, updateListing, resubmitRejectedListing, theme, auth, language } =
@@ -161,18 +163,28 @@ export default function AddListingScreen({ navigation, route }) {
     title.trim().length > 0 &&
     Number(price) > 0 &&
     Number(area) > 0 &&
-    agentPhone.trim().length > 0 &&
+    agentPhone.trim().length === 9 &&
     description.trim().length > 0 &&
-    images.length > 0 &&
+    images.length >= MIN_PHOTOS &&
+    images.length <= MAX_PHOTOS &&
     (!roomsRequired || rooms !== null) &&
     (!isChaletRental || audienceTarget !== null);
 
   const handlePickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
+    const remainingSlots = MAX_PHOTOS - images.length;
+    if (remainingSlots <= 0) {
+      Alert.alert(t('tooManyPhotosTitle'), t('tooManyPhotosMessage').replace('{max}', String(MAX_PHOTOS)));
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
       allowsMultipleSelection: true,
+      // Caps how many can be picked in one go at whatever's left of the
+      // 15-photo max — belt-and-suspenders with the .slice() below, since
+      // selectionLimit's enforcement isn't identical across iOS/Android.
+      selectionLimit: remainingSlots,
       quality: 0.7,
       // Caps how large a picked video can be — uncompressed phone video can
       // easily be 50MB+/minute, which is what was making buyer-side loading
@@ -182,7 +194,9 @@ export default function AddListingScreen({ navigation, route }) {
       videoExportPreset: ImagePicker.VideoExportPreset.MediumQuality,
     });
     if (!result.canceled) {
-      setImages((prev) => [...prev, ...result.assets.map((asset) => asset.uri)]);
+      setImages((prev) =>
+        [...prev, ...result.assets.map((asset) => asset.uri)].slice(0, MAX_PHOTOS)
+      );
     }
   };
 
@@ -271,8 +285,12 @@ export default function AddListingScreen({ navigation, route }) {
     return (
       <StatusScreen
         variant="loading"
-        title={t('listingSubmittingTitle')}
-        subtitle={t('listingSubmittingSubtitle')}
+        // The "3/5" progress count on its own didn't say what it was
+        // counting — the title now names it explicitly while photos are
+        // actually uploading, then switches to the generic save title for
+        // the brief final save once uploadProgress clears.
+        title={uploadProgress ? t('uploadingPhotosTitle') : t('listingSubmittingTitle')}
+        subtitle={uploadProgress ? t('uploadingPhotosSubtitle') : t('listingSubmittingSubtitle')}
         progress={uploadProgress}
       />
     );
@@ -600,6 +618,12 @@ export default function AddListingScreen({ navigation, route }) {
       <Text style={[styles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
         {t('photosLabel')}
       </Text>
+      <Text style={[styles.photosHint, { color: colors.textMuted }]}>
+        {t('photosCountHint')
+          .replace('{count}', String(images.length))
+          .replace('{min}', String(MIN_PHOTOS))
+          .replace('{max}', String(MAX_PHOTOS))}
+      </Text>
       <View style={styles.photoRow}>
         {images.map((uri) =>
           isVideoUrl(uri) ? (
@@ -626,12 +650,14 @@ export default function AddListingScreen({ navigation, route }) {
             </View>
           )
         )}
-        <Pressable
-          style={[styles.addPhotoButton, { borderColor: colors.accent }]}
-          onPress={handlePickImage}
-        >
-          <Ionicons name="camera" size={20} color={colors.accent} />
-        </Pressable>
+        {images.length < MAX_PHOTOS && (
+          <Pressable
+            style={[styles.addPhotoButton, { borderColor: colors.accent }]}
+            onPress={handlePickImage}
+          >
+            <Ionicons name="camera" size={20} color={colors.accent} />
+          </Pressable>
+        )}
       </View>
 
       <Text style={[styles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
@@ -700,6 +726,10 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     marginBottom: 6,
+  },
+  photosHint: {
+    fontSize: 12,
+    marginBottom: 10,
   },
   sectionSpacing: {
     marginTop: 12,

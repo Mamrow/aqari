@@ -323,7 +323,9 @@ grant update (
 -- still owner-gated internally. migration_renew_listing_blocks_sold.sql
 -- added the listing_state != 'sold' guard — the UI never offers Renew on a
 -- sold listing, but that's not a security boundary; without this a direct
--- RPC call could silently undo mark_listing_sold's "one-way" state.
+-- RPC call could silently reactivate a sold listing as a side effect of
+-- renewing it. Un-marking sold is still possible, just only via the
+-- deliberate mark_listing_available action below, not as a side door here.
 create or replace function public.renew_listing(p_listing_id uuid)
 returns void
 language plpgsql
@@ -345,11 +347,12 @@ $$;
 
 grant execute on function public.renew_listing(uuid) to authenticated;
 
--- migration_mark_listing_sold.sql — one-way from the seller's side (no
--- "unsold" RPC), same security-definer/owner-gated pattern as renew_listing
--- above. Deliberately doesn't touch expires_at/featured_until: a sold
--- listing keeps whatever countdown it had, it just no longer matters once
--- excluded from buyer-facing queries.
+-- migration_mark_listing_sold.sql — same security-definer/owner-gated
+-- pattern as renew_listing above. Reversed by mark_listing_available below
+-- (a deliberate seller action, not automatic). Deliberately doesn't touch
+-- expires_at/featured_until on the way in: a sold listing keeps whatever
+-- countdown it had, it just no longer matters once excluded from
+-- buyer-facing queries.
 create or replace function public.mark_listing_sold(p_listing_id uuid)
 returns void
 language plpgsql
@@ -368,6 +371,31 @@ end;
 $$;
 
 grant execute on function public.mark_listing_sold(uuid) to authenticated;
+
+-- migration_mark_listing_available.sql — reverses the above (same
+-- owner-gated pattern). Refreshes expires_at to a fresh 30 days too, not
+-- left alone: coming back as 'active' with an already-past expires_at would
+-- just get flipped to 'expired' again by lifecycle-cron's next run,
+-- confusing right after deliberately making a listing available again.
+create or replace function public.mark_listing_available(p_listing_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update listings
+  set listing_state = 'active',
+      expires_at = now() + interval '30 days'
+  where id = p_listing_id and owner_id = auth.uid() and listing_state = 'sold';
+
+  if not found then
+    raise exception 'Listing not found, not owned by you, or not currently marked sold';
+  end if;
+end;
+$$;
+
+grant execute on function public.mark_listing_available(uuid) to authenticated;
 
 -- migration_fix_listings_column_lockdown.sql — approveListing/rejectListing
 -- (AppContext.js) used to run a plain client update({status}) using admin's

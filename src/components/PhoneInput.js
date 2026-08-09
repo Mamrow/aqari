@@ -19,8 +19,11 @@ export default function PhoneInput({ value, onChangeText, colors, placeholder })
         placeholder={placeholder}
         placeholderTextColor={colors.placeholderText}
         keyboardType="phone-pad"
+        maxLength={9}
         value={value}
-        onChangeText={(text) => onChangeText(toEnglishDigits(text))}
+        onChangeText={(text) =>
+          onChangeText(toEnglishDigits(text).replace(/[^0-9]/g, '').slice(0, 9))
+        }
       />
     </View>
   );

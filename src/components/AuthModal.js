@@ -27,10 +27,6 @@ export default function AuthModal() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  // Set right after a failed sign-in/sign-up so the next tap into the
-  // password field wipes it — the user shouldn't have to manually delete a
-  // password they already know was wrong before retyping.
-  const [passwordHadError, setPasswordHadError] = useState(false);
 
   const resetFields = () => {
     setName('');
@@ -38,7 +34,6 @@ export default function AuthModal() {
     setEmail('');
     setPassword('');
     setConfirmPassword('');
-    setPasswordHadError(false);
   };
 
   const handleClose = () => {
@@ -47,11 +42,14 @@ export default function AuthModal() {
     closeAuthModal();
   };
 
+  // Libyan mobile numbers are exactly 9 digits after +218 — PhoneInput
+  // already caps typing at 9, this is the matching submit-time floor so a
+  // shorter, incomplete number can't be submitted either.
   const canSubmit =
     mode === 'signIn'
-      ? phone.trim().length > 0 && password.length > 0
+      ? phone.trim().length === 9 && password.length > 0
       : name.trim().length > 0 &&
-        phone.trim().length > 0 &&
+        phone.trim().length === 9 &&
         email.trim().length > 0 &&
         password.length >= 6 &&
         confirmPassword === password;
@@ -88,7 +86,10 @@ export default function AuthModal() {
     } catch (error) {
       console.warn('Auth failed', error);
       Alert.alert(t('authErrorTitle'), friendlyError(error));
-      setPasswordHadError(true);
+      // Clears the instant the error happens, not on a later focus event —
+      // that was the "sometimes works, sometimes doesn't" flakiness, since
+      // it depended on whether/when the field happened to re-gain focus.
+      setPassword('');
     } finally {
       setSubmitting(false);
     }
@@ -180,12 +181,6 @@ export default function AuthModal() {
               secureTextEntry
               value={password}
               onChangeText={setPassword}
-              onFocus={() => {
-                if (passwordHadError) {
-                  setPassword('');
-                  setPasswordHadError(false);
-                }
-              }}
             />
 
             {mode === 'signUp' && (

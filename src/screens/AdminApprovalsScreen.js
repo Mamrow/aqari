@@ -12,8 +12,6 @@ import { useThemeColors } from '../theme/useThemeColors';
 import { WHATSAPP_GREEN } from '../theme/colors';
 import { callAgent, whatsappAgent } from '../utils/contactActions';
 
-const STATUS_ORDER = { pending: 0, approved: 1, rejected: 2 };
-
 export default function AdminApprovalsScreen({ navigation }) {
   const { listings, agents, approveListing, rejectListing, deleteListing, dataLoading } =
     useAppContext();
@@ -32,9 +30,10 @@ export default function AdminApprovalsScreen({ navigation }) {
     return agent?.name?.toLowerCase().includes(query) ?? false;
   };
 
-  const sortedListings = [...listings]
-    .filter(matchesSearch)
-    .sort((a, b) => (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3));
+  // Plain chronological order (listings already arrives newest-first from
+  // fetchListings) — not grouped by status. Admin wants to review in the
+  // order things actually came in, regardless of pending/approved/rejected.
+  const sortedListings = listings.filter(matchesSearch);
 
   const handleWhatsapp = (listing) => {
     const message = t('adminContactMessageTemplate').replace('{title}', listing.title);

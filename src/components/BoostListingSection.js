@@ -7,6 +7,7 @@ import { useT } from '../i18n/useT';
 import { dayWord } from '../i18n/pluralDays';
 import { FEATURED_GOLD } from '../theme/colors';
 import { friendlyErrorMessage } from '../utils/friendlyError';
+import { toEnglishDigits } from '../utils/digits';
 import StatusScreen from './StatusScreen';
 import EdfaliLogo from '../../assets/edfali.svg';
 import MoamalatLogo from '../../assets/moamalat.svg';
@@ -374,7 +375,7 @@ export default function BoostListingSection({ listing, colors }) {
                         keyboardType="number-pad"
                         maxLength={9}
                         value={cardNumber}
-                        onChangeText={setCardNumber}
+                        onChangeText={(text) => setCardNumber(toEnglishDigits(text))}
                       />
                     </>
                   ) : (
@@ -388,7 +389,7 @@ export default function BoostListingSection({ listing, colors }) {
                         placeholderTextColor={colors.placeholderText}
                         keyboardType="phone-pad"
                         value={mobile}
-                        onChangeText={setMobile}
+                        onChangeText={(text) => setMobile(toEnglishDigits(text))}
                       />
                       {gateway === 'sadad' && (
                         <>
@@ -402,7 +403,7 @@ export default function BoostListingSection({ listing, colors }) {
                             keyboardType="number-pad"
                             maxLength={4}
                             value={birthYear}
-                            onChangeText={setBirthYear}
+                            onChangeText={(text) => setBirthYear(toEnglishDigits(text))}
                           />
                         </>
                       )}
@@ -524,7 +525,7 @@ export default function BoostListingSection({ listing, colors }) {
                     keyboardType="number-pad"
                     textAlign="center"
                     value={otp}
-                    onChangeText={setOtp}
+                    onChangeText={(text) => setOtp(toEnglishDigits(text))}
                   />
                   <Pressable
                     style={[
