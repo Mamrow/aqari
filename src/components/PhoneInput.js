@@ -1,5 +1,17 @@
+import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { toEnglishDigits } from '../utils/digits';
+import { useT } from '../i18n/useT';
+
+// Libyan mobile numbers are 9 digits starting with 9, then one of the real
+// carrier prefixes: 91/92/94 (Libyana), 95/96 (Al-Madar). This is what
+// "valid" means here, not just "9 digits of something" — catches an
+// obviously wrong/random number (wrong length, or a landline-shaped or
+// made-up prefix) rather than only rejecting it once it fails at Dpay or on
+// the call/WhatsApp button later.
+export function isValidLibyanMobile(digits) {
+  return /^9[124-6]\d{7}$/.test(digits);
+}
 
 // Fixed "+218" prefix everywhere a phone number is entered (login, agent contact
 // number, etc.) — the user only ever types the local digits after it. Phone
@@ -8,23 +20,44 @@ import { toEnglishDigits } from '../utils/digits';
 // automatic RTL mirroring when the app is in Arabic — without it, both the
 // row order and the digit alignment flip along with the rest of the screen.
 export default function PhoneInput({ value, onChangeText, colors, placeholder }) {
+  const t = useT();
+  // Local, not lifted to the parent — purely about when to start showing the
+  // red validation message. Waiting for blur (rather than showing it the
+  // instant a 1st digit is typed) means it doesn't yell "invalid" at someone
+  // who's still in the middle of typing a perfectly good number.
+  const [touched, setTouched] = useState(false);
+  const showError = touched && value.length > 0 && !isValidLibyanMobile(value);
+
   return (
-    <View style={[styles.row, { direction: 'ltr' }]}>
-      <Text style={[styles.prefix, { color: colors.text }]}>+218</Text>
-      <TextInput
-        style={[
-          styles.input,
-          { borderColor: colors.inputBorder, color: colors.text, textAlign: 'left', writingDirection: 'ltr' },
-        ]}
-        placeholder={placeholder}
-        placeholderTextColor={colors.placeholderText}
-        keyboardType="phone-pad"
-        maxLength={9}
-        value={value}
-        onChangeText={(text) =>
-          onChangeText(toEnglishDigits(text).replace(/[^0-9]/g, '').slice(0, 9))
-        }
-      />
+    <View style={styles.wrapper}>
+      <View style={[styles.row, { direction: 'ltr' }]}>
+        <Text style={[styles.prefix, { color: colors.text }]}>+218</Text>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              borderColor: showError ? colors.danger : colors.inputBorder,
+              color: colors.text,
+              textAlign: 'left',
+              writingDirection: 'ltr',
+            },
+          ]}
+          placeholder={placeholder}
+          placeholderTextColor={colors.placeholderText}
+          keyboardType="phone-pad"
+          maxLength={9}
+          value={value}
+          onChangeText={(text) =>
+            onChangeText(toEnglishDigits(text).replace(/[^0-9]/g, '').slice(0, 9))
+          }
+          onBlur={() => setTouched(true)}
+        />
+      </View>
+      {showError && (
+        <Text style={[styles.errorText, { color: colors.danger }]}>
+          {t('invalidPhoneNumber')}
+        </Text>
+      )}
     </View>
   );
 }
@@ -38,11 +71,13 @@ export function withLibyaPrefix(digits) {
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    marginBottom: 16,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 16,
   },
   prefix: {
     fontSize: 15,
@@ -55,5 +90,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
+  },
+  errorText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 6,
   },
 });

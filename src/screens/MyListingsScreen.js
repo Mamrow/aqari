@@ -52,6 +52,7 @@ export default function MyListingsScreen({ navigation }) {
         onPress: async () => {
           try {
             await renewListing(listing.id);
+            Alert.alert(t('renewListingSuccessTitle'), t('renewListingSuccessMessage'));
           } catch (error) {
             console.warn('renewListing failed', error);
             Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
@@ -74,6 +75,10 @@ export default function MyListingsScreen({ navigation }) {
           onPress: async () => {
             try {
               await markListingSold(listing.id);
+              Alert.alert(
+                t('markSoldSuccessTitle'),
+                isRent ? t('markRentedSuccessMessage') : t('markSoldSuccessMessage')
+              );
             } catch (error) {
               console.warn('markListingSold failed', error);
               Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
@@ -96,6 +101,7 @@ export default function MyListingsScreen({ navigation }) {
           onPress: async () => {
             try {
               await markListingAvailable(listing.id);
+              Alert.alert(t('markAvailableSuccessTitle'), t('markAvailableSuccessMessage'));
             } catch (error) {
               console.warn('markListingAvailable failed', error);
               Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));

@@ -34,7 +34,11 @@ import {
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { darkMapStyle } from '../theme/darkMapStyle';
-import PhoneInput, { stripLibyaPrefix, withLibyaPrefix } from '../components/PhoneInput';
+import PhoneInput, {
+  stripLibyaPrefix,
+  withLibyaPrefix,
+  isValidLibyanMobile,
+} from '../components/PhoneInput';
 import { isRemoteMediaUrl, uploadListingImage, uploadListingVideo } from '../utils/uploadImage';
 import { toEnglishDigits } from '../utils/digits';
 import { isVideoUrl } from '../utils/media';
@@ -49,6 +53,10 @@ const ROOM_OPTIONS = ['1', '2', '3', '4', '5+'];
 const ROOMS_APPLICABLE_TYPES = ['apartment', 'villa'];
 const MIN_PHOTOS = 3;
 const MAX_PHOTOS = 15;
+// A one-word "nice" description shouldn't be enough to publish a listing —
+// 20 chars is low enough not to be annoying, high enough to rule out that.
+const MIN_DESCRIPTION_LENGTH = 20;
+const MAX_DESCRIPTION_LENGTH = 1000;
 
 export default function AddListingScreen({ navigation, route }) {
   const { listings, submitListing, updateListing, resubmitRejectedListing, theme, auth, language } =
@@ -163,8 +171,8 @@ export default function AddListingScreen({ navigation, route }) {
     title.trim().length > 0 &&
     Number(price) > 0 &&
     Number(area) > 0 &&
-    agentPhone.trim().length === 9 &&
-    description.trim().length > 0 &&
+    isValidLibyanMobile(agentPhone.trim()) &&
+    description.trim().length >= MIN_DESCRIPTION_LENGTH &&
     images.length >= MIN_PHOTOS &&
     images.length <= MAX_PHOTOS &&
     (!roomsRequired || rooms !== null) &&
@@ -327,7 +335,11 @@ export default function AddListingScreen({ navigation, route }) {
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={styles.container}
     >
-      <Text style={[styles.label, { color: colors.textMuted }]}>{t('listingTitleLabel')}</Text>
+      <Text style={[styles.requiredLegend, { color: colors.textMuted }]}>
+        {t('requiredFieldsLegend')}
+      </Text>
+
+      <RequiredLabel colors={colors}>{t('listingTitleLabel')}</RequiredLabel>
       <TextInput
         style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
         placeholder={t('listingTitlePlaceholder')}
@@ -336,9 +348,9 @@ export default function AddListingScreen({ navigation, route }) {
         onChangeText={setTitle}
       />
 
-      <Text style={[styles.label, { color: colors.textMuted }]}>
+      <RequiredLabel colors={colors}>
         {t(isChaletRental ? 'dailyPriceLabel' : 'listingPriceLabel')}
-      </Text>
+      </RequiredLabel>
       <TextInput
         style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
         placeholder={t('listingPricePlaceholder')}
@@ -348,7 +360,7 @@ export default function AddListingScreen({ navigation, route }) {
         onChangeText={(text) => setPrice(toEnglishDigits(text))}
       />
 
-      <Text style={[styles.label, { color: colors.textMuted }]}>{t('listingAreaLabel')}</Text>
+      <RequiredLabel colors={colors}>{t('listingAreaLabel')}</RequiredLabel>
       <TextInput
         style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
         placeholder={t('listingAreaPlaceholder')}
@@ -358,7 +370,7 @@ export default function AddListingScreen({ navigation, route }) {
         onChangeText={(text) => setArea(toEnglishDigits(text))}
       />
 
-      <Text style={[styles.label, { color: colors.textMuted }]}>{t('agentPhoneLabel')}</Text>
+      <RequiredLabel colors={colors}>{t('agentPhoneLabel')}</RequiredLabel>
       <PhoneInput
         value={agentPhone}
         onChangeText={setAgentPhone}
@@ -366,7 +378,7 @@ export default function AddListingScreen({ navigation, route }) {
         placeholder={t('authPhonePlaceholder')}
       />
 
-      <Text style={[styles.label, { color: colors.textMuted }]}>{t('descriptionLabel')}</Text>
+      <RequiredLabel colors={colors}>{t('descriptionLabel')}</RequiredLabel>
       <TextInput
         style={[
           styles.input,
@@ -377,9 +389,26 @@ export default function AddListingScreen({ navigation, route }) {
         placeholderTextColor={colors.placeholderText}
         multiline
         numberOfLines={4}
+        maxLength={MAX_DESCRIPTION_LENGTH}
         value={description}
         onChangeText={setDescription}
       />
+      <Text
+        style={[
+          styles.charCount,
+          {
+            color: description.trim().length < MIN_DESCRIPTION_LENGTH ? colors.danger : colors.textMuted,
+            // RN's Text has no logical 'start'/'end' textAlign — the same
+            // physical-vs-logical gap the rest of this app works around by
+            // checking `language` directly rather than assuming 'left'.
+            textAlign: language === 'ar' ? 'left' : 'right',
+          },
+        ]}
+      >
+        {description.trim().length < MIN_DESCRIPTION_LENGTH
+          ? t('descriptionTooShort').replace('{min}', String(MIN_DESCRIPTION_LENGTH))
+          : `${description.length}/${MAX_DESCRIPTION_LENGTH}`}
+      </Text>
 
       <Text style={[styles.label, { color: colors.textMuted }]}>{t('purposeLabel')}</Text>
       <View style={styles.chipRow}>
@@ -560,9 +589,9 @@ export default function AddListingScreen({ navigation, route }) {
 
       {roomsRequired && (
         <>
-          <Text style={[styles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+          <RequiredLabel colors={colors} style={styles.sectionSpacing}>
             {t('roomsLabel')}
-          </Text>
+          </RequiredLabel>
           <View style={styles.chipRow}>
             {ROOM_OPTIONS.map((option) => (
               <Chip
@@ -598,9 +627,9 @@ export default function AddListingScreen({ navigation, route }) {
 
       {isChaletRental && (
         <>
-          <Text style={[styles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+          <RequiredLabel colors={colors} style={styles.sectionSpacing}>
             {t('audienceLabel')}
-          </Text>
+          </RequiredLabel>
           <View style={styles.chipRow}>
             {AUDIENCE_OPTIONS.map((option) => (
               <Chip
@@ -615,9 +644,9 @@ export default function AddListingScreen({ navigation, route }) {
         </>
       )}
 
-      <Text style={[styles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+      <RequiredLabel colors={colors} style={styles.sectionSpacing}>
         {t('photosLabel')}
-      </Text>
+      </RequiredLabel>
       <Text style={[styles.photosHint, { color: colors.textMuted }]}>
         {t('photosCountHint')
           .replace('{count}', String(images.length))
@@ -698,6 +727,17 @@ export default function AddListingScreen({ navigation, route }) {
   );
 }
 
+// A red "*" appended to a field label — only for fields canSubmit actually
+// gates on, not decorative on every label (amenities/city stay unmarked
+// since they're genuinely optional).
+function RequiredLabel({ children, colors, style }) {
+  return (
+    <Text style={[styles.label, style, { color: colors.textMuted }]}>
+      {children} <Text style={{ color: colors.danger }}>*</Text>
+    </Text>
+  );
+}
+
 function Chip({ label, active, colors, onPress }) {
   return (
     <Pressable
@@ -730,6 +770,15 @@ const styles = StyleSheet.create({
   photosHint: {
     fontSize: 12,
     marginBottom: 10,
+  },
+  charCount: {
+    fontSize: 12,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  requiredLegend: {
+    fontSize: 12,
+    marginBottom: 12,
   },
   sectionSpacing: {
     marginTop: 12,

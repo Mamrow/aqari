@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AppProvider, useAppContext } from './src/context/AppContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import AuthModal from './src/components/AuthModal';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import { LANGUAGE_STORAGE_KEY } from './src/i18n/constants';
 import { lightColors, darkColors } from './src/theme/colors';
@@ -69,9 +70,11 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AppProvider>
-        <AppShell />
-      </AppProvider>
+      <ErrorBoundary>
+        <AppProvider>
+          <AppShell />
+        </AppProvider>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

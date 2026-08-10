@@ -13,7 +13,7 @@ import {
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
-import PhoneInput, { withLibyaPrefix } from './PhoneInput';
+import PhoneInput, { withLibyaPrefix, isValidLibyanMobile } from './PhoneInput';
 
 export default function AuthModal() {
   const { authModalVisible, closeAuthModal, signUp, signIn, sendPasswordReset } = useAppContext();
@@ -43,13 +43,13 @@ export default function AuthModal() {
   };
 
   // Libyan mobile numbers are exactly 9 digits after +218 — PhoneInput
-  // already caps typing at 9, this is the matching submit-time floor so a
-  // shorter, incomplete number can't be submitted either.
+  // already caps typing at 9, this is the matching submit-time floor — a
+  // real Libyan mobile shape, not just "9 digits of something."
   const canSubmit =
     mode === 'signIn'
-      ? phone.trim().length === 9 && password.length > 0
+      ? isValidLibyanMobile(phone.trim()) && password.length > 0
       : name.trim().length > 0 &&
-        phone.trim().length === 9 &&
+        isValidLibyanMobile(phone.trim()) &&
         email.trim().length > 0 &&
         password.length >= 6 &&
         confirmPassword === password;
@@ -145,10 +145,18 @@ export default function AuthModal() {
               />
             </View>
 
+            <Text style={[styles.requiredLegend, { color: colors.textMuted }]}>
+              {t('requiredFieldsLegend')}
+            </Text>
+
+            {/* Every field here is required (see canSubmit) — this form has
+                no persistent labels above each input the way the listing
+                form does, just placeholder text, so the "*" rides along on
+                that instead of a separate label element. */}
             {mode === 'signUp' && (
               <TextInput
                 style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
-                placeholder={t('authNamePlaceholder')}
+                placeholder={`${t('authNamePlaceholder')} *`}
                 placeholderTextColor={colors.placeholderText}
                 value={name}
                 onChangeText={setName}
@@ -159,13 +167,13 @@ export default function AuthModal() {
               value={phone}
               onChangeText={setPhone}
               colors={colors}
-              placeholder={t('authPhonePlaceholder')}
+              placeholder={`${t('authPhonePlaceholder')} *`}
             />
 
             {mode === 'signUp' && (
               <TextInput
                 style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
-                placeholder={t('authEmailPlaceholder')}
+                placeholder={`${t('authEmailPlaceholder')} *`}
                 placeholderTextColor={colors.placeholderText}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -176,7 +184,7 @@ export default function AuthModal() {
 
             <TextInput
               style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
-              placeholder={t('authPasswordPlaceholder')}
+              placeholder={`${t('authPasswordPlaceholder')} *`}
               placeholderTextColor={colors.placeholderText}
               secureTextEntry
               value={password}
@@ -186,7 +194,7 @@ export default function AuthModal() {
             {mode === 'signUp' && (
               <TextInput
                 style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
-                placeholder={t('authConfirmPasswordPlaceholder')}
+                placeholder={`${t('authConfirmPasswordPlaceholder')} *`}
                 placeholderTextColor={colors.placeholderText}
                 secureTextEntry
                 value={confirmPassword}
@@ -269,6 +277,10 @@ const styles = StyleSheet.create({
   tabText: {
     fontWeight: '700',
     fontSize: 14,
+  },
+  requiredLegend: {
+    fontSize: 12,
+    marginBottom: 12,
   },
   input: {
     borderWidth: 1,
