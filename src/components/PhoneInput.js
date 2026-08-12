@@ -4,13 +4,23 @@ import { toEnglishDigits } from '../utils/digits';
 import { useT } from '../i18n/useT';
 
 // Libyan mobile numbers are 9 digits starting with 9, then one of the real
-// carrier prefixes: 91/92/94 (Libyana), 95/96 (Al-Madar). This is what
+// carrier prefixes: 91/92/93/94 (Libyana), 95/96 (Al-Madar). This is what
 // "valid" means here, not just "9 digits of something" — catches an
 // obviously wrong/random number (wrong length, or a landline-shaped or
 // made-up prefix) rather than only rejecting it once it fails at Dpay or on
 // the call/WhatsApp button later.
+//
+// This is FORMAT validation only — it confirms the number is *shaped* like
+// a real Libyan mobile number, not that it's actually assigned to anyone or
+// reachable. There's no way to know that without actually contacting it:
+// sending an SMS/WhatsApp OTP and requiring it be entered back (the
+// phone/WhatsApp-OTP auth work parked earlier this project would do this
+// for login), or a live carrier HLR lookup API, neither of which this app
+// currently does. So "valid" here means "not obviously made up," not
+// "verified real" — worth being precise about since those are different
+// guarantees.
 export function isValidLibyanMobile(digits) {
-  return /^9[124-6]\d{7}$/.test(digits);
+  return /^9[1-6]\d{7}$/.test(digits);
 }
 
 // Fixed "+218" prefix everywhere a phone number is entered (login, agent contact
