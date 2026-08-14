@@ -22,7 +22,10 @@ export const lightColors = {
   backdrop: 'rgba(0,0,0,0.5)',
   bubbleTheirs: '#f0f0f0',
   bubbleTheirsText: '#222222',
-  disabled: '#a8c9bd',
+  // Neutral gray, not the old mint green (#a8c9bd) left over from the
+  // pre-rebrand green accent — that read as a deliberate "green button" in
+  // an otherwise all-blue app rather than as an inert disabled state.
+  disabled: '#c4c9d0',
   accent: '#0066FF',
   accentText: '#ffffff',
   danger: '#e0245e',
@@ -42,7 +45,9 @@ export const darkColors = {
   backdrop: 'rgba(0,0,0,0.7)',
   bubbleTheirs: '#2a2a2c',
   bubbleTheirsText: '#f2f2f2',
-  disabled: '#2f4a3f',
+  // Same reasoning as the light-theme value above — was #2f4a3f (a dark
+  // green), now a neutral dark gray that reads as inert on near-black.
+  disabled: '#3f4248',
   accent: '#0066FF',
   accentText: '#ffffff',
   danger: '#e0245e',

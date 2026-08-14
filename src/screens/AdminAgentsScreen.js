@@ -7,7 +7,7 @@ import { useThemeColors } from '../theme/useThemeColors';
 import { callAgent } from '../utils/contactActions';
 
 export default function AdminAgentsScreen({ navigation }) {
-  const { agents, removeAgent } = useAppContext();
+  const { agents, removeAgent, setAgentVerified } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
 
@@ -38,10 +38,25 @@ export default function AdminAgentsScreen({ navigation }) {
             style={styles.info}
             onPress={() => navigation.navigate('AdminSellerListings', { phone: item.phone, name: item.name })}
           >
-            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-              {item.name}
-            </Text>
+            <View style={styles.nameRow}>
+              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+                {item.name}
+              </Text>
+              {item.verified && (
+                <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
+              )}
+            </View>
             <Text style={[styles.phone, { color: colors.textMuted }]}>{item.phone}</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.iconButton, { borderColor: colors.accent }]}
+            onPress={() => setAgentVerified(item.phone, !item.verified)}
+          >
+            <Ionicons
+              name={item.verified ? 'checkmark-circle' : 'checkmark-circle-outline'}
+              size={18}
+              color={colors.accent}
+            />
           </Pressable>
           <Pressable
             style={[styles.iconButton, { borderColor: colors.border }]}
@@ -79,6 +94,11 @@ const styles = StyleSheet.create({
   },
   info: {
     flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   name: {
     fontSize: 15,

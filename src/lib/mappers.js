@@ -64,6 +64,7 @@ export function agentFromRow(row) {
   return {
     phone: row.phone,
     name: row.name,
+    verified: row.verified ?? false,
   };
 }
 
@@ -81,6 +82,22 @@ export function profileFromRow(row) {
 // how both the seller and admin payment-history views get a name/contact to
 // show, same as the existing admin listing screens which show agent_phone
 // straight off the listing rather than joining through a profile.
+// Same "embed the listing for context" pattern as boostPaymentFromRow —
+// admin's report list needs a title/contact to show without a second query
+// per row.
+export function listingReportFromRow(row) {
+  return {
+    id: row.id,
+    listingId: row.listing_id,
+    listingTitle: row.listings?.title ?? null,
+    listingAgentPhone: row.listings?.agent_phone ?? null,
+    reason: row.reason,
+    note: row.note,
+    status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
 export function boostPaymentFromRow(row) {
   return {
     id: row.id,

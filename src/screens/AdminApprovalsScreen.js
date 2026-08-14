@@ -13,7 +13,7 @@ import { WHATSAPP_GREEN } from '../theme/colors';
 import { callAgent, whatsappAgent } from '../utils/contactActions';
 
 export default function AdminApprovalsScreen({ navigation }) {
-  const { listings, agents, approveListing, rejectListing, deleteListing, dataLoading } =
+  const { listings, agents, reports, approveListing, rejectListing, deleteListing, dataLoading } =
     useAppContext();
   const t = useT();
   const colors = useThemeColors();
@@ -65,6 +65,22 @@ export default function AdminApprovalsScreen({ navigation }) {
       >
         <Text style={[styles.agentsLinkText, { color: colors.text }]}>
           {t('registeredAgentsTitle')} ({agents.length})
+        </Text>
+        <Ionicons
+          name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'}
+          size={18}
+          color={colors.textMuted}
+        />
+      </Pressable>
+
+      {/* Open count, not total — a screen full of already-resolved reports
+          isn't what needs surfacing here at a glance. */}
+      <Pressable
+        style={[styles.agentsLink, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={() => navigation.navigate('AdminReports')}
+      >
+        <Text style={[styles.agentsLinkText, { color: colors.text }]}>
+          {t('reportsTitle')} ({reports.filter((item) => item.status === 'open').length})
         </Text>
         <Ionicons
           name={I18nManager.isRTL ? 'chevron-back' : 'chevron-forward'}

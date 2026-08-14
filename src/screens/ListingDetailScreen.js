@@ -1,5 +1,16 @@
 import { useState } from 'react';
-import { FlatList, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +26,7 @@ import {
   AMENITY_LABEL_KEYS,
   AUDIENCE_LABEL_KEYS,
 } from '../data/propertyTypes';
+import { REPORT_REASONS, REPORT_REASON_LABEL_KEYS } from '../data/reportReasons';
 import { callAgent, whatsappAgent } from '../utils/contactActions';
 import { isVideoUrl } from '../utils/media';
 import MediaGalleryModal from '../components/MediaGalleryModal';
@@ -22,11 +34,16 @@ import GalleryImageItem from '../components/GalleryImageItem';
 
 export default function ListingDetailScreen({ route, navigation }) {
   const { listingId } = route.params;
-  const { listings, saved, toggleSave, requireAuth, theme, getMyId } = useAppContext();
+  const { listings, saved, toggleSave, requireAuth, theme, getMyId, reportListing, agents } =
+    useAppContext();
   const t = useT();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const [galleryIndex, setGalleryIndex] = useState(null);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportReason, setReportReason] = useState(null);
+  const [reportNote, setReportNote] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
 
   const listing = listings.find((item) => item.id === listingId);
 
@@ -38,6 +55,11 @@ export default function ListingDetailScreen({ route, navigation }) {
   // The owner viewing their own listing gets an Edit button instead of
   // Call/WhatsApp — contacting yourself isn't a real action.
   const isOwner = listing.agentId === getMyId();
+  // Looked up from the registered-sellers directory (agents), not stored on
+  // the listing itself — the same directory AdminAgentsScreen's verify
+  // toggle writes to. A listing whose agent never got registered (shouldn't
+  // normally happen — submitListing always upserts one) just shows no name.
+  const listingAgent = agents.find((agent) => agent.phone === listing.agentId);
 
   // This screen is reachable from three different stacks (Home, Favorites,
   // My Listings) — 'AddListing' only actually exists inside MyListingsStack,
@@ -51,14 +73,18 @@ export default function ListingDetailScreen({ route, navigation }) {
       ?.navigate('MyListings', { screen: 'AddListing', params: { listingId: listing.id } });
   };
 
+  const handleContactError = () => {
+    Alert.alert(t('contactErrorTitle'), t('contactErrorMessage'));
+  };
+
   const handleCall = () => {
-    requireAuth(() => callAgent(listing.agentPhone));
+    requireAuth(() => callAgent(listing.agentPhone, handleContactError));
   };
 
   const handleWhatsapp = () => {
     requireAuth(() => {
       const message = t('whatsappMessageTemplate').replace('{title}', listing.title);
-      whatsappAgent(listing.agentPhone, message);
+      whatsappAgent(listing.agentPhone, message, handleContactError);
     });
   };
 
@@ -71,6 +97,29 @@ export default function ListingDetailScreen({ route, navigation }) {
       .replace('{area}', listing.area.toLocaleString('en-US'))
       .replace('{areaUnit}', t('areaUnit'));
     Share.share({ message }).catch(() => {});
+  };
+
+  const openReportModal = () => {
+    requireAuth(() => {
+      setReportReason(null);
+      setReportNote('');
+      setReportModalVisible(true);
+    });
+  };
+
+  const handleSubmitReport = async () => {
+    if (!reportReason) return;
+    setReportSubmitting(true);
+    try {
+      await reportListing(listing.id, reportReason, reportNote);
+      setReportModalVisible(false);
+      Alert.alert(t('reportSubmittedTitle'), t('reportSubmittedMessage'));
+    } catch (error) {
+      console.warn('reportListing error', error);
+      Alert.alert(t('reportErrorTitle'), t('reportErrorMessage'));
+    } finally {
+      setReportSubmitting(false);
+    }
   };
 
   return (
@@ -186,6 +235,22 @@ export default function ListingDetailScreen({ route, navigation }) {
         </>
       )}
 
+      {!isOwner && listingAgent && (
+        <View style={styles.listedByRow}>
+          <Text style={[styles.listedByText, { color: colors.textMuted }]}>
+            {t('listedByLabel')} {listingAgent.name}
+          </Text>
+          {listingAgent.verified && (
+            <View style={styles.verifiedBadge}>
+              <Ionicons name="checkmark-circle" size={13} color={colors.accent} />
+              <Text style={[styles.verifiedBadgeText, { color: colors.accent }]}>
+                {t('verifiedAgentLabel')}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
       <View style={styles.actionRow}>
         {isOwner ? (
           <ActionButton
@@ -207,6 +272,77 @@ export default function ListingDetailScreen({ route, navigation }) {
           </>
         )}
       </View>
+
+      {!isOwner && (
+        <Pressable style={styles.reportLink} onPress={openReportModal} hitSlop={8}>
+          <Ionicons name="flag-outline" size={14} color={colors.textMuted} />
+          <Text style={[styles.reportLinkText, { color: colors.textMuted }]}>
+            {t('reportListingButton')}
+          </Text>
+        </Pressable>
+      )}
+
+      <Modal
+        visible={reportModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReportModalVisible(false)}
+        statusBarTranslucent
+        navigationBarTranslucent
+      >
+        <Pressable
+          style={[styles.reportBackdrop, { backgroundColor: colors.backdrop }]}
+          onPress={() => setReportModalVisible(false)}
+        >
+          <Pressable style={[styles.reportCard, { backgroundColor: colors.surface }]} onPress={() => {}}>
+            <Text style={[styles.reportTitle, { color: colors.text }]}>{t('reportModalTitle')}</Text>
+
+            {REPORT_REASONS.map((reason) => {
+              const active = reportReason === reason;
+              return (
+                <Pressable
+                  key={reason}
+                  onPress={() => setReportReason(reason)}
+                  style={[styles.reportOption, active && { backgroundColor: `${colors.accent}22` }]}
+                >
+                  <Text
+                    style={[
+                      styles.reportOptionText,
+                      { color: active ? colors.accent : colors.text },
+                      active && styles.reportOptionTextActive,
+                    ]}
+                  >
+                    {t(REPORT_REASON_LABEL_KEYS[reason])}
+                  </Text>
+                  {active && <Ionicons name="checkmark" size={18} color={colors.accent} />}
+                </Pressable>
+              );
+            })}
+
+            <TextInput
+              style={[styles.reportNoteInput, { borderColor: colors.inputBorder, color: colors.text }]}
+              placeholder={t('reportNotePlaceholder')}
+              placeholderTextColor={colors.placeholderText}
+              value={reportNote}
+              onChangeText={setReportNote}
+              multiline
+            />
+
+            <Pressable
+              style={[
+                styles.reportSubmitButton,
+                { backgroundColor: reportReason ? colors.accent : colors.disabled },
+              ]}
+              disabled={!reportReason || reportSubmitting}
+              onPress={handleSubmitReport}
+            >
+              <Text style={[styles.reportSubmitText, { color: colors.accentText }]}>
+                {reportSubmitting ? '…' : t('reportSubmitButton')}
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -302,6 +438,25 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 12,
   },
+  listedByRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 16,
+  },
+  listedByText: {
+    fontSize: 13,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  verifiedBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   actionRow: {
     flexDirection: 'row',
     gap: 10,
@@ -317,5 +472,66 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontWeight: '700',
     fontSize: 12,
+  },
+  reportLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 4,
+    marginTop: 14,
+  },
+  reportLinkText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reportBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 32,
+  },
+  reportCard: {
+    borderRadius: 16,
+    padding: 16,
+  },
+  reportTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  reportOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  reportOptionText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  reportOptionTextActive: {
+    fontWeight: '700',
+  },
+  reportNoteInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    marginTop: 8,
+    minHeight: 70,
+    textAlignVertical: 'top',
+  },
+  reportSubmitButton: {
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  reportSubmitText: {
+    fontWeight: '700',
+    fontSize: 14,
   },
 });

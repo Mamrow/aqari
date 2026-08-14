@@ -36,6 +36,7 @@ export default function SettingsScreen({ navigation }) {
     listings,
     saved,
     getMyId,
+    replayOnboarding,
   } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
@@ -406,6 +407,22 @@ export default function SettingsScreen({ navigation }) {
           <Text style={[styles.aboutText, { color: colors.textMuted }]}>
             {t('appVersionLabel')} {appConfig.expo.version}
           </Text>
+        </View>
+
+        <SectionHeading icon="help-circle-outline" label={t('helpLabel')} colors={colors} />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <Pressable onPress={replayOnboarding} style={styles.iconRow}>
+            <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
+              <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
+            </View>
+            <View style={styles.rowTextBlock}>
+              <Text style={[styles.subLabel, { color: colors.text }]}>{t('howItWorksRow')}</Text>
+              <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+                {t('howItWorksRowSubtitle')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </Pressable>
         </View>
 
         {auth.loggedIn && (

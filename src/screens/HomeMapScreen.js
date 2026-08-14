@@ -14,7 +14,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker } from 'react-native-maps';
+import { Marker } from 'react-native-maps';
+// Clustering-aware MapView wrapper, not the plain react-native-maps one —
+// same MapView props/behavior otherwise (region, customMapStyle, children,
+// etc. all pass through), it just groups nearby Markers into a count bubble
+// when zoomed out. Individual (non-clustered) Markers are untouched — the
+// library only intercepts children once 2+ end up within `radius` of each
+// other, so the existing per-platform pin rendering below still applies as-is.
+import MapView from 'react-native-map-clustering';
 import * as Location from 'expo-location';
 import { useAppContext } from '../context/AppContext';
 import ListingCard from '../components/ListingCard';
@@ -22,6 +29,7 @@ import PlaceholderScreen from '../components/PlaceholderScreen';
 import LoadingView from '../components/LoadingView';
 import SearchBar from '../components/SearchBar';
 import PriceMarkerCapture from '../components/PriceMarkerCapture';
+import ClusterMarkerCapture from '../components/ClusterMarkerCapture';
 import { TRIPOLI_CENTER } from '../data/constants';
 import { toEnglishDigits } from '../utils/digits';
 import { CITIES, DISTRICTS, PRIORITY_CITY_KEYS } from '../data/districts';
@@ -61,6 +69,19 @@ const TRIPOLI_REGION = {
   ...TRIPOLI_CENTER,
   latitudeDelta: 0.15,
   longitudeDelta: 0.15,
+};
+
+// List-view-only sort options — map view has no meaningful sort order (pin
+// position is spatial), so this never affects marker iteration. 'featured'
+// is the default/floor: featured listings always lead regardless of which
+// sort is picked, this only reorders within each of those two groups.
+const SORT_OPTIONS = ['featured', 'priceAsc', 'priceDesc', 'newest', 'areaDesc'];
+const SORT_LABEL_KEYS = {
+  featured: 'sortFeatured',
+  priceAsc: 'sortPriceAsc',
+  priceDesc: 'sortPriceDesc',
+  newest: 'sortNewest',
+  areaDesc: 'sortAreaDesc',
 };
 
 // The whole country, not just Tripoli metro — the app now covers Benghazi,
@@ -134,6 +155,18 @@ export default function HomeMapScreen({ navigation }) {
     setLocationFilterVisible(false);
   };
   const [audienceFilter, setAudienceFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('featured');
+  const [sortPickerVisible, setSortPickerVisible] = useState(false);
+  // Real measured height of the floating topBar, not a hardcoded guess — the
+  // filter pill row's actual height varies (wraps to a second line once a
+  // long-enough label like "Price: Low to High" no longer fits, vs. staying
+  // on one line for "Default"/"All"), so a fixed offset for the content
+  // below it was either too much (awkward gap) or too little (overlap)
+  // depending on which filter/sort label happened to be active. Starts at 0
+  // before the first layout pass; self-corrects on the next render, same
+  // "brief flash while it settles" tradeoff already accepted elsewhere on
+  // this screen (e.g. the captured price-pin images).
+  const [topBarHeight, setTopBarHeight] = useState(0);
   const districtsForCityFilter =
     cityFilter === 'all' ? [] : [...DISTRICTS.filter((item) => item.city === cityFilter)].sort(localeSort);
   const [searchQuery, setSearchQuery] = useState('');
@@ -142,6 +175,41 @@ export default function HomeMapScreen({ navigation }) {
   // this is the experimental "real price on Android pins" attempt using
   // react-native-view-shot instead of the static branded badge.
   const [capturedPriceImages, setCapturedPriceImages] = useState({});
+  // Android only, same reasoning as capturedPriceImages above: a cluster's
+  // count "bubble" is a live View by default (see react-native-map-clustering's
+  // own ClusteredMarker), which hits the same Fabric custom-View-marker bug.
+  // Captured once per distinct count value (not per specific cluster/group of
+  // listings — every "5" bubble looks identical), via renderAndroidCluster
+  // below. clusterCounts is just "which counts are currently on screen,"
+  // refreshed from the library's own onMarkersChange callback.
+  const [clusterCounts, setClusterCounts] = useState([]);
+  const [capturedClusterImages, setCapturedClusterImages] = useState({});
+  const handleMarkersChange = useCallback((markers) => {
+    if (Platform.OS !== 'android') return;
+    const counts = [...new Set((markers ?? []).filter((m) => m.properties.point_count > 0).map((m) => m.properties.point_count))];
+    setClusterCounts(counts);
+  }, []);
+  const handleClusterCaptured = useCallback((count, uri) => {
+    setCapturedClusterImages((prev) => ({ ...prev, [count]: uri }));
+  }, []);
+  // Falls back to the plain default pin badge (not a native red teardrop)
+  // for the brief moment before a given count's capture resolves — same
+  // "self-correcting flash" every other captured-image marker in this
+  // screen already accepts.
+  const renderAndroidCluster = useCallback(
+    ({ onPress, id, geometry, properties }) => {
+      const count = properties.point_count;
+      return (
+        <Marker
+          key={`cluster-${id}`}
+          coordinate={{ latitude: geometry.coordinates[1], longitude: geometry.coordinates[0] }}
+          onPress={onPress}
+          image={capturedClusterImages[count] ? { uri: capturedClusterImages[count] } : PIN_DEFAULT}
+        />
+      );
+    },
+    [capturedClusterImages]
+  );
 
   // Switching Sale/Rent resets the secondary filters — a property-type/audience
   // choice made under one purpose isn't necessarily meaningful under the other.
@@ -176,7 +244,25 @@ export default function HomeMapScreen({ navigation }) {
       }
       return true;
     })
-    .sort((a, b) => (a.isFeatured === b.isFeatured ? 0 : a.isFeatured ? -1 : 1));
+    // Featured stays the floor regardless of sortBy — only reorders within
+    // each of the two featured/non-featured groups. 'featured' itself picks
+    // no secondary order (0), same as the original behavior before sorting
+    // was added.
+    .sort((a, b) => {
+      if (a.isFeatured !== b.isFeatured) return a.isFeatured ? -1 : 1;
+      switch (sortBy) {
+        case 'priceAsc':
+          return a.price - b.price;
+        case 'priceDesc':
+          return b.price - a.price;
+        case 'newest':
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        case 'areaDesc':
+          return b.area - a.area;
+        default:
+          return 0;
+      }
+    });
 
   // Map view's own bottom carousel — independent of the sale/rent/type
   // filters above, same as the list view's featured-first sort.
@@ -332,6 +418,13 @@ export default function HomeMapScreen({ navigation }) {
     [navigation]
   );
 
+  // topBar itself sits at `insets.top + 12` (its own top offset below the
+  // status bar/notch) — content below it starts right after that plus its
+  // real measured height plus a small breathing-room gap, instead of a
+  // magic number tuned for whatever the filter row happened to look like at
+  // the time.
+  const contentTopOffset = insets.top + 12 + topBarHeight + 16;
+
   if (dataLoading) {
     return <LoadingView />;
   }
@@ -345,6 +438,14 @@ export default function HomeMapScreen({ navigation }) {
           onRegionChangeComplete={setRegion}
           userInterfaceStyle={theme}
           customMapStyle={theme === 'dark' ? darkMapStyle : []}
+          clusteringEnabled
+          clusterColor={colors.accent}
+          clusterTextColor="#fff"
+          onMarkersChange={handleMarkersChange}
+          // iOS keeps the library's own default View-based cluster bubble
+          // (unaffected by the Android-only Fabric marker bug) — only
+          // Android needs the captured-PNG workaround.
+          renderCluster={Platform.OS === 'android' ? renderAndroidCluster : undefined}
         >
           {filteredListings.map((listing) =>
             Platform.OS === 'android' ? (
@@ -399,7 +500,7 @@ export default function HomeMapScreen({ navigation }) {
           )}
         </MapView>
       ) : filteredListings.length === 0 ? (
-        <View style={[styles.listEmptyContainer, { paddingTop: insets.top + 230 }]}>
+        <View style={[styles.listEmptyContainer, { paddingTop: contentTopOffset }]}>
           <PlaceholderScreen title={t('homeEmptyTitle')} subtitle={t('homeEmptySubtitle')} />
         </View>
       ) : (
@@ -408,7 +509,7 @@ export default function HomeMapScreen({ navigation }) {
           keyExtractor={(item) => item.id}
           contentContainerStyle={[
             styles.listContent,
-            { paddingTop: insets.top + 230 },
+            { paddingTop: contentTopOffset },
           ]}
           // filteredListings is already sorted featured-first — this just
           // labels that leading run, right under the filter row above.
@@ -432,7 +533,7 @@ export default function HomeMapScreen({ navigation }) {
         <View
           style={[
             styles.mapEmptyBanner,
-            { top: insets.top + 180, backgroundColor: colors.surface },
+            { top: contentTopOffset - 50, backgroundColor: colors.surface },
           ]}
         >
           <Text style={[styles.mapEmptyTitle, { color: colors.text }]}>
@@ -444,7 +545,10 @@ export default function HomeMapScreen({ navigation }) {
         </View>
       )}
 
-      <View style={[styles.topBar, { top: insets.top + 12 }]}>
+      <View
+        style={[styles.topBar, { top: insets.top + 12 }]}
+        onLayout={(event) => setTopBarHeight(event.nativeEvent.layout.height)}
+      >
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -484,7 +588,11 @@ export default function HomeMapScreen({ navigation }) {
             ]}
           >
             <Text style={[styles.filterChipText, { color: colors.accent }]} numberOfLines={1}>
-              {propertyType === 'all' ? t('allFilter') : t(PROPERTY_TYPE_LABEL_KEYS[propertyType])}
+              {/* Always prefixed with what the pill actually is, not just its
+                  current value — "Apartment" alone doesn't tell a
+                  first-time user this is the property-type filter. Same
+                  reasoning applies to the three pills below. */}
+              {t('propertyTypeLabel')}: {propertyType === 'all' ? t('allFilter') : t(PROPERTY_TYPE_LABEL_KEYS[propertyType])}
             </Text>
             <Ionicons name="chevron-down" size={16} color={colors.accent} />
           </Pressable>
@@ -497,9 +605,10 @@ export default function HomeMapScreen({ navigation }) {
             ]}
           >
             <Text style={[styles.filterChipText, { color: colors.accent }]} numberOfLines={1}>
+              {t('priceFilterLabel')}:{' '}
               {minPrice.trim() || maxPrice.trim()
                 ? `${minPrice.trim() || '0'} - ${maxPrice.trim() || '∞'}`
-                : t('priceFilterLabel')}
+                : t('allFilter')}
             </Text>
             <Ionicons name="chevron-down" size={16} color={colors.accent} />
           </Pressable>
@@ -512,14 +621,31 @@ export default function HomeMapScreen({ navigation }) {
             ]}
           >
             <Text style={[styles.filterChipText, { color: colors.accent }]} numberOfLines={1}>
+              {t('cityLabel')}:{' '}
               {cityFilter === 'all'
-                ? t('cityLabel')
+                ? t('allFilter')
                 : districtFilter === 'all'
                 ? t(CITIES.find((item) => item.key === cityFilter)?.labelKey)
                 : t(DISTRICTS.find((item) => item.key === districtFilter)?.labelKey)}
             </Text>
             <Ionicons name="chevron-down" size={16} color={colors.accent} />
           </Pressable>
+
+          {/* List-view only — map pin order isn't meaningful to sort. */}
+          {viewMode === 'list' && (
+            <Pressable
+              onPress={() => setSortPickerVisible(true)}
+              style={[
+                styles.pickerDropdown,
+                { backgroundColor: colors.surface, borderColor: colors.accent },
+              ]}
+            >
+              <Text style={[styles.filterChipText, { color: colors.accent }]} numberOfLines={1}>
+                {t('sortLabel')}: {t(SORT_LABEL_KEYS[sortBy])}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color={colors.accent} />
+            </Pressable>
+          )}
         </View>
 
         <Modal
@@ -739,6 +865,55 @@ export default function HomeMapScreen({ navigation }) {
           </Pressable>
         </Modal>
 
+        <Modal
+          visible={sortPickerVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSortPickerVisible(false)}
+          statusBarTranslucent
+          navigationBarTranslucent
+        >
+          <Pressable
+            style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
+            onPress={() => setSortPickerVisible(false)}
+          >
+            <Pressable
+              style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
+              onPress={() => {}}
+            >
+              <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
+                {t('sortLabel')}
+              </Text>
+              <ScrollView>
+                {SORT_OPTIONS.map((option) => {
+                  const active = sortBy === option;
+                  return (
+                    <Pressable
+                      key={option}
+                      onPress={() => {
+                        setSortBy(option);
+                        setSortPickerVisible(false);
+                      }}
+                      style={[styles.pickerOption, active && { backgroundColor: `${colors.accent}22` }]}
+                    >
+                      <Text
+                        style={[
+                          styles.pickerOptionText,
+                          { color: active ? colors.accent : colors.text },
+                          active && styles.pickerOptionTextActive,
+                        ]}
+                      >
+                        {t(SORT_LABEL_KEYS[option])}
+                      </Text>
+                      {active && <Ionicons name="checkmark" size={18} color={colors.accent} />}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
         {showAudienceFilter && (
           <ScrollView
             horizontal
@@ -860,6 +1035,18 @@ export default function HomeMapScreen({ navigation }) {
           />
         );
       })}
+
+      {Platform.OS === 'android' &&
+        clusterCounts
+          .filter((count) => !capturedClusterImages[count])
+          .map((count) => (
+            <ClusterMarkerCapture
+              key={`cluster-capture-${count}`}
+              count={count}
+              colors={colors}
+              onCaptured={(uri) => handleClusterCaptured(count, uri)}
+            />
+          ))}
     </View>
   );
 }

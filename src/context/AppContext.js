@@ -9,7 +9,7 @@ import {
 import { DevSettings, I18nManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
-import { LANGUAGE_STORAGE_KEY } from '../i18n/constants';
+import { LANGUAGE_STORAGE_KEY, ONBOARDING_SEEN_KEY } from '../i18n/constants';
 import { supabase } from '../lib/supabase';
 import {
   listingFromRow,
@@ -17,9 +17,11 @@ import {
   agentFromRow,
   profileFromRow,
   boostPaymentFromRow,
+  listingReportFromRow,
 } from '../lib/mappers';
 import { OTP_CHANNEL } from '../utils/otp';
 import { phoneToInternalEmail } from '../utils/phoneAuth';
+import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
 
 const STORAGE_KEY = '@aqari/app_state';
 
@@ -35,6 +37,7 @@ export function AppProvider({ children }) {
   const [listings, setListings] = useState([]);
   const [saved, setSaved] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [reports, setReports] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [theme, setTheme] = useState(initialState.theme);
   const [language, setLanguageState] = useState(I18nManager.isRTL ? 'ar' : 'en');
@@ -43,6 +46,10 @@ export function AppProvider({ children }) {
   const [authUid, setAuthUid] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  // Read from AsyncStorage in the hydrate effect below. App.js gates on
+  // `hydrated` before rendering anything, so this is never acted on before
+  // the real stored value has landed.
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const pendingActionRef = useRef(null);
 
   // Checks the real, server-side admin allowlist for whichever account is
@@ -91,6 +98,8 @@ export function AppProvider({ children }) {
       }
       const storedLang = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
       if (storedLang) setLanguageState(storedLang);
+      const onboardingSeen = await AsyncStorage.getItem(ONBOARDING_SEEN_KEY);
+      setShowOnboarding(onboardingSeen !== 'true');
       setHydrated(true);
     })();
   }, [applyProfile]);
@@ -104,6 +113,23 @@ export function AppProvider({ children }) {
     }
     refreshIsAdmin();
   }, [authUid, refreshIsAdmin]);
+
+  // Best-effort push token registration — fires whenever a real session
+  // exists. registerForPushNotificationsAsync never throws (permission
+  // denied / no EAS project id yet / anything else just resolves to null),
+  // so this silently does nothing on failure rather than disrupting sign-in.
+  // Re-registering on every authUid change is deliberately cheap/idempotent
+  // (same token comes back if nothing changed) rather than trying to track
+  // "have we already registered this session."
+  useEffect(() => {
+    if (!authUid || !auth.phone) return;
+    (async () => {
+      const token = await registerForPushNotificationsAsync();
+      if (!token) return;
+      const { error } = await supabase.from('profiles').update({ push_token: token }).eq('phone', auth.phone);
+      if (error) console.warn('push token save error', error);
+    })();
+  }, [authUid, auth.phone]);
 
   // Only theme is a pure local UI preference now — everything identity-related
   // (auth/role) always comes fresh from the real account, not this blob.
@@ -151,6 +177,30 @@ export function AppProvider({ children }) {
     }
     setAgents(data.map(agentFromRow));
   }, []);
+
+  // Admin-only data (RLS on listing_reports restricts select to
+  // private.is_admin() — see migration_listing_reports.sql), so this only
+  // fires once isAdmin is actually true, rather than firing for every
+  // session and just getting filtered to empty by RLS every time.
+  const fetchReports = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('listing_reports')
+      .select('*, listings(title, agent_phone)')
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.warn('fetchReports error', error);
+      return;
+    }
+    setReports(data.map(listingReportFromRow));
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setReports([]);
+      return;
+    }
+    fetchReports();
+  }, [isAdmin, fetchReports]);
 
   // Initial load once local prefs are ready, and again whenever the signed-in
   // phone changes — favorites are scoped per-identity server-side, listings
@@ -510,6 +560,56 @@ export function AppProvider({ children }) {
     if (error) console.warn('removeAgent error', error);
   }, []);
 
+  // Lets any signed-in account flag a listing for admin review. Throws on
+  // failure (per the submitListing lesson — a silent failure here would look
+  // exactly like a successful report to the user, with no actual row
+  // created). No local list to update — reporters never see reports back,
+  // only admin does (fetchReports above).
+  const reportListing = useCallback(
+    async (listingId, reason, note) => {
+      const { error } = await supabase.from('listing_reports').insert({
+        listing_id: listingId,
+        reporter_owner_id: authUid,
+        reason,
+        note: note?.trim() || null,
+      });
+      if (error) throw error;
+    },
+    [authUid]
+  );
+
+  // Admin-only at the RLS level (listing_reports update requires
+  // private.is_admin()) — marks a report reviewed or dismissed after triage.
+  const updateReportStatus = useCallback(async (reportId, status) => {
+    setReports((prev) => prev.map((item) => (item.id === reportId ? { ...item, status } : item)));
+    const { error } = await supabase.from('listing_reports').update({ status }).eq('id', reportId);
+    if (error) console.warn('updateReportStatus error', error);
+  }, []);
+
+  // Admin-only at the RLS/RPC level (admin_set_agent_verified checks
+  // private.is_admin() internally, and the client has no direct UPDATE
+  // grant on the verified column regardless — see migration_agent_verified.sql).
+  const setAgentVerified = useCallback(async (phone, verified) => {
+    setAgents((prev) => prev.map((agent) => (agent.phone === phone ? { ...agent, verified } : agent)));
+    const { error } = await supabase.rpc('admin_set_agent_verified', { p_phone: phone, p_verified: verified });
+    if (error) console.warn('setAgentVerified error', error);
+  }, []);
+
+  // Written before hiding, not after — if the write somehow failed we'd
+  // rather show onboarding again next launch than dismiss it forever on a
+  // device where the flag never actually persisted.
+  const completeOnboarding = useCallback(async () => {
+    await AsyncStorage.setItem(ONBOARDING_SEEN_KEY, 'true');
+    setShowOnboarding(false);
+  }, []);
+
+  // "How it works" in Settings — replays the intro immediately rather than
+  // only on next launch, by clearing the flag and flipping state in step.
+  const replayOnboarding = useCallback(async () => {
+    await AsyncStorage.removeItem(ONBOARDING_SEEN_KEY);
+    setShowOnboarding(true);
+  }, []);
+
   // The signed-in phone number is this device's real per-person identity.
   const getMyId = useCallback(() => auth.phone ?? null, [auth.phone]);
 
@@ -569,7 +669,14 @@ export function AppProvider({ children }) {
             console.warn('seller directory upsert error', agentError);
             return;
           }
-          setAgents((prev) => [{ phone: agentId, name: auth.name }, ...prev.filter((a) => a.phone !== agentId)]);
+          // Preserve an existing verified flag — this upsert never touches
+          // that column (grant only covers phone/name/owner_id, see
+          // migration_agent_verified.sql), so the local optimistic update
+          // shouldn't silently drop it either.
+          setAgents((prev) => [
+            { phone: agentId, name: auth.name, verified: prev.find((a) => a.phone === agentId)?.verified ?? false },
+            ...prev.filter((a) => a.phone !== agentId),
+          ]);
         });
 
       return listing;
@@ -729,6 +836,10 @@ export function AppProvider({ children }) {
     saved,
     agents,
     removeAgent,
+    setAgentVerified,
+    reports,
+    reportListing,
+    updateReportStatus,
     isAdmin,
     dataLoading,
     theme,
@@ -751,6 +862,9 @@ export function AppProvider({ children }) {
     sendPasswordReset,
     updatePasswordAfterReset,
     isPasswordRecovery,
+    showOnboarding,
+    completeOnboarding,
+    replayOnboarding,
     handleAuthDeepLink,
     updateProfile,
     logout,

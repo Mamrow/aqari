@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AdminApprovalsScreen from '../screens/AdminApprovalsScreen';
 import AdminAgentsScreen from '../screens/AdminAgentsScreen';
 import AdminSellerListingsScreen from '../screens/AdminSellerListingsScreen';
+import AdminReportsScreen from '../screens/AdminReportsScreen';
 import { useT } from '../i18n/useT';
 
 const Stack = createNativeStackNavigator();
@@ -22,6 +23,11 @@ export default function AdminApprovalsStack() {
         options={{ title: t('registeredAgentsTitle') }}
       />
       <Stack.Screen name="AdminSellerListings" component={AdminSellerListingsScreen} />
+      <Stack.Screen
+        name="AdminReports"
+        component={AdminReportsScreen}
+        options={{ title: t('reportsTitle') }}
+      />
     </Stack.Navigator>
   );
 }

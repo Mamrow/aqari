@@ -93,7 +93,14 @@ $$;
 
 -- Deliberately NOT granted to anon/authenticated — service role (used by
 -- the Edge Function) bypasses grants entirely, and the client has no
--- legitimate reason to call this directly anymore.
+-- legitimate reason to call this directly anymore. Must revoke from PUBLIC
+-- specifically, not just anon/authenticated — Postgres grants EXECUTE to
+-- PUBLIC by default on a new function, and every role (including anon)
+-- implicitly inherits whatever's granted to PUBLIC regardless of a
+-- role-specific revoke. Confirmed the hard way: revoking from just
+-- anon/authenticated first (not PUBLIC) did nothing — a live REST call to
+-- the RPC as anon still returned a real email address afterward.
+revoke execute on function public.get_reset_email_for_phone(text) from public;
 
 create table if not exists listings (
   id uuid primary key default gen_random_uuid(),
@@ -177,7 +184,12 @@ create table if not exists profiles (
   -- later signup's upsert fail RLS (existing row's auth_uid didn't match the
   -- new account). With the FK, deleting the user cleans the profile up too.
   auth_uid uuid references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Expo push token for this account's device, if it ever granted
+  -- notification permission — see migration_push_notifications.sql. No
+  -- extra RLS needed: the existing own-row policies already cover it, and
+  -- the notify-listing-status Edge Function reads it via the service role.
+  push_token text
 );
 
 alter table listings enable row level security;
@@ -249,7 +261,13 @@ on conflict (id) do nothing;
 -- Insert can't check owner_id yet (the row doesn't exist until this policy
 -- passes), so it's just "any real session," matching every other insert in
 -- this schema.
-create policy "public read listing photos" on storage.objects for select using (bucket_id = 'listing-photos');
+-- No SELECT policy for listing-photos reads — deliberate. This is a public
+-- bucket, so object URLs already resolve for anyone regardless of RLS
+-- (public buckets serve via /storage/v1/object/public/... unconditionally,
+-- and getPublicUrl() is a local string-builder, not a query). A broad
+-- SELECT policy here wouldn't protect image display at all, it would only
+-- additionally let anyone enumerate every file in the bucket via list() —
+-- flagged by Supabase's Security Advisor, removed for that reason.
 create policy "signed-in sessions upload listing photos" on storage.objects for insert
   with check (bucket_id = 'listing-photos' and auth.uid() is not null);
 create policy "owner can update their listing photos" on storage.objects for update
@@ -484,3 +502,58 @@ create policy "owner can read own boost payment sessions" on boost_payment_sessi
 -- rows exactly as before.
 create policy "admin can read all boost payment sessions" on boost_payment_sessions for select
   using (private.is_admin());
+
+-- "Report this listing" — see migration_listing_reports.sql for the fuller
+-- comment. No reporter-facing "my reports" screen, so insert-only for the
+-- reporting account; only admin ever reads/triages these.
+create table if not exists listing_reports (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid not null references listings(id) on delete cascade,
+  reporter_owner_id uuid not null references auth.users(id) on delete cascade,
+  reason text not null check (reason in ('scam', 'duplicate', 'sold_elsewhere', 'wrong_info', 'other')),
+  note text,
+  status text not null default 'open' check (status in ('open', 'reviewed', 'dismissed')),
+  created_at timestamptz not null default now()
+);
+
+alter table listing_reports enable row level security;
+
+create policy "signed-in accounts can report a listing" on listing_reports for insert
+  with check (auth.uid() is not null and reporter_owner_id = auth.uid());
+
+create policy "admin can read all listing reports" on listing_reports for select
+  using (private.is_admin());
+
+create policy "admin can update listing reports" on listing_reports for update
+  using (private.is_admin()) with check (private.is_admin());
+
+-- "Verified agent" trust badge — see migration_agent_verified.sql for the
+-- fuller comment on why the column-level lockdown below is necessary (same
+-- self-approval bypass class as the listings column lockdown further up).
+alter table agents add column if not exists verified boolean not null default false;
+
+revoke insert, update on agents from authenticated;
+
+grant insert (phone, name, owner_id) on agents to authenticated;
+grant update (name) on agents to authenticated;
+
+create or replace function public.admin_set_agent_verified(p_phone text, p_verified boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not private.is_admin() then
+    raise exception 'Admin only';
+  end if;
+
+  update agents set verified = p_verified where phone = p_phone;
+
+  if not found then
+    raise exception 'Agent not found';
+  end if;
+end;
+$$;
+
+grant execute on function public.admin_set_agent_verified(text, boolean) to authenticated;
