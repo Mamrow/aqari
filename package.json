@@ -6,7 +6,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "typecheck:mobile": "tsc --noEmit",
+    "typecheck:functions": "deno check supabase/functions/*/index.ts",
+    "build:android:check": "expo export --platform android --output-dir .expo-bundle-check"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
