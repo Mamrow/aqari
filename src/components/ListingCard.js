@@ -30,6 +30,20 @@ export default function ListingCard({
   // placeholder if every picked item is a video.
   const thumbnailUri = listing.images?.find((uri) => !isVideoUrl(uri));
 
+  // One spoken sentence for the whole card. Without this a screen reader
+  // walks the price, title, area and badge as four separate stops, which is
+  // slow and loses the association between them. The inner Text nodes are
+  // hidden from accessibility below so nothing is announced twice.
+  const spokenParts = [
+    listing.isFeatured && t('a11yFeatured'),
+    showStatus && listing.status && t(STATUS_LABEL_KEYS[listing.status]),
+    `${listing.price.toLocaleString('en-US')} ${t('priceCurrency')}`,
+    listing.title,
+    `${listing.area.toLocaleString('en-US')} ${t('areaUnit')}`,
+    listing.propertyType && t(PROPERTY_TYPE_LABEL_KEYS[listing.propertyType]),
+    listing.listingType && t(LISTING_TYPE_LABEL_KEYS[listing.listingType]),
+  ].filter(Boolean);
+
   return (
     <View style={[styles.card, listing.isFeatured && styles.featuredCard, style]}>
       <View
@@ -50,18 +64,28 @@ export default function ListingCard({
           </View>
         )}
         <View style={styles.contentRow}>
-          <Pressable style={styles.body} onPress={onPress} disabled={!onPress}>
+          <Pressable
+            style={styles.body}
+            onPress={onPress}
+            disabled={!onPress}
+            accessibilityRole={onPress ? 'button' : undefined}
+            accessibilityLabel={spokenParts.join('، ')}
+            accessibilityHint={onPress ? t('a11yOpenListingHint') : undefined}
+            testID="listing-card"
+          >
             {thumbnailUri ? (
               <Image
                 source={{ uri: thumbnailUri }}
                 style={[styles.image, { backgroundColor: colors.border }]}
+                accessibilityElementsHidden
+                importantForAccessibility="no"
               />
             ) : (
               <View style={[styles.image, styles.videoPlaceholder, { backgroundColor: colors.border }]}>
                 <Ionicons name="play-circle" size={24} color={colors.text} />
               </View>
             )}
-            <View style={styles.info}>
+            <View style={styles.info} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
               <Text style={[styles.price, { color: colors.accent }]}>
                 {listing.price.toLocaleString('en-US')} {t('priceCurrency')}
                 {listing.propertyType === 'chalet' && listing.listingType === 'rent'
@@ -87,7 +111,15 @@ export default function ListingCard({
             </View>
           </Pressable>
           {showSaveButton && (
-            <Pressable onPress={() => toggleSave(listing.id)} style={styles.saveButton} hitSlop={8}>
+            <Pressable
+              onPress={() => toggleSave(listing.id)}
+              style={styles.saveButton}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={isSaved ? t('a11yUnsaveListing') : t('a11ySaveListing')}
+              accessibilityState={{ selected: isSaved }}
+              testID="listing-card-save"
+            >
               <Ionicons
                 name={isSaved ? 'heart' : 'heart-outline'}
                 size={22}
@@ -96,7 +128,14 @@ export default function ListingCard({
             </Pressable>
           )}
           {onDelete && (
-            <Pressable onPress={onDelete} style={styles.saveButton} hitSlop={8}>
+            <Pressable
+              onPress={onDelete}
+              style={styles.saveButton}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('a11yDeleteListing')}
+              testID="listing-card-delete"
+            >
               <Ionicons name="trash" size={20} color={colors.danger} />
             </Pressable>
           )}
@@ -179,8 +218,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   saveButton: {
+    // 44x44 is the iOS HIG minimum and comfortably above Android's 48dp
+    // guidance once hitSlop is added; previously this was an ~38x30 box
+    // that only met the target via hitSlop, which assistive tech doesn't
+    // account for when reporting element size.
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 4,
   },
   footer: {
     borderTopWidth: 1,

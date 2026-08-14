@@ -565,6 +565,10 @@ export default function HomeMapScreen({ navigation }) {
                 key={type}
                 style={[styles.segment, active && { backgroundColor: colors.accent }]}
                 onPress={() => handleListingTypeChange(type)}
+                accessibilityRole="tab"
+                accessibilityLabel={t(LISTING_TYPE_LABEL_KEYS[type])}
+                accessibilityState={{ selected: active }}
+                testID={`listing-type-${type}`}
               >
                 <Text
                   style={[
@@ -586,6 +590,7 @@ export default function HomeMapScreen({ navigation }) {
               styles.pickerDropdown,
               { backgroundColor: colors.surface, borderColor: colors.accent },
             ]}
+            accessibilityRole="button"
           >
             <Text style={[styles.filterChipText, { color: colors.accent }]} numberOfLines={1}>
               {/* Always prefixed with what the pill actually is, not just its
@@ -603,6 +608,7 @@ export default function HomeMapScreen({ navigation }) {
               styles.pickerDropdown,
               { backgroundColor: colors.surface, borderColor: colors.accent },
             ]}
+            accessibilityRole="button"
           >
             <Text style={[styles.filterChipText, { color: colors.accent }]} numberOfLines={1}>
               {t('priceFilterLabel')}:{' '}
@@ -619,6 +625,7 @@ export default function HomeMapScreen({ navigation }) {
               styles.pickerDropdown,
               { backgroundColor: colors.surface, borderColor: colors.accent },
             ]}
+            accessibilityRole="button"
           >
             <Text style={[styles.filterChipText, { color: colors.accent }]} numberOfLines={1}>
               {t('cityLabel')}:{' '}
@@ -927,6 +934,9 @@ export default function HomeMapScreen({ navigation }) {
                 <Pressable
                   key={option}
                   onPress={() => setAudienceFilter(option)}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
+                  accessibilityState={{ selected: active }}
                   style={[
                     styles.filterChip,
                     { backgroundColor: colors.surface, borderColor: colors.accent },
@@ -1019,7 +1029,13 @@ export default function HomeMapScreen({ navigation }) {
         />
       )}
 
-      <Pressable style={styles.fab} onPress={toggleViewMode}>
+      <Pressable
+        style={styles.fab}
+        onPress={toggleViewMode}
+        accessibilityRole="button"
+        accessibilityLabel={viewMode === 'map' ? t('showList') : t('showMap')}
+        testID="map-list-toggle"
+      >
         <Ionicons name={viewMode === 'map' ? 'list' : 'map'} size={18} color="#fff" />
         <Text style={styles.fabText}>{viewMode === 'map' ? t('showList') : t('showMap')}</Text>
       </Pressable>

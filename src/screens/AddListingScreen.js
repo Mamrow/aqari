@@ -663,6 +663,10 @@ export default function AddListingScreen({ navigation, route }) {
               <Pressable
                 style={[styles.removePhotoButton, { backgroundColor: colors.danger }]}
                 onPress={() => removeImage(uri)}
+                accessibilityRole="button"
+                accessibilityLabel={t('a11yRemoveMedia')}
+                hitSlop={8}
+                testID="add-listing-remove-media"
               >
                 <Ionicons name="close" size={12} color="#fff" />
               </Pressable>
@@ -673,6 +677,10 @@ export default function AddListingScreen({ navigation, route }) {
               <Pressable
                 style={[styles.removePhotoButton, { backgroundColor: colors.danger }]}
                 onPress={() => removeImage(uri)}
+                accessibilityRole="button"
+                accessibilityLabel={t('a11yRemoveMedia')}
+                hitSlop={8}
+                testID="add-listing-remove-media"
               >
                 <Ionicons name="close" size={12} color="#fff" />
               </Pressable>
@@ -683,6 +691,9 @@ export default function AddListingScreen({ navigation, route }) {
           <Pressable
             style={[styles.addPhotoButton, { borderColor: colors.accent }]}
             onPress={handlePickImage}
+            accessibilityRole="button"
+            accessibilityLabel={t('a11yAddMedia')}
+            testID="add-listing-add-media"
           >
             <Ionicons name="camera" size={20} color={colors.accent} />
           </Pressable>

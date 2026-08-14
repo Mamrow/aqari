@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Dimensions, FlatList, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useT } from '../i18n/useT';
 import { isVideoUrl } from '../utils/media';
 import GalleryVideoItem from './GalleryVideoItem';
 
@@ -24,6 +25,7 @@ const ITEM_STRIDE = ITEM_HEIGHT + ITEM_GAP;
 // as 0, which is why the close button and photo counter used to render
 // right at the physical top edge — behind the notch, and not tappable.
 export default function MediaGalleryModal({ visible, media, initialIndex, onClose, topInset = 0 }) {
+  const t = useT();
   const listRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
@@ -38,6 +40,7 @@ export default function MediaGalleryModal({ visible, media, initialIndex, onClos
       visible={visible}
       animationType="fade"
       onRequestClose={onClose}
+      accessibilityViewIsModal
       statusBarTranslucent
       navigationBarTranslucent
     >
@@ -76,6 +79,9 @@ export default function MediaGalleryModal({ visible, media, initialIndex, onClos
           }
         />
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('a11yCloseGallery')}
+          testID="gallery-close"
           style={[styles.closeButton, { top: topInset + 16 }]}
           onPress={onClose}
           hitSlop={16}

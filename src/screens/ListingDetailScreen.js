@@ -132,7 +132,12 @@ export default function ListingDetailScreen({ route, navigation }) {
           data={listing.images}
           keyExtractor={(uri) => uri}
           renderItem={({ item: uri, index }) => (
-            <Pressable onPress={() => setGalleryIndex(index)}>
+            <Pressable
+              onPress={() => setGalleryIndex(index)}
+              accessibilityRole="imagebutton"
+              accessibilityLabel={`${index + 1} / ${listing.images.length}`}
+              accessibilityHint={t('a11yOpenGalleryHint')}
+            >
               {isVideoUrl(uri) ? (
                 <View style={[styles.image, styles.videoThumbPlaceholder, { backgroundColor: colors.border }]}>
                   <Ionicons name="play-circle" size={36} color={colors.text} />
@@ -161,10 +166,23 @@ export default function ListingDetailScreen({ route, navigation }) {
           {listing.propertyType === 'chalet' && listing.listingType === 'rent' ? ` ${t('perDay')}` : ''}
         </Text>
         <View style={styles.headerActions}>
-          <Pressable onPress={handleShare} hitSlop={8}>
+          <Pressable
+            onPress={handleShare}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={t('a11yShareListing')}
+            testID="listing-share"
+          >
             <Ionicons name="share-social-outline" size={24} color={colors.text} />
           </Pressable>
-          <Pressable onPress={() => toggleSave(listing.id)} hitSlop={8}>
+          <Pressable
+            onPress={() => toggleSave(listing.id)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={isSaved ? t('a11yUnsaveListing') : t('a11ySaveListing')}
+            accessibilityState={{ selected: isSaved }}
+            testID="listing-favorite"
+          >
             <Ionicons
               name={isSaved ? 'heart' : 'heart-outline'}
               size={26}
@@ -261,20 +279,36 @@ export default function ListingDetailScreen({ route, navigation }) {
           />
         ) : (
           <>
-            <ActionButton icon="call" label={t('callButton')} colors={colors} onPress={handleCall} />
+            <ActionButton
+              icon="call"
+              label={t('callButton')}
+              colors={colors}
+              onPress={handleCall}
+              accessibilityLabel={t('a11yCallSeller')}
+              testID="listing-call"
+            />
             <ActionButton
               icon="logo-whatsapp"
               label={t('whatsappButton')}
               colors={colors}
               backgroundColor={WHATSAPP_GREEN}
               onPress={handleWhatsapp}
+              accessibilityLabel={t('a11yWhatsappSeller')}
+              testID="listing-whatsapp"
             />
           </>
         )}
       </View>
 
       {!isOwner && (
-        <Pressable style={styles.reportLink} onPress={openReportModal} hitSlop={8}>
+        <Pressable
+          style={styles.reportLink}
+          onPress={openReportModal}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('a11yReportListing')}
+          testID="listing-report"
+        >
           <Ionicons name="flag-outline" size={14} color={colors.textMuted} />
           <Text style={[styles.reportLinkText, { color: colors.textMuted }]}>
             {t('reportListingButton')}
@@ -347,13 +381,17 @@ export default function ListingDetailScreen({ route, navigation }) {
   );
 }
 
-function ActionButton({ icon, label, colors, backgroundColor, onPress }) {
+function ActionButton({ icon, label, colors, backgroundColor, onPress, accessibilityLabel, testID }) {
   return (
     <Pressable
       style={[styles.actionButton, { backgroundColor: backgroundColor ?? colors.accent }]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      testID={testID}
     >
-      <Ionicons name={icon} size={20} color={colors.accentText} />
+      {/* Decorative: the button's own label already carries the meaning. */}
+      <Ionicons name={icon} size={20} color={colors.accentText} accessibilityElementsHidden importantForAccessibility="no" />
       <Text style={[styles.actionLabel, { color: colors.accentText }]}>{label}</Text>
     </Pressable>
   );

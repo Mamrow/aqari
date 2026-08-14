@@ -51,6 +51,10 @@ export default function AdminAgentsScreen({ navigation }) {
           <Pressable
             style={[styles.iconButton, { borderColor: colors.accent }]}
             onPress={() => setAgentVerified(item.phone, !item.verified)}
+            accessibilityRole="button"
+            accessibilityLabel={item.verified ? t('a11yUnverifySeller') : t('a11yVerifySeller')}
+            accessibilityState={{ selected: !!item.verified }}
+            testID="admin-verify-seller"
           >
             <Ionicons
               name={item.verified ? 'checkmark-circle' : 'checkmark-circle-outline'}
@@ -61,12 +65,18 @@ export default function AdminAgentsScreen({ navigation }) {
           <Pressable
             style={[styles.iconButton, { borderColor: colors.border }]}
             onPress={() => callAgent(item.phone)}
+            accessibilityRole="button"
+            accessibilityLabel={t('a11yCallSellerNamed').replace('{name}', item.name)}
+            testID="admin-call-seller"
           >
             <Ionicons name="call" size={18} color={colors.accent} />
           </Pressable>
           <Pressable
             style={[styles.iconButton, { borderColor: colors.danger }]}
             onPress={() => handleRemove(item)}
+            accessibilityRole="button"
+            accessibilityLabel={t('a11yRemoveSeller')}
+            testID="admin-remove-seller"
           >
             <Ionicons name="trash" size={18} color={colors.danger} />
           </Pressable>
