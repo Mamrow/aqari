@@ -194,7 +194,10 @@ export default function SettingsScreen({ navigation }) {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={[styles.heading, { color: colors.heading }]}>{t('settingsHeading')}</Text>
 
         <View style={[styles.card, styles.profileCard, { backgroundColor: colors.surface }]}>

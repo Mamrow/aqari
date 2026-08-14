@@ -2,7 +2,9 @@ import { useState } from 'react';
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -324,6 +326,10 @@ export default function ListingDetailScreen({ route, navigation }) {
         statusBarTranslucent
         navigationBarTranslucent
       >
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
         <Pressable
           style={[styles.reportBackdrop, { backgroundColor: colors.backdrop }]}
           onPress={() => setReportModalVisible(false)}
@@ -376,6 +382,7 @@ export default function ListingDetailScreen({ route, navigation }) {
             </Pressable>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
   );
@@ -398,6 +405,9 @@ function ActionButton({ icon, label, colors, backgroundColor, onPress, accessibi
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     padding: 16,
   },

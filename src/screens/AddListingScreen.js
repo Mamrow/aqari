@@ -3,7 +3,10 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker } from 'react-native-maps';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -78,6 +82,7 @@ export default function AddListingScreen({ navigation, route }) {
     return localeSort(a, b);
   });
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
 
   const editingId = route.params?.listingId ?? null;
   const existing = editingId ? listings.find((item) => item.id === editingId) : null;
@@ -104,6 +109,7 @@ export default function AddListingScreen({ navigation, route }) {
   // district step, not the top-level city list — changing your mind about
   // the district shouldn't require re-picking the city first.
   const openLocationPicker = () => {
+    Keyboard.dismiss();
     setLocationPickerStep(city ? 'district' : 'city');
     setLocationPickerVisible(true);
   };
@@ -179,6 +185,7 @@ export default function AddListingScreen({ navigation, route }) {
     (!isChaletRental || audienceTarget !== null);
 
   const handlePickImage = async () => {
+    Keyboard.dismiss();
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) return;
     const remainingSlots = MAX_PHOTOS - images.length;
@@ -331,10 +338,26 @@ export default function AddListingScreen({ navigation, route }) {
   }
 
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={styles.container}
+    // iOS needs an explicit padding behavior; on Android the window's own
+    // adjustResize already moves the layout, and forcing a behavior there
+    // double-counts the inset and leaves a gap above the keyboard.
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <ScrollView
+        style={{ backgroundColor: colors.background }}
+        contentContainerStyle={[
+          styles.container,
+          // Without this the submit and cancel buttons sit under the home
+          // indicator / gesture bar on tall phones.
+          { paddingBottom: styles.container.padding + insets.bottom + 24 },
+        ]}
+        // A single tap on a button should activate it while the keyboard is
+        // open, rather than being swallowed just to dismiss the keyboard.
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
       <Text style={[styles.requiredLegend, { color: colors.textMuted }]}>
         {t('requiredFieldsLegend')}
       </Text>
@@ -427,7 +450,10 @@ export default function AddListingScreen({ navigation, route }) {
         {t('propertyTypeLabel')}
       </Text>
       <Pressable
-        onPress={() => setPropertyTypePickerVisible(true)}
+        onPress={() => {
+          Keyboard.dismiss();
+          setPropertyTypePickerVisible(true);
+        }}
         style={[styles.dropdownField, { borderColor: colors.inputBorder }]}
       >
         <Text style={{ color: colors.text }}>{t(PROPERTY_TYPE_LABEL_KEYS[propertyType])}</Text>
@@ -734,7 +760,8 @@ export default function AddListingScreen({ navigation, route }) {
       <Pressable style={styles.cancelButton} onPress={handleCancel} disabled={submitting}>
         <Text style={[styles.cancelText, { color: colors.danger }]}>{t('cancel')}</Text>
       </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -767,6 +794,9 @@ function Chip({ label, active, colors, onPress }) {
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     padding: 20,
   },
