@@ -64,8 +64,11 @@ export default function OnboardingScreen({ onDone }) {
       edges={['top', 'bottom']}
     >
       <View style={[styles.topBar, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        <View style={[styles.brandLockup, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View style={[styles.brandMark, { backgroundColor: FEATURED_GOLD }]} />
+        <View style={[styles.brandLockup, isRTL ? styles.brandLockupRTL : styles.brandLockupLTR]}>
+          <View style={[styles.brandMark, isRTL ? styles.brandMarkRTL : styles.brandMarkLTR]}>
+            <View style={[styles.brandChevron, styles.brandChevronLeft, { backgroundColor: FEATURED_GOLD }]} />
+            <View style={[styles.brandChevron, styles.brandChevronRight, { backgroundColor: FEATURED_GOLD }]} />
+          </View>
           <Text style={[styles.brandName, { color: colors.heading }]}>Aqari</Text>
         </View>
         {isLast ? (
@@ -173,25 +176,50 @@ export default function OnboardingScreen({ onDone }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   topBar: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    minHeight: 58,
+    paddingHorizontal: 28,
+    paddingTop: 10,
+    minHeight: 92,
   },
   brandLockup: {
-    alignItems: 'center',
-    gap: 8,
+    position: 'relative',
+    minWidth: 154,
+    minHeight: 72,
+    justifyContent: 'flex-end',
   },
+  brandLockupLTR: { alignItems: 'flex-start' },
+  brandLockupRTL: { alignItems: 'flex-end' },
   brandMark: {
-    width: 9,
-    height: 9,
+    position: 'absolute',
+    top: 0,
+    width: 30,
+    height: 18,
+  },
+  brandMarkLTR: { left: 12 },
+  brandMarkRTL: { right: 12 },
+  brandChevron: {
+    position: 'absolute',
+    top: 5,
+    width: 21,
+    height: 5,
     borderRadius: 3,
   },
+  brandChevronLeft: {
+    left: 0,
+    transform: [{ rotate: '-32deg' }],
+  },
+  brandChevronRight: {
+    right: 0,
+    transform: [{ rotate: '32deg' }],
+  },
   brandName: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 0.2,
+    fontFamily: 'serif',
+    fontSize: 38,
+    lineHeight: 48,
+    fontWeight: '400',
+    letterSpacing: -0.5,
+    writingDirection: 'ltr',
   },
   skipButton: {
     minHeight: 44,
@@ -213,7 +241,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroScene: {
-    height: 410,
+    flex: 1,
+    minHeight: 410,
     overflow: 'hidden',
   },
   heroBlueShape: {
@@ -266,14 +295,15 @@ const styles = StyleSheet.create({
   backButtonLTR: { left: 24 },
   backButtonRTL: { right: 24 },
   copyBlock: {
-    paddingHorizontal: 24,
-    paddingTop: 26,
+    paddingHorizontal: 28,
+    paddingTop: 24,
   },
   title: {
+    fontFamily: 'serif',
     fontSize: 30,
     lineHeight: 38,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    fontWeight: '400',
+    letterSpacing: -0.4,
     marginBottom: 12,
   },
   body: {
@@ -282,9 +312,9 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   footer: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingHorizontal: 28,
+    paddingTop: 18,
+    paddingBottom: 18,
   },
   footerRow: {
     alignItems: 'center',
