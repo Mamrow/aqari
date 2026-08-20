@@ -5,9 +5,12 @@ import PlaceholderScreen from '../components/PlaceholderScreen';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { callAgent } from '../utils/contactActions';
+import LoadingView from '../components/LoadingView';
+import StatusScreen from '../components/StatusScreen';
+import { friendlyErrorMessage } from '../utils/friendlyError';
 
 export default function AdminAgentsScreen({ navigation }) {
-  const { agents, removeAgent, setAgentVerified } = useAppContext();
+  const { agents, removeAgent, setAgentVerified, agentsLoading, dataErrors, fetchAgents } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
 
@@ -17,13 +20,45 @@ export default function AdminAgentsScreen({ navigation }) {
       t('removeAgentConfirmMessage').replace('{name}', agent.name),
       [
         { text: t('cancel'), style: 'cancel' },
-        { text: t('delete'), style: 'destructive', onPress: () => removeAgent(agent.phone) },
+        {
+          text: t('delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeAgent(agent.phone);
+            } catch (error) {
+              console.warn('removeAgent failed', error);
+              Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+            }
+          },
+        },
       ]
     );
   };
 
+  if (agentsLoading) {
+    return <LoadingView />;
+  }
+
+  if (dataErrors.agents && agents.length === 0) {
+    return (
+      <StatusScreen
+        variant="error"
+        title={t('errorGenericTitle')}
+        subtitle={friendlyErrorMessage(dataErrors.agents, t)}
+        primaryAction={{ label: t('tryAgainButton'), onPress: fetchAgents }}
+      />
+    );
+  }
+
   if (agents.length === 0) {
-    return <PlaceholderScreen title={t('registeredAgentsTitle')} subtitle={t('noAgentsYet')} />;
+    return (
+      <PlaceholderScreen
+        icon="people-outline"
+        title={t('registeredAgentsTitle')}
+        subtitle={t('noAgentsYet')}
+      />
+    );
   }
 
   return (
@@ -50,7 +85,14 @@ export default function AdminAgentsScreen({ navigation }) {
           </Pressable>
           <Pressable
             style={[styles.iconButton, { borderColor: colors.accent }]}
-            onPress={() => setAgentVerified(item.phone, !item.verified)}
+            onPress={async () => {
+              try {
+                await setAgentVerified(item.phone, !item.verified);
+              } catch (error) {
+                console.warn('setAgentVerified failed', error);
+                Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+              }
+            }}
             accessibilityRole="button"
             accessibilityLabel={item.verified ? t('a11yUnverifySeller') : t('a11yVerifySeller')}
             accessibilityState={{ selected: !!item.verified }}

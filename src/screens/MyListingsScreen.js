@@ -10,6 +10,7 @@ import { useT } from '../i18n/useT';
 import { dayWord } from '../i18n/pluralDays';
 import { useThemeColors } from '../theme/useThemeColors';
 import { friendlyErrorMessage } from '../utils/friendlyError';
+import StatusScreen from '../components/StatusScreen';
 
 // Only the last day gets a banner — a 30-day-out countdown nagging on every
 // approved listing was more noise than signal.
@@ -33,6 +34,8 @@ export default function MyListingsScreen({ navigation }) {
     markListingSold,
     markListingAvailable,
     language,
+    dataErrors,
+    fetchListings,
   } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
@@ -118,7 +121,18 @@ export default function MyListingsScreen({ navigation }) {
       t('deleteListingConfirmMessage').replace('{title}', listing.title),
       [
         { text: t('cancel'), style: 'cancel' },
-        { text: t('delete'), style: 'destructive', onPress: () => deleteListing(listing.id) },
+        {
+          text: t('delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteListing(listing.id);
+            } catch (error) {
+              console.warn('deleteListing failed', error);
+              Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+            }
+          },
+        },
       ]
     );
   };
@@ -127,10 +141,22 @@ export default function MyListingsScreen({ navigation }) {
     return <LoadingView />;
   }
 
+  if (dataErrors.listings && allMyListings.length === 0) {
+    return (
+      <StatusScreen
+        variant="error"
+        title={t('errorGenericTitle')}
+        subtitle={friendlyErrorMessage(dataErrors.listings, t)}
+        primaryAction={{ label: t('tryAgainButton'), onPress: fetchListings }}
+      />
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {allMyListings.length === 0 ? (
         <PlaceholderScreen
+          icon="business-outline"
           title={t('myListingsEmptyTitle')}
           subtitle={t('myListingsEmptySubtitle')}
         />

@@ -27,6 +27,8 @@ import { useAppContext } from '../context/AppContext';
 import ListingCard from '../components/ListingCard';
 import PlaceholderScreen from '../components/PlaceholderScreen';
 import LoadingView from '../components/LoadingView';
+import StatusScreen from '../components/StatusScreen';
+import { friendlyErrorMessage } from '../utils/friendlyError';
 import SearchBar from '../components/SearchBar';
 import PriceMarkerCapture from '../components/PriceMarkerCapture';
 import ClusterMarkerCapture from '../components/ClusterMarkerCapture';
@@ -93,7 +95,7 @@ const SORT_LABEL_KEYS = {
 const LIBYA_BOUNDS = { minLat: 19.5, maxLat: 33.2, minLon: 9.3, maxLon: 25.2 };
 
 export default function HomeMapScreen({ navigation }) {
-  const { listings, theme, dataLoading, language } = useAppContext();
+  const { listings, theme, dataLoading, dataErrors, fetchListings, language } = useAppContext();
   const t = useT();
   // Sorted by the currently displayed label, not by the fixed key order in
   // districts.js — Arabic and English alphabetical order aren't the same,
@@ -429,6 +431,17 @@ export default function HomeMapScreen({ navigation }) {
     return <LoadingView />;
   }
 
+  if (dataErrors.listings && listings.length === 0) {
+    return (
+      <StatusScreen
+        variant="error"
+        title={t('errorGenericTitle')}
+        subtitle={friendlyErrorMessage(dataErrors.listings, t)}
+        primaryAction={{ label: t('tryAgainButton'), onPress: fetchListings }}
+      />
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {viewMode === 'map' ? (
@@ -501,7 +514,11 @@ export default function HomeMapScreen({ navigation }) {
         </MapView>
       ) : filteredListings.length === 0 ? (
         <View style={[styles.listEmptyContainer, { paddingTop: contentTopOffset }]}>
-          <PlaceholderScreen title={t('homeEmptyTitle')} subtitle={t('homeEmptySubtitle')} />
+          <PlaceholderScreen
+            icon="search-outline"
+            title={t('homeEmptyTitle')}
+            subtitle={t('homeEmptySubtitle')}
+          />
         </View>
       ) : (
         <FlatList

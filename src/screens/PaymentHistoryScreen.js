@@ -9,6 +9,8 @@ import { useThemeColors } from '../theme/useThemeColors';
 import { FEATURED_GOLD } from '../theme/colors';
 import PlaceholderScreen from '../components/PlaceholderScreen';
 import LoadingView from '../components/LoadingView';
+import StatusScreen from '../components/StatusScreen';
+import { friendlyErrorMessage } from '../utils/friendlyError';
 
 const STATUS_COLORS = {
   paid: '#2E8B57',
@@ -36,13 +38,16 @@ export default function PaymentHistoryScreen({ navigation }) {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {
+    setLoadError(null);
     try {
       const data = await fetchBoostPayments();
       setPayments(data);
     } catch (error) {
       console.warn('fetchBoostPayments error', error);
+      setLoadError(error);
     }
   }, [fetchBoostPayments]);
 
@@ -64,9 +69,21 @@ export default function PaymentHistoryScreen({ navigation }) {
     return <LoadingView />;
   }
 
+  if (loadError && payments.length === 0) {
+    return (
+      <StatusScreen
+        variant="error"
+        title={t('errorGenericTitle')}
+        subtitle={friendlyErrorMessage(loadError, t)}
+        primaryAction={{ label: t('tryAgainButton'), onPress: load }}
+      />
+    );
+  }
+
   if (payments.length === 0) {
     return (
       <PlaceholderScreen
+        icon="receipt-outline"
         title={t('paymentHistoryEmptyTitle')}
         subtitle={t('paymentHistoryEmptySubtitle')}
       />

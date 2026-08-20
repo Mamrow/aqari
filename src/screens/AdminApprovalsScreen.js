@@ -6,6 +6,8 @@ import { useAppContext } from '../context/AppContext';
 import ListingCard from '../components/ListingCard';
 import PlaceholderScreen from '../components/PlaceholderScreen';
 import LoadingView from '../components/LoadingView';
+import StatusScreen from '../components/StatusScreen';
+import { friendlyErrorMessage } from '../utils/friendlyError';
 import SearchBar from '../components/SearchBar';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
@@ -13,8 +15,17 @@ import { WHATSAPP_GREEN } from '../theme/colors';
 import { callAgent, whatsappAgent } from '../utils/contactActions';
 
 export default function AdminApprovalsScreen({ navigation }) {
-  const { listings, agents, reports, approveListing, rejectListing, deleteListing, dataLoading } =
-    useAppContext();
+  const {
+    listings,
+    agents,
+    reports,
+    approveListing,
+    rejectListing,
+    deleteListing,
+    dataLoading,
+    dataErrors,
+    fetchListings,
+  } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,13 +57,35 @@ export default function AdminApprovalsScreen({ navigation }) {
       t('deleteListingConfirmMessage').replace('{title}', listing.title),
       [
         { text: t('cancel'), style: 'cancel' },
-        { text: t('delete'), style: 'destructive', onPress: () => deleteListing(listing.id) },
+        {
+          text: t('delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteListing(listing.id);
+            } catch (error) {
+              console.warn('admin deleteListing failed', error);
+              Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+            }
+          },
+        },
       ]
     );
   };
 
   if (dataLoading) {
     return <LoadingView />;
+  }
+
+  if (dataErrors.listings && listings.length === 0) {
+    return (
+      <StatusScreen
+        variant="error"
+        title={t('errorGenericTitle')}
+        subtitle={friendlyErrorMessage(dataErrors.listings, t)}
+        primaryAction={{ label: t('tryAgainButton'), onPress: fetchListings }}
+      />
+    );
   }
 
   return (
@@ -100,7 +133,11 @@ export default function AdminApprovalsScreen({ navigation }) {
       )}
 
       {listings.length === 0 ? (
-        <PlaceholderScreen title={t('approvalsEmptyTitle')} subtitle={t('approvalsEmptySubtitle')} />
+        <PlaceholderScreen
+          icon="shield-checkmark-outline"
+          title={t('approvalsEmptyTitle')}
+          subtitle={t('approvalsEmptySubtitle')}
+        />
       ) : sortedListings.length === 0 ? (
         <PlaceholderScreen title={t('noSearchResultsTitle')} subtitle={t('noSearchResultsSubtitle')} />
       ) : (
@@ -116,7 +153,14 @@ export default function AdminApprovalsScreen({ navigation }) {
                 <View style={styles.actions}>
                   <Pressable
                     style={[styles.actionButton, { backgroundColor: colors.accent }]}
-                    onPress={() => approveListing(item.id)}
+                    onPress={async () => {
+                      try {
+                        await approveListing(item.id);
+                      } catch (error) {
+                        console.warn('approveListing failed', error);
+                        Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+                      }
+                    }}
                   >
                     <Text style={[styles.actionText, { color: colors.accentText }]}>
                       {t('approve')}
@@ -124,7 +168,14 @@ export default function AdminApprovalsScreen({ navigation }) {
                   </Pressable>
                   <Pressable
                     style={[styles.actionButton, { backgroundColor: colors.danger }]}
-                    onPress={() => rejectListing(item.id)}
+                    onPress={async () => {
+                      try {
+                        await rejectListing(item.id);
+                      } catch (error) {
+                        console.warn('rejectListing failed', error);
+                        Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+                      }
+                    }}
                   >
                     <Text style={[styles.actionText, { color: colors.accentText }]}>
                       {t('reject')}

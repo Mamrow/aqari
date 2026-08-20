@@ -39,6 +39,9 @@ export function AppProvider({ children }) {
   const [agents, setAgents] = useState([]);
   const [reports, setReports] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [dataErrors, setDataErrors] = useState({});
+  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [reportsLoading, setReportsLoading] = useState(false);
   const [theme, setTheme] = useState(initialState.theme);
   const [language, setLanguageState] = useState(I18nManager.isRTL ? 'ar' : 'en');
   const [authModalVisible, setAuthModalVisible] = useState(false);
@@ -138,20 +141,36 @@ export function AppProvider({ children }) {
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ theme }));
   }, [hydrated, theme]);
 
+  const recordDataError = useCallback((key, error) => {
+    console.warn(`${key} data error`, error);
+    setDataErrors((prev) => ({ ...prev, [key]: error }));
+  }, []);
+
+  const clearDataError = useCallback((key) => {
+    setDataErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
   const fetchListings = useCallback(async () => {
     const { data, error } = await supabase
       .from('listings')
       .select('*')
       .order('created_at', { ascending: false });
     if (error) {
-      console.warn('fetchListings error', error);
+      recordDataError('listings', error);
       return;
     }
-    setListings(data.map(listingFromRow));
-  }, []);
+    clearDataError('listings');
+    setListings((data ?? []).map(listingFromRow));
+  }, [clearDataError, recordDataError]);
 
   const fetchFavorites = useCallback(async (uid) => {
     if (!uid) {
+      clearDataError('favorites');
       setSaved([]);
       return;
     }
@@ -160,39 +179,52 @@ export function AppProvider({ children }) {
       .select('listing_id')
       .eq('user_id', uid);
     if (error) {
-      console.warn('fetchFavorites error', error);
+      recordDataError('favorites', error);
       return;
     }
-    setSaved(data.map((row) => row.listing_id));
-  }, []);
+    clearDataError('favorites');
+    setSaved((data ?? []).map((row) => row.listing_id));
+  }, [clearDataError, recordDataError]);
 
   const fetchAgents = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('agents')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) {
-      console.warn('fetchAgents error', error);
-      return;
+    setAgentsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('agents')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) {
+        recordDataError('agents', error);
+        return;
+      }
+      clearDataError('agents');
+      setAgents((data ?? []).map(agentFromRow));
+    } finally {
+      setAgentsLoading(false);
     }
-    setAgents(data.map(agentFromRow));
-  }, []);
+  }, [clearDataError, recordDataError]);
 
   // Admin-only data (RLS on listing_reports restricts select to
   // private.is_admin() — see migration_listing_reports.sql), so this only
   // fires once isAdmin is actually true, rather than firing for every
   // session and just getting filtered to empty by RLS every time.
   const fetchReports = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('listing_reports')
-      .select('*, listings(title, agent_phone)')
-      .order('created_at', { ascending: false });
-    if (error) {
-      console.warn('fetchReports error', error);
-      return;
+    setReportsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('listing_reports')
+        .select('*, listings(title, agent_phone)')
+        .order('created_at', { ascending: false });
+      if (error) {
+        recordDataError('reports', error);
+        return;
+      }
+      clearDataError('reports');
+      setReports((data ?? []).map(listingReportFromRow));
+    } finally {
+      setReportsLoading(false);
     }
-    setReports(data.map(listingReportFromRow));
-  }, []);
+  }, [clearDataError, recordDataError]);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -554,11 +586,18 @@ export function AppProvider({ children }) {
 
   // Admin-only at the RLS level (agents delete requires private.is_admin()) —
   // just removes the directory entry, doesn't touch that agent's listings.
-  const removeAgent = useCallback(async (phone) => {
-    setAgents((prev) => prev.filter((agent) => agent.phone !== phone));
-    const { error } = await supabase.from('agents').delete().eq('phone', phone);
-    if (error) console.warn('removeAgent error', error);
-  }, []);
+  const removeAgent = useCallback(
+    async (phone) => {
+      const previousAgent = agents.find((agent) => agent.phone === phone);
+      setAgents((prev) => prev.filter((agent) => agent.phone !== phone));
+      const { error } = await supabase.from('agents').delete().eq('phone', phone);
+      if (error) {
+        if (previousAgent) setAgents((prev) => (prev.some((agent) => agent.phone === phone) ? prev : [previousAgent, ...prev]));
+        throw error;
+      }
+    },
+    [agents]
+  );
 
   // Lets any signed-in account flag a listing for admin review. Throws on
   // failure (per the submitListing lesson — a silent failure here would look
@@ -580,20 +619,36 @@ export function AppProvider({ children }) {
 
   // Admin-only at the RLS level (listing_reports update requires
   // private.is_admin()) — marks a report reviewed or dismissed after triage.
-  const updateReportStatus = useCallback(async (reportId, status) => {
-    setReports((prev) => prev.map((item) => (item.id === reportId ? { ...item, status } : item)));
-    const { error } = await supabase.from('listing_reports').update({ status }).eq('id', reportId);
-    if (error) console.warn('updateReportStatus error', error);
-  }, []);
+  const updateReportStatus = useCallback(
+    async (reportId, status) => {
+      const previousStatus = reports.find((item) => item.id === reportId)?.status;
+      setReports((prev) => prev.map((item) => (item.id === reportId ? { ...item, status } : item)));
+      const { error } = await supabase.from('listing_reports').update({ status }).eq('id', reportId);
+      if (error) {
+        if (previousStatus) {
+          setReports((prev) => prev.map((item) => (item.id === reportId ? { ...item, status: previousStatus } : item)));
+        }
+        throw error;
+      }
+    },
+    [reports]
+  );
 
   // Admin-only at the RLS/RPC level (admin_set_agent_verified checks
   // private.is_admin() internally, and the client has no direct UPDATE
   // grant on the verified column regardless — see migration_agent_verified.sql).
-  const setAgentVerified = useCallback(async (phone, verified) => {
-    setAgents((prev) => prev.map((agent) => (agent.phone === phone ? { ...agent, verified } : agent)));
-    const { error } = await supabase.rpc('admin_set_agent_verified', { p_phone: phone, p_verified: verified });
-    if (error) console.warn('setAgentVerified error', error);
-  }, []);
+  const setAgentVerified = useCallback(
+    async (phone, verified) => {
+      const previousVerified = agents.find((agent) => agent.phone === phone)?.verified;
+      setAgents((prev) => prev.map((agent) => (agent.phone === phone ? { ...agent, verified } : agent)));
+      const { error } = await supabase.rpc('admin_set_agent_verified', { p_phone: phone, p_verified: verified });
+      if (error) {
+        setAgents((prev) => prev.map((agent) => (agent.phone === phone ? { ...agent, verified: previousVerified } : agent)));
+        throw error;
+      }
+    },
+    [agents]
+  );
 
   // Written before hiding, not after — if the write somehow failed we'd
   // rather show onboarding again next launch than dismiss it forever on a
@@ -625,11 +680,19 @@ export function AppProvider({ children }) {
           ? supabase.from('favorites').delete().eq('user_id', uid).eq('listing_id', listingId)
           : supabase.from('favorites').insert({ user_id: uid, listing_id: listingId, owner_id: authUid });
         query.then(({ error }) => {
-          if (error) console.warn('toggleSave error', error);
+          if (!error) return;
+          recordDataError('favorites', error);
+          setSaved((prev) =>
+            alreadySaved
+              ? prev.includes(listingId)
+                ? prev
+                : [...prev, listingId]
+              : prev.filter((id) => id !== listingId)
+          );
         });
       });
     },
-    [requireAuth, getMyId, saved, authUid]
+    [requireAuth, getMyId, saved, authUid, recordDataError]
   );
 
   // Listing cap removed for now (agents can add unlimited listings) — subscription
@@ -703,29 +766,43 @@ export function AppProvider({ children }) {
   // status is column-locked from a plain client update (see migration_fix_
   // listings_column_lockdown.sql) — admin_set_listing_status is the only
   // path left, security-definer + private.is_admin()-gated internally.
-  const approveListing = useCallback(async (listingId) => {
-    setListings((prev) =>
-      prev.map((item) => (item.id === listingId ? { ...item, status: 'approved' } : item))
-    );
-    const { error } = await supabase.rpc('admin_set_listing_status', {
-      p_listing_id: listingId,
-      p_status: 'approved',
-    });
-    if (error) console.warn('approveListing error', error);
-  }, []);
+  const approveListing = useCallback(
+    async (listingId) => {
+      const previousStatus = listings.find((item) => item.id === listingId)?.status;
+      setListings((prev) =>
+        prev.map((item) => (item.id === listingId ? { ...item, status: 'approved' } : item))
+      );
+      const { error } = await supabase.rpc('admin_set_listing_status', {
+        p_listing_id: listingId,
+        p_status: 'approved',
+      });
+      if (error) {
+        setListings((prev) => prev.map((item) => (item.id === listingId ? { ...item, status: previousStatus } : item)));
+        throw error;
+      }
+    },
+    [listings]
+  );
 
   // Marks the listing rejected (visible to the agent, colored red) rather than
   // deleting it outright — admin has a separate deleteListing for outright removal.
-  const rejectListing = useCallback(async (listingId) => {
-    setListings((prev) =>
-      prev.map((item) => (item.id === listingId ? { ...item, status: 'rejected' } : item))
-    );
-    const { error } = await supabase.rpc('admin_set_listing_status', {
-      p_listing_id: listingId,
-      p_status: 'rejected',
-    });
-    if (error) console.warn('rejectListing error', error);
-  }, []);
+  const rejectListing = useCallback(
+    async (listingId) => {
+      const previousStatus = listings.find((item) => item.id === listingId)?.status;
+      setListings((prev) =>
+        prev.map((item) => (item.id === listingId ? { ...item, status: 'rejected' } : item))
+      );
+      const { error } = await supabase.rpc('admin_set_listing_status', {
+        p_listing_id: listingId,
+        p_status: 'rejected',
+      });
+      if (error) {
+        setListings((prev) => prev.map((item) => (item.id === listingId ? { ...item, status: previousStatus } : item)));
+        throw error;
+      }
+    },
+    [listings]
+  );
 
   // Owner-gated (not admin-gated) — the seller's own "fix and resubmit" path
   // after a rejection, same column-lockdown reasoning as above but via
@@ -739,11 +816,18 @@ export function AppProvider({ children }) {
     );
   }, []);
 
-  const deleteListing = useCallback(async (listingId) => {
-    setListings((prev) => prev.filter((item) => item.id !== listingId));
-    const { error } = await supabase.from('listings').delete().eq('id', listingId);
-    if (error) console.warn('deleteListing error', error);
-  }, []);
+  const deleteListing = useCallback(
+    async (listingId) => {
+      const previousListing = listings.find((item) => item.id === listingId);
+      setListings((prev) => prev.filter((item) => item.id !== listingId));
+      const { error } = await supabase.from('listings').delete().eq('id', listingId);
+      if (error) {
+        if (previousListing) setListings((prev) => (prev.some((item) => item.id === listingId) ? prev : [previousListing, ...prev]));
+        throw error;
+      }
+    },
+    [listings]
+  );
 
   // Free 30-day renewal — security-definer RPC (checks owner_id itself), the
   // only path allowed to touch listing_state/expires_at/renewed_at now that
@@ -842,6 +926,9 @@ export function AppProvider({ children }) {
     updateReportStatus,
     isAdmin,
     dataLoading,
+    dataErrors,
+    agentsLoading,
+    reportsLoading,
     theme,
     setTheme,
     language,
@@ -880,6 +967,9 @@ export function AppProvider({ children }) {
     markListingSold,
     markListingAvailable,
     fetchListings,
+    fetchFavorites,
+    fetchAgents,
+    fetchReports,
     createBoostPayment,
     verifyBoostPayment,
     fetchBoostPayments,

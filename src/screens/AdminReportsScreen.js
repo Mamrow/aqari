@@ -1,4 +1,4 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import PlaceholderScreen from '../components/PlaceholderScreen';
@@ -6,6 +6,9 @@ import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { REPORT_REASON_LABEL_KEYS, REPORT_STATUS_LABEL_KEYS } from '../data/reportReasons';
 import { callAgent } from '../utils/contactActions';
+import LoadingView from '../components/LoadingView';
+import StatusScreen from '../components/StatusScreen';
+import { friendlyErrorMessage } from '../utils/friendlyError';
 
 // Open reports first (need triage), then reviewed/dismissed trailing behind
 // in their existing chronological order — same "most-actionable first"
@@ -21,12 +24,33 @@ function statusColor(status, colors) {
 }
 
 export default function AdminReportsScreen() {
-  const { reports, updateReportStatus } = useAppContext();
+  const { reports, updateReportStatus, reportsLoading, dataErrors, fetchReports } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
 
+  if (reportsLoading) {
+    return <LoadingView />;
+  }
+
+  if (dataErrors.reports && reports.length === 0) {
+    return (
+      <StatusScreen
+        variant="error"
+        title={t('errorGenericTitle')}
+        subtitle={friendlyErrorMessage(dataErrors.reports, t)}
+        primaryAction={{ label: t('tryAgainButton'), onPress: fetchReports }}
+      />
+    );
+  }
+
   if (reports.length === 0) {
-    return <PlaceholderScreen title={t('reportsTitle')} subtitle={t('reportsEmptySubtitle')} />;
+    return (
+      <PlaceholderScreen
+        icon="flag-outline"
+        title={t('reportsTitle')}
+        subtitle={t('reportsEmptySubtitle')}
+      />
+    );
   }
 
   return (
@@ -68,7 +92,14 @@ export default function AdminReportsScreen() {
             {item.status !== 'reviewed' && (
               <Pressable
                 style={[styles.iconButton, { borderColor: colors.accent }]}
-                onPress={() => updateReportStatus(item.id, 'reviewed')}
+                onPress={async () => {
+                  try {
+                    await updateReportStatus(item.id, 'reviewed');
+                  } catch (error) {
+                    console.warn('updateReportStatus failed', error);
+                    Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+                  }
+                }}
               >
                 <Text style={[styles.iconButtonText, { color: colors.accent }]}>
                   {t('markReviewedButton')}
@@ -78,7 +109,14 @@ export default function AdminReportsScreen() {
             {item.status !== 'dismissed' && (
               <Pressable
                 style={[styles.iconButton, { borderColor: colors.textMuted }]}
-                onPress={() => updateReportStatus(item.id, 'dismissed')}
+                onPress={async () => {
+                  try {
+                    await updateReportStatus(item.id, 'dismissed');
+                  } catch (error) {
+                    console.warn('updateReportStatus failed', error);
+                    Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+                  }
+                }}
               >
                 <Text style={[styles.iconButtonText, { color: colors.textMuted }]}>
                   {t('dismissButton')}
