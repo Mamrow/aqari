@@ -1,18 +1,38 @@
 import { useState } from 'react';
-import { I18nManager, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, I18nManager, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { FEATURED_GOLD } from '../theme/colors';
 
-// Icon + label keys only — the copy itself lives in translations.js like
-// everything else, so this stays translatable rather than hardcoding English.
+// Photo assets and label keys only — the copy itself lives in translations.js
+// like everything else, so this stays translatable rather than hardcoding English.
 const SLIDES = [
-  { key: 'browse', icon: 'map-outline', titleKey: 'onboardBrowseTitle', bodyKey: 'onboardBrowseBody' },
-  { key: 'save', icon: 'heart-outline', titleKey: 'onboardSaveTitle', bodyKey: 'onboardSaveBody' },
-  { key: 'contact', icon: 'chatbubbles-outline', titleKey: 'onboardContactTitle', bodyKey: 'onboardContactBody' },
-  { key: 'list', icon: 'business-outline', titleKey: 'onboardListTitle', bodyKey: 'onboardListBody' },
+  {
+    key: 'browse',
+    image: require('../../assets/onboarding/browse.jpg'),
+    titleKey: 'onboardBrowseTitle',
+    bodyKey: 'onboardBrowseBody',
+  },
+  {
+    key: 'save',
+    image: require('../../assets/onboarding/save.jpg'),
+    titleKey: 'onboardSaveTitle',
+    bodyKey: 'onboardSaveBody',
+  },
+  {
+    key: 'contact',
+    image: require('../../assets/onboarding/contact.jpg'),
+    titleKey: 'onboardContactTitle',
+    bodyKey: 'onboardContactBody',
+  },
+  {
+    key: 'list',
+    image: require('../../assets/onboarding/list.jpg'),
+    titleKey: 'onboardListTitle',
+    bodyKey: 'onboardListBody',
+  },
 ];
 
 export default function OnboardingScreen({ onDone }) {
@@ -28,6 +48,11 @@ export default function OnboardingScreen({ onDone }) {
   // the left in English without making the Next button move backwards.
   const paginationSlides = isRTL ? [...SLIDES].reverse() : SLIDES;
   const nextIcon = isRTL ? 'chevron-back' : 'chevron-forward';
+  const backIcon = isRTL ? 'chevron-forward' : 'chevron-back';
+
+  const goBack = () => {
+    if (index > 0) setIndex(index - 1);
+  };
 
   const goNext = () => {
     if (isLast) {
@@ -47,22 +72,27 @@ export default function OnboardingScreen({ onDone }) {
           <View style={[styles.brandMark, { backgroundColor: FEATURED_GOLD }]} />
           <Text style={[styles.brandName, { color: colors.heading }]}>Aqari</Text>
         </View>
-        <Pressable
-          onPress={onDone}
-          style={({ pressed }) => [styles.skipButton, { opacity: pressed ? 0.55 : 1 }]}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={t('onboardSkip')}
-          testID="onboarding-skip"
-        >
-          <Text style={[styles.skipText, { color: colors.textMuted }]}>{t('onboardSkip')}</Text>
-        </Pressable>
+        {isLast ? (
+          // Keeps the brand lockup from sliding across when Skip disappears.
+          <View style={styles.skipButton} />
+        ) : (
+          <Pressable
+            onPress={onDone}
+            style={({ pressed }) => [styles.skipButton, { opacity: pressed ? 0.55 : 1 }]}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t('onboardSkip')}
+            testID="onboarding-skip"
+          >
+            <Text style={[styles.skipText, { color: colors.textMuted }]}>{t('onboardSkip')}</Text>
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.content}>
         <View style={styles.slideFrame}>
           <Text style={[styles.stepLabel, { color: colors.textMuted }]}>
-            {String(index + 1).padStart(2, '0')} / {String(SLIDES.length).padStart(2, '0')}
+            {`⁦${String(index + 1).padStart(2, '0')} / ${String(SLIDES.length).padStart(2, '0')}⁩`}
           </Text>
 
           <View
@@ -71,10 +101,15 @@ export default function OnboardingScreen({ onDone }) {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <View style={[styles.heroAccent, { backgroundColor: colors.accent }]} />
-            <View style={[styles.iconTile, { backgroundColor: `${colors.accent}14` }]}>
-              <Ionicons name={slide.icon} size={64} color={colors.accent} />
-            </View>
+            <Image
+              source={slide.image}
+              style={styles.heroImage}
+              resizeMode="cover"
+              accessibilityRole="image"
+              accessibilityLabel={t(slide.titleKey)}
+            />
+            <View style={styles.heroShade} />
+            <View style={[styles.heroAccent, { backgroundColor: FEATURED_GOLD }]} />
           </View>
 
           <Text style={[styles.title, { color: colors.heading, textAlign: isRTL ? 'right' : 'left' }]}>
@@ -92,7 +127,7 @@ export default function OnboardingScreen({ onDone }) {
             {t('onboardProgressLabel')}
           </Text>
           <Text style={[styles.progressCount, { color: colors.heading }]}>
-            {index + 1} / {SLIDES.length}
+            {`⁦${index + 1} / ${SLIDES.length}⁩`}
           </Text>
         </View>
 
@@ -112,22 +147,41 @@ export default function OnboardingScreen({ onDone }) {
           })}
         </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.nextButton,
-            { backgroundColor: colors.accent, opacity: pressed ? 0.88 : 1 },
-            { flexDirection: isRTL ? 'row-reverse' : 'row' },
-          ]}
-          onPress={goNext}
-          accessibilityRole="button"
-          accessibilityLabel={isLast ? t('onboardGetStarted') : t('onboardNext')}
-          testID="onboarding-next"
-        >
-          <Text style={[styles.nextText, { color: colors.accentText }]}>
-            {isLast ? t('onboardGetStarted') : t('onboardNext')}
-          </Text>
-          {!isLast && <Ionicons name={nextIcon} size={19} color={colors.accentText} />}
-        </Pressable>
+        <View style={[styles.actionRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
+          {index > 0 && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.backButton,
+                { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
+                { flexDirection: isRTL ? 'row-reverse' : 'row' },
+              ]}
+              onPress={goBack}
+              accessibilityRole="button"
+              accessibilityLabel={t('onboardBack')}
+              testID="onboarding-back"
+            >
+              <Ionicons name={backIcon} size={19} color={colors.textMuted} />
+              <Text style={[styles.backText, { color: colors.textMuted }]}>{t('onboardBack')}</Text>
+            </Pressable>
+          )}
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.nextButton,
+              { backgroundColor: colors.accent, opacity: pressed ? 0.88 : 1 },
+              { flexDirection: isRTL ? 'row-reverse' : 'row' },
+            ]}
+            onPress={goNext}
+            accessibilityRole="button"
+            accessibilityLabel={isLast ? t('onboardGetStarted') : t('onboardNext')}
+            testID="onboarding-next"
+          >
+            <Text style={[styles.nextText, { color: colors.accentText }]}>
+              {isLast ? t('onboardGetStarted') : t('onboardNext')}
+            </Text>
+            {!isLast && <Ionicons name={nextIcon} size={19} color={colors.accentText} />}
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -209,12 +263,12 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
     borderBottomRightRadius: 4,
   },
-  iconTile: {
-    width: 132,
-    height: 132,
-    borderRadius: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 34, 54, 0.08)',
   },
   title: {
     fontSize: 29,
@@ -265,6 +319,10 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   nextButton: {
+    // Takes the remaining width beside Back so the forward action stays the
+    // dominant one, and still fills the row on the first slide where Back
+    // isn't rendered.
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
