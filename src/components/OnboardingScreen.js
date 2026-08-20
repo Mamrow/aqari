@@ -101,6 +101,7 @@ export default function OnboardingScreen({ onDone }) {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
+            <View style={[styles.heroBlueShape, { backgroundColor: `${colors.accent}22` }]} />
             <Image
               source={slide.image}
               style={styles.heroImage}
@@ -108,8 +109,8 @@ export default function OnboardingScreen({ onDone }) {
               accessibilityRole="image"
               accessibilityLabel={t(slide.titleKey)}
             />
-            <View style={styles.heroShade} />
-            <View style={[styles.heroAccent, { backgroundColor: FEATURED_GOLD }]} />
+            <View style={[styles.heroMask, { backgroundColor: colors.surface }]} />
+            <View style={[styles.heroDiagonal, { backgroundColor: FEATURED_GOLD }]} />
           </View>
 
           <Text style={[styles.title, { color: colors.heading, textAlign: isRTL ? 'right' : 'left' }]}>
@@ -241,11 +242,9 @@ const styles = StyleSheet.create({
     writingDirection: 'ltr',
   },
   heroCard: {
-    minHeight: 218,
-    borderRadius: 28,
+    height: 340,
+    borderRadius: 30,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 28,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -254,21 +253,41 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 3,
   },
-  heroAccent: {
+  heroBlueShape: {
     position: 'absolute',
-    top: 0,
-    start: 28,
-    end: 28,
-    height: 4,
-    borderBottomLeftRadius: 4,
-    borderBottomRightRadius: 4,
+    width: 220,
+    height: 220,
+    borderRadius: 74,
+    left: -86,
+    top: 24,
+    transform: [{ rotate: '-18deg' }],
+    zIndex: 1,
   },
   heroImage: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: -18,
+    right: -56,
+    width: '116%',
+    height: '120%',
+    zIndex: 2,
   },
-  heroShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 34, 54, 0.08)',
+  heroMask: {
+    position: 'absolute',
+    width: '86%',
+    height: '180%',
+    left: '-44%',
+    top: '-42%',
+    transform: [{ rotate: '-31deg' }],
+    zIndex: 3,
+  },
+  heroDiagonal: {
+    position: 'absolute',
+    width: 4,
+    height: '155%',
+    left: '54%',
+    top: '-26%',
+    transform: [{ rotate: '-31deg' }],
+    zIndex: 4,
   },
   title: {
     fontSize: 29,
