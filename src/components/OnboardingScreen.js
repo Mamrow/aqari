@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Image, I18nManager, Pressable, StyleSheet, Text, View } from 'react-native';
+import { I18nManager, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { ClipPath, Defs, Image as SvgImage, Path } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useT } from '../i18n/useT';
@@ -43,7 +44,6 @@ export default function OnboardingScreen({ onDone }) {
   const isLast = index === SLIDES.length - 1;
   const slide = SLIDES[index];
   const paginationSlides = isRTL ? [...SLIDES].reverse() : SLIDES;
-  const nextIcon = isRTL ? 'chevron-back' : 'chevron-forward';
   const backIcon = isRTL ? 'chevron-forward' : 'chevron-back';
 
   const goBack = () => {
@@ -90,22 +90,45 @@ export default function OnboardingScreen({ onDone }) {
       <View style={styles.content}>
         <View style={[styles.heroScene, { backgroundColor: colors.background }]}>
           <View style={[styles.heroBlueShape, { backgroundColor: `${colors.accent}22` }]} />
-          <Image
-            source={slide.image}
-            style={styles.heroImage}
-            resizeMode="cover"
+          <Svg
+            style={styles.heroSvg}
+            width="100%"
+            height="100%"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
             accessibilityRole="image"
             accessibilityLabel={t(slide.titleKey)}
-          />
-          <View style={[styles.heroMask, { backgroundColor: colors.background }]} />
-          <View style={[styles.heroDiagonal, { backgroundColor: FEATURED_GOLD }]} />
+          >
+            <Defs>
+              <ClipPath id={`onboarding-photo-${slide.key}`}>
+                <Path d="M 90 0 L 100 0 L 100 100 L 8 58 Z" />
+              </ClipPath>
+            </Defs>
+            <SvgImage
+              key={slide.key}
+              href={slide.image}
+              x="0"
+              y="0"
+              width="100"
+              height="100"
+              preserveAspectRatio="xMidYMid slice"
+              clipPath={`url(#onboarding-photo-${slide.key})`}
+            />
+            <Path
+              d="M 90 0 L 8 58 L 100 100"
+              fill="none"
+              stroke={FEATURED_GOLD}
+              strokeWidth="0.45"
+              vectorEffect="non-scaling-stroke"
+            />
+          </Svg>
 
           {index > 0 && (
             <Pressable
               style={({ pressed }) => [
                 styles.backButtonFloating,
                 isRTL ? styles.backButtonRTL : styles.backButtonLTR,
-                { borderColor: colors.border, backgroundColor: colors.background, opacity: pressed ? 0.65 : 1 },
+                { borderColor: colors.heading, backgroundColor: colors.background, opacity: pressed ? 0.65 : 1 },
               ]}
               onPress={goBack}
               accessibilityRole="button"
@@ -165,7 +188,6 @@ export default function OnboardingScreen({ onDone }) {
             <Text style={[styles.nextText, { color: colors.accentText }]}>
               {isLast ? t('onboardGetStarted') : t('onboardNext')}
             </Text>
-            {!isLast && <Ionicons name={nextIcon} size={19} color={colors.accentText} />}
           </Pressable>
         </View>
       </View>
@@ -255,31 +277,9 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-16deg' }],
     zIndex: 1,
   },
-  heroImage: {
-    position: 'absolute',
-    top: -22,
-    right: -58,
-    width: '121%',
-    height: '122%',
+  heroSvg: {
+    ...StyleSheet.absoluteFillObject,
     zIndex: 2,
-  },
-  heroMask: {
-    position: 'absolute',
-    width: '88%',
-    height: '190%',
-    left: '-46%',
-    top: '-48%',
-    transform: [{ rotate: '-31deg' }],
-    zIndex: 3,
-  },
-  heroDiagonal: {
-    position: 'absolute',
-    width: 4,
-    height: '170%',
-    left: '55%',
-    top: '-32%',
-    transform: [{ rotate: '-31deg' }],
-    zIndex: 4,
   },
   backButtonFloating: {
     position: 'absolute',
