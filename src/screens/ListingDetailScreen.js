@@ -36,8 +36,19 @@ import GalleryImageItem from '../components/GalleryImageItem';
 
 export default function ListingDetailScreen({ route, navigation }) {
   const { listingId } = route.params;
-  const { listings, saved, toggleSave, requireAuth, theme, getMyId, reportListing, agents } =
-    useAppContext();
+  const {
+    listings,
+    saved,
+    toggleSave,
+    requireAuth,
+    theme,
+    getMyId,
+    reportListing,
+    agents,
+    blockedSellers,
+    blockSeller,
+    unblockSeller,
+  } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -62,6 +73,7 @@ export default function ListingDetailScreen({ route, navigation }) {
   // toggle writes to. A listing whose agent never got registered (shouldn't
   // normally happen — submitListing always upserts one) just shows no name.
   const listingAgent = agents.find((agent) => agent.phone === listing.agentId);
+  const isBlocked = blockedSellers.includes(listing.agentId);
 
   // This screen is reachable from three different stacks (Home, Favorites,
   // My Listings) — 'AddListing' only actually exists inside MyListingsStack,
@@ -99,6 +111,27 @@ export default function ListingDetailScreen({ route, navigation }) {
       .replace('{area}', listing.area.toLocaleString('en-US'))
       .replace('{areaUnit}', t('areaUnit'));
     Share.share({ message }).catch(() => {});
+  };
+
+  const handleToggleBlock = () => {
+    if (isBlocked) {
+      unblockSeller(listing.agentId);
+      return;
+    }
+    requireAuth(() => {
+      Alert.alert(
+        t('blockSellerConfirmTitle'),
+        t('blockSellerConfirmMessage'),
+        [
+          { text: t('cancel'), style: 'cancel' },
+          {
+            text: t('blockSellerButton'),
+            style: 'destructive',
+            onPress: () => blockSeller(listing.agentId),
+          },
+        ]
+      );
+    });
   };
 
   const openReportModal = () => {
@@ -303,19 +336,39 @@ export default function ListingDetailScreen({ route, navigation }) {
       </View>
 
       {!isOwner && (
-        <Pressable
-          style={styles.reportLink}
-          onPress={openReportModal}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={t('a11yReportListing')}
-          testID="listing-report"
-        >
-          <Ionicons name="flag-outline" size={14} color={colors.textMuted} />
-          <Text style={[styles.reportLinkText, { color: colors.textMuted }]}>
-            {t('reportListingButton')}
-          </Text>
-        </Pressable>
+        <View style={styles.safetyRow}>
+          <Pressable
+            style={styles.reportLink}
+            onPress={openReportModal}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t('a11yReportListing')}
+            testID="listing-report"
+          >
+            <Ionicons name="flag-outline" size={14} color={colors.textMuted} />
+            <Text style={[styles.reportLinkText, { color: colors.textMuted }]}>
+              {t('reportListingButton')}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={styles.reportLink}
+            onPress={handleToggleBlock}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={isBlocked ? t('a11yUnblockSeller') : t('a11yBlockSeller')}
+            accessibilityState={{ selected: isBlocked }}
+            testID="listing-block-seller"
+          >
+            <Ionicons
+              name={isBlocked ? 'person-remove' : 'person-remove-outline'}
+              size={14}
+              color={colors.textMuted}
+            />
+            <Text style={[styles.reportLinkText, { color: colors.textMuted }]}>
+              {isBlocked ? t('unblockSellerButton') : t('blockSellerButton')}
+            </Text>
+          </Pressable>
+        </View>
       )}
 
       <Modal
@@ -521,12 +574,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 12,
   },
-  reportLink: {
+  safetyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
-    gap: 4,
+    gap: 20,
     marginTop: 14,
+  },
+  reportLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   reportLinkText: {
     fontSize: 12,

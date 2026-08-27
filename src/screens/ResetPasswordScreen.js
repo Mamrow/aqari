@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { friendlyErrorMessage } from '../utils/friendlyError';
+import PasswordInput from '../components/PasswordInput';
 
 // Shown instead of the normal navigator whenever AppContext.isPasswordRecovery
 // is true — i.e. the user tapped a "reset password" link from their email and
@@ -40,19 +41,19 @@ export default function ResetPasswordScreen() {
           {t('resetPasswordSubtitle')}
         </Text>
 
-        <TextInput
-          style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
+        <PasswordInput
+          style={[styles.input, { borderColor: colors.inputBorder }]}
+          colors={colors}
           placeholder={t('authPasswordPlaceholder')}
           placeholderTextColor={colors.placeholderText}
-          secureTextEntry
           value={password}
           onChangeText={setPassword}
         />
-        <TextInput
-          style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
+        <PasswordInput
+          style={[styles.input, { borderColor: colors.inputBorder }]}
+          colors={colors}
           placeholder={t('authConfirmPasswordPlaceholder')}
           placeholderTextColor={colors.placeholderText}
-          secureTextEntry
           value={confirmPassword}
           onChangeText={setConfirmPassword}
         />

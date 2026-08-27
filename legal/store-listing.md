@@ -56,7 +56,7 @@ AR: "مرحبًا بكم في عقاري — تصفح واحفظ وأضف عقا
 [Pending domain]
 
 ## Privacy Policy URL (required by both stores)
-[Pending domain — see legal/privacy-policy.md for the content to host]
+https://claude.ai/code/artifact/5bc797dc-3fa0-465e-a90a-af696ad89a4e — hosted from legal/privacy-policy.md (bilingual EN/AR, language toggle). Must be set to "Shared" from the page's share menu before submitting — Apple/Google reviewers need public access, and this link is private by default.
 
 ---
 
@@ -64,3 +64,4 @@ AR: "مرحبًا بكم في عقاري — تصفح واحفظ وأضف عقا
 - Screenshots: both stores require screenshots per device size class (iOS: 6.7" and 6.5" iPhone at minimum; Android: phone + optionally tablet). Take these from a real build once EAS build is done, not Expo Go.
 - App icon: needs a proper 1024×1024 source (current assets are 554×554 — see conversation).
 - Google Play "Data safety" form and Apple "App Privacy" (nutrition label) — fill these out based on the Information We Collect section in legal/privacy-policy.md: name, phone number, email, photos, location (collected but not stored/transmitted — mark as "used but not linked to identity, not stored").
+- Privacy Policy: ✅ done, hosted, and linked above — just needs sharing (see note above) before submission.

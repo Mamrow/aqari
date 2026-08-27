@@ -1,4 +1,4 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
@@ -7,6 +7,8 @@ import { FEATURED_GOLD } from '../theme/colors';
 import { LISTING_TYPE_LABEL_KEYS, PROPERTY_TYPE_LABEL_KEYS } from '../data/propertyTypes';
 import { STATUS_LABEL_KEYS, getStatusColor } from '../data/listingStatus';
 import { isVideoUrl } from '../utils/media';
+import SkeletonImage from './SkeletonImage';
+import { BOOST_PURCHASES_ENABLED } from '../config/features';
 
 // The flashing/pulsing treatment for Featured lives only in the map view's
 // bottom carousel (HomeMapScreen.js's own Animated mini-cards) — everywhere
@@ -35,7 +37,7 @@ export default function ListingCard({
   // slow and loses the association between them. The inner Text nodes are
   // hidden from accessibility below so nothing is announced twice.
   const spokenParts = [
-    listing.isFeatured && t('a11yFeatured'),
+    BOOST_PURCHASES_ENABLED && listing.isFeatured && t('a11yFeatured'),
     showStatus && listing.status && t(STATUS_LABEL_KEYS[listing.status]),
     `${listing.price.toLocaleString('en-US')} ${t('priceCurrency')}`,
     listing.title,
@@ -45,12 +47,12 @@ export default function ListingCard({
   ].filter(Boolean);
 
   return (
-    <View style={[styles.card, listing.isFeatured && styles.featuredCard, style]}>
+    <View style={[styles.card, BOOST_PURCHASES_ENABLED && listing.isFeatured && styles.featuredCard, style]}>
       <View
         style={[
           styles.cardInner,
           { backgroundColor: colors.surface },
-          listing.isFeatured && { borderWidth: 2, borderColor: FEATURED_GOLD },
+          BOOST_PURCHASES_ENABLED && listing.isFeatured && { borderWidth: 2, borderColor: FEATURED_GOLD },
         ]}
       >
         {showStatus && listing.status && (
@@ -74,12 +76,9 @@ export default function ListingCard({
             testID="listing-card"
           >
             {thumbnailUri ? (
-              <Image
-                source={{ uri: thumbnailUri }}
-                style={[styles.image, { backgroundColor: colors.border }]}
-                accessibilityElementsHidden
-                importantForAccessibility="no"
-              />
+              <View accessibilityElementsHidden importantForAccessibility="no">
+                <SkeletonImage uri={thumbnailUri} style={styles.image} colors={colors} />
+              </View>
             ) : (
               <View style={[styles.image, styles.videoPlaceholder, { backgroundColor: colors.border }]}>
                 <Ionicons name="play-circle" size={24} color={colors.text} />

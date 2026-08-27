@@ -147,7 +147,22 @@ export default function AdminApprovalsScreen({ navigation }) {
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
             <View style={styles.row}>
-              <ListingCard listing={item} showStatus />
+              <ListingCard
+                listing={item}
+                showStatus
+                onPress={() => navigation.navigate('ListingDetail', { listingId: item.id })}
+              />
+
+              {(() => {
+                const seller = agents.find(
+                  (agent) => agent.phone === item.agentId || agent.phone === item.agentPhone
+                );
+                return (
+                  <Text style={[styles.sellerLabel, { color: colors.textMuted }]} numberOfLines={1}>
+                    {t('listedByLabel')} {seller?.name ?? item.agentPhone}
+                  </Text>
+                );
+              })()}
 
               {item.status === 'pending' && (
                 <View style={styles.actions}>
@@ -253,6 +268,11 @@ const styles = StyleSheet.create({
   },
   row: {
     gap: 8,
+  },
+  sellerLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: -4,
   },
   actions: {
     flexDirection: 'row',

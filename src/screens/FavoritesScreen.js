@@ -9,10 +9,13 @@ import StatusScreen from '../components/StatusScreen';
 import { friendlyErrorMessage } from '../utils/friendlyError';
 
 export default function FavoritesScreen({ navigation }) {
-  const { listings, saved, dataLoading, dataErrors, fetchListings, fetchFavorites, auth } = useAppContext();
+  const { listings, saved, blockedSellers, dataLoading, dataErrors, fetchListings, fetchFavorites, auth } =
+    useAppContext();
   const t = useT();
   const colors = useThemeColors();
-  const savedListings = listings.filter((listing) => saved.includes(listing.id));
+  const savedListings = listings.filter(
+    (listing) => saved.includes(listing.id) && !blockedSellers.includes(listing.agentId)
+  );
   const readError = dataErrors.favorites ?? dataErrors.listings;
   const retry = () => Promise.all([fetchListings(), fetchFavorites(auth.phone)]);
 

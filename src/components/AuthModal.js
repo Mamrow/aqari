@@ -14,6 +14,7 @@ import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import PhoneInput, { withLibyaPrefix, isValidLibyanMobile } from './PhoneInput';
+import PasswordInput from './PasswordInput';
 
 export default function AuthModal() {
   const { authModalVisible, closeAuthModal, signUp, signIn, sendPasswordReset } = useAppContext();
@@ -182,21 +183,21 @@ export default function AuthModal() {
               />
             )}
 
-            <TextInput
-              style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
+            <PasswordInput
+              style={[styles.input, { borderColor: colors.inputBorder }]}
+              colors={colors}
               placeholder={`${t('authPasswordPlaceholder')} *`}
               placeholderTextColor={colors.placeholderText}
-              secureTextEntry
               value={password}
               onChangeText={setPassword}
             />
 
             {mode === 'signUp' && (
-              <TextInput
-                style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
+              <PasswordInput
+                style={[styles.input, { borderColor: colors.inputBorder }]}
+                colors={colors}
                 placeholder={`${t('authConfirmPasswordPlaceholder')} *`}
                 placeholderTextColor={colors.placeholderText}
-                secureTextEntry
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
               />

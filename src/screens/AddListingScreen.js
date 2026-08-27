@@ -20,6 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import BoostListingSection from '../components/BoostListingSection';
+import { BOOST_PURCHASES_ENABLED } from '../config/features';
 import StatusScreen from '../components/StatusScreen';
 import { friendlyErrorMessage } from '../utils/friendlyError';
 import { TRIPOLI_CENTER } from '../data/constants';
@@ -55,7 +56,7 @@ const INITIAL_REGION = {
 
 const ROOM_OPTIONS = ['1', '2', '3', '4', '5+'];
 const ROOMS_APPLICABLE_TYPES = ['apartment', 'villa'];
-const MIN_PHOTOS = 3;
+const MIN_PHOTOS = 5;
 const MAX_PHOTOS = 15;
 // A one-word "nice" description shouldn't be enough to publish a listing —
 // 20 chars is low enough not to be annoying, high enough to rule out that.
@@ -330,9 +331,11 @@ export default function AddListingScreen({ navigation, route }) {
         subtitle={t('listingSubmittedMessage')}
         secondaryAction={{ label: t('skipForNowButton'), onPress: goToMyListings }}
       >
-        <View style={styles.successBoostSection}>
-          <BoostListingSection listing={submittedListing} colors={colors} />
-        </View>
+        {BOOST_PURCHASES_ENABLED && (
+          <View style={styles.successBoostSection}>
+            <BoostListingSection listing={submittedListing} colors={colors} />
+          </View>
+        )}
       </StatusScreen>
     );
   }
@@ -673,12 +676,14 @@ export default function AddListingScreen({ navigation, route }) {
       <RequiredLabel colors={colors} style={styles.sectionSpacing}>
         {t('photosLabel')}
       </RequiredLabel>
-      <Text style={[styles.photosHint, { color: colors.textMuted }]}>
-        {t('photosCountHint')
-          .replace('{count}', String(images.length))
-          .replace('{min}', String(MIN_PHOTOS))
-          .replace('{max}', String(MAX_PHOTOS))}
-      </Text>
+      {images.length > 0 && (
+        <Text style={[styles.photosHint, { color: colors.textMuted }]}>
+          {t('photosCountHint')
+            .replace('{count}', String(images.length))
+            .replace('{min}', String(MIN_PHOTOS))
+            .replace('{max}', String(MAX_PHOTOS))}
+        </Text>
+      )}
       <View style={styles.photoRow}>
         {images.map((uri) =>
           isVideoUrl(uri) ? (

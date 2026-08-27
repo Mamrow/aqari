@@ -1,36 +1,42 @@
 import { useState } from 'react';
-import { I18nManager, Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { ClipPath, Defs, Image as SvgImage, Path } from 'react-native-svg';
+import { Image as RNImage, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useT } from '../i18n/useT';
-import { useThemeColors } from '../theme/useThemeColors';
-import { FEATURED_GOLD } from '../theme/colors';
+import { useAppContext } from '../context/AppContext';
 
-// The copy remains in translations.js so the visual sequence works in Arabic
-// and English without hardcoded screen-specific strings.
+// Onboarding is a fixed light-palette experience matching the baked artwork
+// below; it intentionally doesn't react to app theme.
+const ONBOARDING_BACKGROUND = '#F6F2EF';
+const ONBOARDING_NAVY = '#01102C';
+const ONBOARDING_BODY = '#2D3A52';
+const ONBOARDING_BLUE = '#0045D3';
+
+// These layers are derived from the supplied 9:16 reference screens. They
+// contain only the property artwork, pale-blue backing, and gold edge; live
+// copy and controls stay in React Native for localization and accessibility.
 const SLIDES = [
   {
     key: 'browse',
-    image: require('../../assets/onboarding/browse.jpg'),
+    image: require('../../assets/onboarding/onboarding-reference-1.jpg'),
     titleKey: 'onboardBrowseTitle',
     bodyKey: 'onboardBrowseBody',
   },
   {
     key: 'save',
-    image: require('../../assets/onboarding/save.jpg'),
+    image: require('../../assets/onboarding/onboarding-reference-2.jpg'),
     titleKey: 'onboardSaveTitle',
     bodyKey: 'onboardSaveBody',
   },
   {
     key: 'contact',
-    image: require('../../assets/onboarding/contact.jpg'),
+    image: require('../../assets/onboarding/onboarding-reference-3.jpg'),
     titleKey: 'onboardContactTitle',
     bodyKey: 'onboardContactBody',
   },
   {
     key: 'list',
-    image: require('../../assets/onboarding/list.jpg'),
+    image: require('../../assets/onboarding/onboarding-reference-4.jpg'),
     titleKey: 'onboardListTitle',
     bodyKey: 'onboardListBody',
   },
@@ -38,9 +44,13 @@ const SLIDES = [
 
 export default function OnboardingScreen({ onDone }) {
   const t = useT();
-  const colors = useThemeColors();
+  const { language } = useAppContext();
   const [index, setIndex] = useState(0);
-  const isRTL = I18nManager.isRTL;
+  const isRTL = language === 'ar';
+  const displayCopy = (key) => {
+    const value = t(key);
+    return isRTL ? `\u202B${value}\u202C` : value;
+  };
   const isLast = index === SLIDES.length - 1;
   const slide = SLIDES[index];
   const paginationSlides = isRTL ? [...SLIDES].reverse() : SLIDES;
@@ -58,137 +68,159 @@ export default function OnboardingScreen({ onDone }) {
     setIndex((value) => value + 1);
   };
 
+  const backButton = index > 0 ? (
+    <Pressable
+      style={({ pressed }) => [
+        styles.backButtonBottom,
+        { opacity: pressed ? 0.65 : 1 },
+      ]}
+      onPress={goBack}
+      accessibilityRole="button"
+      accessibilityLabel={t('onboardBack')}
+      testID="onboarding-back"
+    >
+      <Ionicons name={backIcon} size={16} color="#68717F" />
+      <Text style={styles.backText}>{t('onboardBack')}</Text>
+    </Pressable>
+  ) : null;
+
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: ONBOARDING_BACKGROUND }]}
       edges={['top', 'bottom']}
     >
-      <View style={[styles.topBar, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-        <View style={[styles.brandLockup, isRTL ? styles.brandLockupRTL : styles.brandLockupLTR]}>
-          <View style={[styles.brandMark, isRTL ? styles.brandMarkRTL : styles.brandMarkLTR]}>
-            <View style={[styles.brandChevron, styles.brandChevronLeft, { backgroundColor: FEATURED_GOLD }]} />
-            <View style={[styles.brandChevron, styles.brandChevronRight, { backgroundColor: FEATURED_GOLD }]} />
-          </View>
-          <Text style={[styles.brandName, { color: colors.heading }]}>Aqari</Text>
-        </View>
-        {isLast ? (
-          <View style={styles.skipButtonPlaceholder} />
-        ) : (
-          <Pressable
-            onPress={onDone}
-            style={({ pressed }) => [styles.skipButton, { opacity: pressed ? 0.55 : 1 }]}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={t('onboardSkip')}
-            testID="onboarding-skip"
-          >
-            <Text style={[styles.skipText, { color: colors.textMuted }]}>{t('onboardSkip')}</Text>
-          </Pressable>
-        )}
-      </View>
-
-      <View style={styles.content}>
-        <View style={[styles.heroScene, { backgroundColor: colors.background }]}>
-          <View style={[styles.heroBlueShape, { backgroundColor: `${colors.accent}22` }]} />
-          <Svg
-            style={styles.heroSvg}
-            width="100%"
-            height="100%"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            accessibilityRole="image"
-            accessibilityLabel={t(slide.titleKey)}
-          >
-            <Defs>
-              <ClipPath id={`onboarding-photo-${slide.key}`}>
-                <Path d="M 90 0 L 100 0 L 100 100 L 8 58 Z" />
-              </ClipPath>
-            </Defs>
-            <SvgImage
-              key={slide.key}
-              href={slide.image}
-              x="0"
-              y="0"
-              width="100"
-              height="100"
-              preserveAspectRatio="xMidYMid slice"
-              clipPath={`url(#onboarding-photo-${slide.key})`}
-            />
-            <Path
-              d="M 90 0 L 8 58 L 100 100"
-              fill="none"
-              stroke={FEATURED_GOLD}
-              strokeWidth="0.45"
-              vectorEffect="non-scaling-stroke"
-            />
-          </Svg>
-
-          {index > 0 && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.backButtonFloating,
-                isRTL ? styles.backButtonRTL : styles.backButtonLTR,
-                { borderColor: colors.heading, backgroundColor: colors.background, opacity: pressed ? 0.65 : 1 },
+      <View style={styles.canvas}>
+        <View style={styles.artworkLayer} pointerEvents="none">
+          {SLIDES.map((item, itemIndex) => (
+            <RNImage
+              key={item.key}
+              source={item.image}
+              style={[
+                styles.artwork,
+                isRTL && styles.artworkMirrored,
+                itemIndex === index ? styles.artworkActive : styles.artworkHidden,
               ]}
-              onPress={goBack}
+              resizeMode="cover"
+              accessible={itemIndex === index}
+              accessibilityRole={itemIndex === index ? 'image' : undefined}
+              accessibilityLabel={itemIndex === index ? t(item.titleKey) : undefined}
+            />
+          ))}
+        </View>
+
+        <View style={styles.topBar}>
+          <View style={[styles.brandLockup, isRTL ? styles.brandRTL : styles.brandLTR]}>
+            <RNImage
+              source={require('../../assets/onboarding/onboarding-brand.png')}
+              style={styles.brandImage}
+              resizeMode="contain"
+              accessibilityRole="image"
+              accessibilityLabel="Aqari"
+            />
+          </View>
+          {isLast ? (
+              <View style={[styles.skipButtonPlaceholder, isRTL ? styles.skipRTL : styles.skipLTR]} />
+          ) : (
+            <Pressable
+              onPress={onDone}
+              style={({ pressed }) => [
+                styles.skipButton,
+                isRTL ? styles.skipRTL : styles.skipLTR,
+                { opacity: pressed ? 0.55 : 1 },
+              ]}
+              hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel={t('onboardBack')}
-              testID="onboarding-back"
+              accessibilityLabel={t('onboardSkip')}
+              testID="onboarding-skip"
             >
-              <Ionicons name={backIcon} size={22} color={colors.heading} />
+              <Text style={styles.skipText}>{t('onboardSkip')}</Text>
             </Pressable>
           )}
         </View>
 
-        <View style={styles.copyBlock}>
-          <Text style={[styles.title, { color: colors.heading, textAlign: isRTL ? 'right' : 'left' }]}>
-            {t(slide.titleKey)}
+        <View
+          style={[
+            styles.copyBlock,
+            isRTL ? styles.copyBlockRTL : styles.copyBlockLTR,
+            { direction: isRTL ? 'rtl' : 'ltr', writingDirection: isRTL ? 'rtl' : 'ltr' },
+          ]}
+        >
+          <Text
+            style={[
+              styles.title,
+              isRTL && styles.titleRTL,
+              {
+                textAlign: isRTL ? 'right' : 'left',
+                writingDirection: isRTL ? 'rtl' : 'ltr',
+                direction: isRTL ? 'rtl' : 'ltr',
+              },
+            ]}
+          >
+            {displayCopy(slide.titleKey)}
           </Text>
-          <Text style={[styles.body, { color: colors.textMuted, textAlign: isRTL ? 'right' : 'left' }]}>
-            {t(slide.bodyKey)}
+          <Text
+            numberOfLines={3}
+            style={[
+              styles.body,
+              isRTL && styles.bodyRTL,
+              {
+                textAlign: isRTL ? 'right' : 'left',
+                writingDirection: isRTL ? 'rtl' : 'ltr',
+                direction: isRTL ? 'rtl' : 'ltr',
+              },
+            ]}
+          >
+            {displayCopy(slide.bodyKey)}
           </Text>
         </View>
-      </View>
 
-      <View style={styles.footer}>
-        <View style={[styles.footerRow, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}>
-          <View
-            style={[
-              styles.dotsRow,
-              { justifyContent: isRTL ? 'flex-end' : 'flex-start' },
-            ]}
-            accessibilityLabel={`${index + 1} / ${SLIDES.length}`}
-          >
-            {paginationSlides.map((item) => {
-              const active = item.key === slide.key;
-              return (
-                <View
-                  key={item.key}
-                  style={[
-                    styles.dot,
-                    { backgroundColor: active ? colors.accent : colors.border },
-                    active && styles.dotActive,
-                  ]}
-                />
-              );
-            })}
+        <View style={styles.footer}>
+          <View style={styles.footerRow}>
+            {!isRTL && (
+              <View
+                style={[
+                  styles.dotsRow,
+                  styles.dotsRowLTR,
+                ]}
+                accessibilityLabel={`${index + 1} / ${SLIDES.length}`}
+              >
+                {paginationSlides.map((item) => {
+                  const active = item.key === slide.key;
+                  return (
+                    <View
+                      key={item.key}
+                      style={[styles.dot, { backgroundColor: active ? ONBOARDING_BLUE : '#D8D8D8' }]}
+                    />
+                  );
+                })}
+              </View>
+            )}
+
+            <View
+              style={[
+                styles.actionRow,
+                index > 0 ? styles.actionRowWithBack : styles.actionRowWithoutBack,
+                isRTL ? styles.actionRowRTL : styles.actionRowLTR,
+              ]}
+            >
+              <Pressable
+                style={({ pressed }) => [
+                  styles.nextButton,
+                  { backgroundColor: ONBOARDING_BLUE, opacity: pressed ? 0.88 : 1 },
+                ]}
+                onPress={goNext}
+                accessibilityRole="button"
+                accessibilityLabel={isLast ? t('onboardGetStarted') : t('onboardNext')}
+                testID="onboarding-next"
+              >
+                <Text style={styles.nextText}>
+                  {isLast ? t('onboardGetStarted') : t('onboardNext')}
+                </Text>
+              </Pressable>
+
+              {backButton}
+            </View>
           </View>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.nextButton,
-              { backgroundColor: colors.accent, opacity: pressed ? 0.88 : 1 },
-              { flexDirection: isRTL ? 'row-reverse' : 'row' },
-            ]}
-            onPress={goNext}
-            accessibilityRole="button"
-            accessibilityLabel={isLast ? t('onboardGetStarted') : t('onboardNext')}
-            testID="onboarding-next"
-          >
-            <Text style={[styles.nextText, { color: colors.accentText }]}>
-              {isLast ? t('onboardGetStarted') : t('onboardNext')}
-            </Text>
-          </Pressable>
         </View>
       </View>
     </SafeAreaView>
@@ -197,53 +229,63 @@ export default function OnboardingScreen({ onDone }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topBar: {
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingHorizontal: 28,
-    paddingTop: 10,
-    minHeight: 92,
-  },
-  brandLockup: {
+  canvas: {
+    flex: 1,
     position: 'relative',
-    minWidth: 154,
-    minHeight: 72,
-    justifyContent: 'flex-end',
+    overflow: 'hidden',
   },
-  brandLockupLTR: { alignItems: 'flex-start' },
-  brandLockupRTL: { alignItems: 'flex-end' },
-  brandMark: {
+  artworkLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
+  artwork: {
+    ...StyleSheet.absoluteFillObject,
+    width: undefined,
+    height: undefined,
+  },
+  artworkActive: {
+    opacity: 1,
+  },
+  artworkHidden: {
+    opacity: 0,
+  },
+  // RTL mirrors the baked photo/triangle/gold-line artwork as a unit so it
+  // stays visually consistent with the rest of the screen (Skip, back
+  // button, copy, footer) flipping sides. The Aqari wordmark is NOT
+  // mirrored — logo lockups conventionally stay fixed in RTL apps.
+  artworkMirrored: {
+    transform: [{ scaleX: -1 }],
+  },
+  topBar: {
     position: 'absolute',
     top: 0,
-    width: 30,
-    height: 18,
-  },
-  brandMarkLTR: { left: 12 },
-  brandMarkRTL: { right: 12 },
-  brandChevron: {
-    position: 'absolute',
-    top: 5,
-    width: 21,
-    height: 5,
-    borderRadius: 3,
-  },
-  brandChevronLeft: {
     left: 0,
-    transform: [{ rotate: '-32deg' }],
-  },
-  brandChevronRight: {
     right: 0,
-    transform: [{ rotate: '32deg' }],
+    minHeight: 80,
+    zIndex: 10,
   },
-  brandName: {
-    fontFamily: 'serif',
-    fontSize: 38,
-    lineHeight: 48,
-    fontWeight: '400',
-    letterSpacing: -0.5,
-    writingDirection: 'ltr',
+  brandLockup: {
+    position: 'absolute',
+    top: 10,
+    width: 92,
+    height: 52,
+    flexShrink: 0,
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
+  brandLTR: {
+    left: 24,
+  },
+  brandRTL: {
+    right: 24,
+  },
+  brandImage: {
+    width: '100%',
+    height: '100%',
   },
   skipButton: {
+    position: 'absolute',
+    top: 8,
     minHeight: 44,
     minWidth: 56,
     alignItems: 'center',
@@ -252,101 +294,155 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   skipButtonPlaceholder: {
+    position: 'absolute',
+    top: 8,
     minHeight: 44,
     minWidth: 56,
   },
+  skipLTR: {
+    right: 24,
+  },
+  skipRTL: {
+    left: 24,
+  },
   skipText: {
+    color: ONBOARDING_NAVY,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
   },
-  content: {
-    flex: 1,
-  },
-  heroScene: {
-    flex: 1,
-    minHeight: 410,
-    overflow: 'hidden',
-  },
-  heroBlueShape: {
-    position: 'absolute',
-    width: 240,
-    height: 230,
-    borderRadius: 76,
-    left: -92,
-    top: 36,
-    transform: [{ rotate: '-16deg' }],
-    zIndex: 1,
-  },
-  heroSvg: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 2,
-  },
-  backButtonFloating: {
-    position: 'absolute',
-    top: 26,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 5,
-  },
-  backButtonLTR: { left: 24 },
-  backButtonRTL: { right: 24 },
   copyBlock: {
-    paddingHorizontal: 28,
-    paddingTop: 24,
+    position: 'absolute',
+    top: '72%',
+    width: '76%',
+    zIndex: 6,
+  },
+  copyBlockLTR: {
+    left: 28,
+  },
+  copyBlockRTL: {
+    left: '44%',
+    right: 24,
+    top: '70%',
+    width: 'auto',
+    alignItems: 'stretch',
   },
   title: {
+    color: ONBOARDING_NAVY,
     fontFamily: 'serif',
     fontSize: 30,
     lineHeight: 38,
     fontWeight: '400',
     letterSpacing: -0.4,
-    marginBottom: 12,
+    marginBottom: 14,
+  },
+  titleRTL: {
+    width: '100%',
+    fontFamily: 'sans-serif',
+    fontSize: 25,
+    lineHeight: 34,
+    fontWeight: '600',
+    letterSpacing: 0,
+    marginBottom: 10,
+    writingDirection: 'rtl',
+    textAlign: 'right',
   },
   body: {
+    color: ONBOARDING_BODY,
     fontSize: 16,
     lineHeight: 26,
     fontWeight: '400',
   },
+  bodyRTL: {
+    width: '100%',
+    fontFamily: 'sans-serif',
+    fontSize: 14,
+    lineHeight: 23,
+    fontWeight: '400',
+    writingDirection: 'rtl',
+    textAlign: 'right',
+  },
   footer: {
-    paddingHorizontal: 28,
-    paddingTop: 18,
-    paddingBottom: 18,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 22,
+    paddingHorizontal: 20,
+    zIndex: 7,
   },
   footerRow: {
+    position: 'relative',
+    width: '100%',
+    minHeight: 60,
     alignItems: 'center',
-    gap: 18,
+    // Plain 'row', not conditionally 'row-reverse' — I18nManager.forceRTL
+    // (set app-wide at boot, see App.js) already auto-mirrors 'row' once
+    // Arabic is active. Manually reversing on top of that cancels the
+    // automatic mirroring and renders this row as if it were still LTR.
+    flexDirection: 'row',
   },
-  dotsRow: {
-    flex: 1,
+  actionRow: {
+    position: 'absolute',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+  },
+  actionRowLTR: {
+    right: 0,
+  },
+  actionRowRTL: {
+    left: 0,
+  },
+  actionRowWithoutBack: {
+    width: '52%',
+  },
+  actionRowWithBack: {
+    width: '82%',
+  },
+  backButtonBottom: {
+    minWidth: 84,
+    minHeight: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: '#B8BDC6',
+    backgroundColor: '#E8EAED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    gap: 5,
+  },
+  dotsRow: {
+    position: 'absolute',
+    width: 82,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     minHeight: 18,
+  },
+  dotsRowLTR: {
+    left: 0,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
-  dotActive: {
-    width: 26,
-    borderRadius: 5,
-  },
   nextButton: {
-    width: '46%',
-    minHeight: 58,
+    flex: 1,
+    minHeight: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    borderRadius: 17,
+    borderRadius: 30,
     paddingHorizontal: 16,
   },
+  backText: {
+    color: '#68717F',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   nextText: {
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

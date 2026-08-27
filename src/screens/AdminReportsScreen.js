@@ -23,10 +23,33 @@ function statusColor(status, colors) {
   return colors.textMuted;
 }
 
-export default function AdminReportsScreen() {
-  const { reports, updateReportStatus, reportsLoading, dataErrors, fetchReports } = useAppContext();
+export default function AdminReportsScreen({ navigation }) {
+  const { reports, updateReportStatus, deleteReport, reportsLoading, dataErrors, fetchReports } =
+    useAppContext();
   const t = useT();
   const colors = useThemeColors();
+
+  const handleDelete = (report) => {
+    Alert.alert(
+      t('deleteReportConfirmTitle'),
+      t('deleteReportConfirmMessage'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteReport(report.id);
+            } catch (error) {
+              console.warn('deleteReport failed', error);
+              Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+            }
+          },
+        },
+      ]
+    );
+  };
 
   if (reportsLoading) {
     return <LoadingView />;
@@ -60,7 +83,11 @@ export default function AdminReportsScreen() {
       data={sortReports(reports)}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Pressable
+          disabled={!item.listingId}
+          onPress={() => navigation.navigate('ListingDetail', { listingId: item.listingId })}
+          style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        >
           <View style={styles.headerRow}>
             <Text style={[styles.listingTitle, { color: colors.text }]} numberOfLines={1}>
               {item.listingTitle ?? t('listingNotFoundTitle')}
@@ -123,8 +150,15 @@ export default function AdminReportsScreen() {
                 </Text>
               </Pressable>
             )}
+            <Pressable
+              style={[styles.iconButton, { borderColor: colors.danger }]}
+              onPress={() => handleDelete(item)}
+            >
+              <Ionicons name="trash" size={16} color={colors.danger} />
+              <Text style={[styles.iconButtonText, { color: colors.danger }]}>{t('delete')}</Text>
+            </Pressable>
           </View>
-        </View>
+        </Pressable>
       )}
     />
   );

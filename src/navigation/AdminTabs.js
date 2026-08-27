@@ -4,6 +4,7 @@ import AdminPaymentsStack from './AdminPaymentsStack';
 import SettingsStack from './SettingsStack';
 import { tabIcon } from './tabIcon';
 import { useT } from '../i18n/useT';
+import { BOOST_PURCHASES_ENABLED } from '../config/features';
 
 const Tab = createBottomTabNavigator();
 
@@ -17,11 +18,13 @@ export default function AdminTabs() {
         component={AdminApprovalsStack}
         options={{ title: t('tabApprovals'), tabBarIcon: tabIcon('checkmark-circle') }}
       />
-      <Tab.Screen
-        name="Payments"
-        component={AdminPaymentsStack}
-        options={{ title: t('tabPayments'), tabBarIcon: tabIcon('card') }}
-      />
+      {BOOST_PURCHASES_ENABLED && (
+        <Tab.Screen
+          name="Payments"
+          component={AdminPaymentsStack}
+          options={{ title: t('tabPayments'), tabBarIcon: tabIcon('card') }}
+        />
+      )}
       <Tab.Screen
         name="Settings"
         component={SettingsStack}

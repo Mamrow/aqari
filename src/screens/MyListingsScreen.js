@@ -3,6 +3,7 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native
 import { useAppContext } from '../context/AppContext';
 import ListingCard from '../components/ListingCard';
 import BoostListingSection from '../components/BoostListingSection';
+import { BOOST_PURCHASES_ENABLED } from '../config/features';
 import PlaceholderScreen from '../components/PlaceholderScreen';
 import LoadingView from '../components/LoadingView';
 import SearchBar from '../components/SearchBar';
@@ -238,7 +239,9 @@ export default function MyListingsScreen({ navigation }) {
                                   {isRent ? t('markAsRentedButton') : t('markAsSoldButton')}
                                 </Text>
                               </Pressable>
-                              <BoostListingSection listing={item} colors={colors} />
+                              {BOOST_PURCHASES_ENABLED && (
+                                <BoostListingSection listing={item} colors={colors} />
+                              )}
                             </>
                           )}
                         </View>

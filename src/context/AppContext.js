@@ -36,6 +36,7 @@ export function AppProvider({ children }) {
   const [auth, setAuth] = useState(initialState.auth);
   const [listings, setListings] = useState([]);
   const [saved, setSaved] = useState([]);
+  const [blockedSellers, setBlockedSellers] = useState([]);
   const [agents, setAgents] = useState([]);
   const [reports, setReports] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
@@ -186,6 +187,27 @@ export function AppProvider({ children }) {
     setSaved((data ?? []).map((row) => row.listing_id));
   }, [clearDataError, recordDataError]);
 
+  // Own account's block list — owner_id-keyed (real account), not phone, per
+  // migration_blocked_sellers.sql. Background fetch like fetchAgents, not
+  // part of the dataLoading gate: nothing on first render depends on it.
+  const fetchBlockedSellers = useCallback(async (uid) => {
+    if (!uid) {
+      clearDataError('blockedSellers');
+      setBlockedSellers([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from('blocked_sellers')
+      .select('blocked_phone')
+      .eq('owner_id', uid);
+    if (error) {
+      recordDataError('blockedSellers', error);
+      return;
+    }
+    clearDataError('blockedSellers');
+    setBlockedSellers((data ?? []).map((row) => row.blocked_phone));
+  }, [clearDataError, recordDataError]);
+
   const fetchAgents = useCallback(async () => {
     setAgentsLoading(true);
     try {
@@ -246,6 +268,13 @@ export function AppProvider({ children }) {
     Promise.all([fetchListings(), fetchFavorites(auth.phone)]).finally(() => setDataLoading(false));
     fetchAgents();
   }, [hydrated, auth.phone, fetchListings, fetchFavorites, fetchAgents]);
+
+  // Keyed on authUid rather than auth.phone (see fetchBlockedSellers) — its
+  // own effect since it changes on a different signal than the phone-scoped
+  // fetches above.
+  useEffect(() => {
+    fetchBlockedSellers(authUid);
+  }, [authUid, fetchBlockedSellers]);
 
   // Changing language flips RTL/LTR, which React Native only applies after a
   // full reload — DevSettings.reload() is a no-op outside dev/Expo Go.
@@ -634,6 +663,31 @@ export function AppProvider({ children }) {
     [reports]
   );
 
+  // Admin-only at the RLS level (listing_reports delete requires
+  // private.is_admin(), see migration_listing_reports_admin_delete.sql) —
+  // lets admin clear a report out of the queue entirely instead of just
+  // marking it reviewed/dismissed.
+  const deleteReport = useCallback(
+    async (reportId) => {
+      const previousReport = reports.find((item) => item.id === reportId);
+      const previousIndex = reports.findIndex((item) => item.id === reportId);
+      setReports((prev) => prev.filter((item) => item.id !== reportId));
+      const { error } = await supabase.from('listing_reports').delete().eq('id', reportId);
+      if (error) {
+        if (previousReport) {
+          setReports((prev) => {
+            if (prev.some((item) => item.id === reportId)) return prev;
+            const next = [...prev];
+            next.splice(previousIndex, 0, previousReport);
+            return next;
+          });
+        }
+        throw error;
+      }
+    },
+    [reports]
+  );
+
   // Admin-only at the RLS/RPC level (admin_set_agent_verified checks
   // private.is_admin() internally, and the client has no direct UPDATE
   // grant on the verified column regardless — see migration_agent_verified.sql).
@@ -693,6 +747,46 @@ export function AppProvider({ children }) {
       });
     },
     [requireAuth, getMyId, saved, authUid, recordDataError]
+  );
+
+  // Block/unblock a seller (Apple Guideline 1.2 UGC safety: report + block).
+  // Contact itself (call/WhatsApp) happens outside the app so blocking can't
+  // prevent that directly — what it actually does is drop that seller's
+  // listings from buyer-facing browsing (HomeMapScreen/FavoritesScreen).
+  // Optimistic like toggleSave, same rollback-on-error shape.
+  const blockSeller = useCallback(
+    (phone) => {
+      requireAuth(() => {
+        if (blockedSellers.includes(phone)) return;
+        setBlockedSellers((prev) => [...prev, phone]);
+        supabase
+          .from('blocked_sellers')
+          .insert({ owner_id: authUid, blocked_phone: phone })
+          .then(({ error }) => {
+            if (!error) return;
+            recordDataError('blockedSellers', error);
+            setBlockedSellers((prev) => prev.filter((item) => item !== phone));
+          });
+      });
+    },
+    [requireAuth, blockedSellers, authUid, recordDataError]
+  );
+
+  const unblockSeller = useCallback(
+    (phone) => {
+      setBlockedSellers((prev) => prev.filter((item) => item !== phone));
+      supabase
+        .from('blocked_sellers')
+        .delete()
+        .eq('owner_id', authUid)
+        .eq('blocked_phone', phone)
+        .then(({ error }) => {
+          if (!error) return;
+          recordDataError('blockedSellers', error);
+          setBlockedSellers((prev) => (prev.includes(phone) ? prev : [...prev, phone]));
+        });
+    },
+    [authUid, recordDataError]
   );
 
   // Listing cap removed for now (agents can add unlimited listings) — subscription
@@ -918,12 +1012,16 @@ export function AppProvider({ children }) {
     authUid,
     listings,
     saved,
+    blockedSellers,
+    blockSeller,
+    unblockSeller,
     agents,
     removeAgent,
     setAgentVerified,
     reports,
     reportListing,
     updateReportStatus,
+    deleteReport,
     isAdmin,
     dataLoading,
     dataErrors,
@@ -969,6 +1067,7 @@ export function AppProvider({ children }) {
     fetchListings,
     fetchFavorites,
     fetchAgents,
+    fetchBlockedSellers,
     fetchReports,
     createBoostPayment,
     verifyBoostPayment,

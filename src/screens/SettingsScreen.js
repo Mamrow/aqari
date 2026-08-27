@@ -9,16 +9,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import Avatar from '../components/Avatar';
+import PasswordInput from '../components/PasswordInput';
 import { uploadAvatarImage } from '../utils/uploadImage';
 import { friendlyErrorMessage } from '../utils/friendlyError';
 import appConfig from '../../app.json';
+import { BOOST_PURCHASES_ENABLED } from '../config/features';
 
 export default function SettingsScreen({ navigation }) {
   const {
@@ -40,6 +42,7 @@ export default function SettingsScreen({ navigation }) {
   } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -195,7 +198,7 @@ export default function SettingsScreen({ navigation }) {
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(40, insets.bottom + 104) }]}
         keyboardShouldPersistTaps="handled"
       >
         <Text style={[styles.heading, { color: colors.heading }]}>{t('settingsHeading')}</Text>
@@ -282,7 +285,7 @@ export default function SettingsScreen({ navigation }) {
           )}
         </View>
 
-        {auth.loggedIn && !isAdmin && (
+        {auth.loggedIn && !isAdmin && BOOST_PURCHASES_ENABLED && (
           <>
             <SectionHeading icon="receipt-outline" label={t('paymentsLabel')} colors={colors} />
             <View style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -299,6 +302,31 @@ export default function SettingsScreen({ navigation }) {
                   </Text>
                   <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
                     {t('paymentHistoryRowSubtitle')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+            </View>
+          </>
+        )}
+
+        {auth.loggedIn && !isAdmin && (
+          <>
+            <SectionHeading icon="shield-outline" label={t('safetyLabel')} colors={colors} />
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <Pressable
+                onPress={() => navigation.navigate('BlockedSellers')}
+                style={styles.iconRow}
+              >
+                <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
+                  <Ionicons name="person-remove-outline" size={18} color={colors.accent} />
+                </View>
+                <View style={styles.rowTextBlock}>
+                  <Text style={[styles.subLabel, { color: colors.text }]}>
+                    {t('blockedSellersRow')}
+                  </Text>
+                  <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+                    {t('blockedSellersRowSubtitle')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -352,12 +380,12 @@ export default function SettingsScreen({ navigation }) {
             <View style={[styles.card, { backgroundColor: colors.surface }]}>
               {settingPassword ? (
                 <View style={styles.nameEditRow}>
-                  <TextInput
-                    style={[styles.nameInput, { borderColor: colors.inputBorder, color: colors.text }]}
+                  <PasswordInput
+                    style={[styles.nameInput, { borderColor: colors.inputBorder }]}
+                    colors={colors}
                     value={passwordDraft}
                     onChangeText={setPasswordDraft}
                     autoFocus
-                    secureTextEntry
                     placeholder={t('authPasswordPlaceholder')}
                     placeholderTextColor={colors.placeholderText}
                   />
@@ -398,6 +426,67 @@ export default function SettingsScreen({ navigation }) {
             </View>
           </>
         )}
+
+        <SectionHeading icon="shield-checkmark-outline" label={t('legalSupportLabel')} colors={colors} />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <Pressable
+            onPress={() => navigation.navigate('PrivacyPolicy')}
+            style={styles.iconRow}
+            accessibilityRole="button"
+            accessibilityLabel={t('privacyPolicyRow')}
+          >
+            <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
+              <Ionicons name="document-text-outline" size={18} color={colors.accent} />
+            </View>
+            <View style={styles.rowTextBlock}>
+              <Text style={[styles.subLabel, { color: colors.text }]}>
+                {t('privacyPolicyRow')}
+              </Text>
+              <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+                {t('privacyPolicyRowSubtitle')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate('TermsOfService')}
+            style={[styles.iconRow, styles.rowDivider, { borderTopColor: colors.border }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('termsOfServiceRow')}
+          >
+            <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
+              <Ionicons name="reader-outline" size={18} color={colors.accent} />
+            </View>
+            <View style={styles.rowTextBlock}>
+              <Text style={[styles.subLabel, { color: colors.text }]}>
+                {t('termsOfServiceRow')}
+              </Text>
+              <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+                {t('termsOfServiceRowSubtitle')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate('Support')}
+            style={[styles.iconRow, styles.rowDivider, { borderTopColor: colors.border }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('supportRow')}
+          >
+            <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
+              <Ionicons name="help-circle-outline" size={18} color={colors.accent} />
+            </View>
+            <View style={styles.rowTextBlock}>
+              <Text style={[styles.subLabel, { color: colors.text }]}>
+                {t('supportRow')}
+              </Text>
+              <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+                {t('supportRowSubtitle')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </Pressable>
+        </View>
 
         <SectionHeading icon="information-circle-outline" label={t('aboutLabel')} colors={colors} />
         <View style={[styles.card, styles.aboutRow, { backgroundColor: colors.surface }]}>
@@ -625,6 +714,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    paddingVertical: 12,
   },
   rowIconCircle: {
     width: 34,
@@ -661,6 +751,11 @@ const styles = StyleSheet.create({
   },
   aboutText: {
     fontSize: 13,
+  },
+  rowDivider: {
+    borderTopWidth: 1,
+    marginTop: 3,
+    paddingTop: 15,
   },
   logoutRow: {
     flexDirection: 'row',

@@ -1,6 +1,8 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import SettingsScreen from '../screens/SettingsScreen';
 import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
+import BlockedSellersScreen from '../screens/BlockedSellersScreen';
+import LegalInfoScreen from '../screens/LegalInfoScreen';
 import { useT } from '../i18n/useT';
 
 const Stack = createNativeStackNavigator();
@@ -23,6 +25,29 @@ export default function SettingsStack() {
         name="PaymentHistory"
         component={PaymentHistoryScreen}
         options={{ title: t('paymentHistoryTitle') }}
+      />
+      <Stack.Screen
+        name="BlockedSellers"
+        component={BlockedSellersScreen}
+        options={{ title: t('blockedSellersTitle') }}
+      />
+      <Stack.Screen
+        name="PrivacyPolicy"
+        component={LegalInfoScreen}
+        initialParams={{ type: 'privacy' }}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="TermsOfService"
+        component={LegalInfoScreen}
+        initialParams={{ type: 'terms' }}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Support"
+        component={LegalInfoScreen}
+        initialParams={{ type: 'support' }}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

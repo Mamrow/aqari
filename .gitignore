@@ -51,6 +51,9 @@ skills-lock.json
 # ad hoc while driving a browser for a task, not project output.
 .playwright-cli/
 
+# graphify skill's own analysis cache/output — local tooling, not app source.
+graphify-out/
+
 # generated native folders
 /ios
 /android

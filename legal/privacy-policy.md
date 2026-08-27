@@ -1,6 +1,6 @@
 # Aqari Privacy Policy
 
-_Last updated: [DATE]_
+_Last updated: August 27, 2026_
 
 This policy describes what information Aqari ("the app," "we," "us") collects, how it's used, and how you can control or delete it.
 
@@ -55,13 +55,13 @@ We may update this policy from time to time. Material changes will be reflected 
 
 ## Contact Us
 
-Questions about this policy or your data can be sent to: **[CONTACT EMAIL]**
+Questions about this policy or your data can be sent to: **aaqaaryy@gmail.com**
 
 ---
 
 # سياسة الخصوصية - عقاري
 
-_آخر تحديث: [التاريخ]_
+_آخر تحديث: 27 أغسطس 2026_
 
 توضح هذه السياسة المعلومات التي يجمعها تطبيق عقاري ("التطبيق"، "نحن")، وكيفية استخدامها، وكيف يمكنك التحكم بها أو حذفها.
 
@@ -116,4 +116,4 @@ _آخر تحديث: [التاريخ]_
 
 ## تواصل معنا
 
-لأي استفسارات حول هذه السياسة أو بياناتك، يمكنك التواصل معنا عبر: **[البريد الإلكتروني للتواصل]**
+لأي استفسارات حول هذه السياسة أو بياناتك، يمكنك التواصل معنا عبر: **aaqaaryy@gmail.com**

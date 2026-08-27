@@ -1,9 +1,15 @@
 import { useRef, useState } from 'react';
-import { Dimensions, FlatList, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useT } from '../i18n/useT';
 import { isVideoUrl } from '../utils/media';
 import GalleryVideoItem from './GalleryVideoItem';
+import SkeletonImage from './SkeletonImage';
+
+// The modal is a full-black background, not a themed screen — a fixed dark
+// skeleton (rather than useThemeColors' light-mode colors.border) is what
+// actually reads as a placeholder here regardless of the app's theme.
+const GALLERY_SKELETON_COLORS = { border: '#1c1c1c', skeletonHighlight: 'rgba(255,255,255,0.18)' };
 
 const ITEM_HEIGHT = Dimensions.get('window').height * 0.6;
 // A visible gap between photos, plus the snap/counter below, is what
@@ -74,7 +80,12 @@ export default function MediaGalleryModal({ visible, media, initialIndex, onClos
             isVideoUrl(uri) ? (
               <GalleryVideoItem uri={uri} style={styles.item} />
             ) : (
-              <Image source={{ uri }} style={styles.item} resizeMode="contain" />
+              <SkeletonImage
+                uri={uri}
+                style={styles.item}
+                colors={GALLERY_SKELETON_COLORS}
+                resizeMode="contain"
+              />
             )
           }
         />

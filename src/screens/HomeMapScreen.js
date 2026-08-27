@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Dimensions,
   Image,
   Modal,
   Platform,
@@ -8,7 +9,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
   FlatList,
 } from 'react-native';
@@ -33,7 +33,7 @@ import SearchBar from '../components/SearchBar';
 import PriceMarkerCapture from '../components/PriceMarkerCapture';
 import ClusterMarkerCapture from '../components/ClusterMarkerCapture';
 import { TRIPOLI_CENTER } from '../data/constants';
-import { toEnglishDigits } from '../utils/digits';
+import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { CITIES, DISTRICTS, PRIORITY_CITY_KEYS } from '../data/districts';
 import {
   LISTING_TYPES,
@@ -48,6 +48,7 @@ import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { darkMapStyle } from '../theme/darkMapStyle';
 import { FEATURED_GOLD } from '../theme/colors';
+import { BOOST_PURCHASES_ENABLED } from '../config/features';
 
 const FEATURED_CARD_WIDTH = 160;
 const FEATURED_CARD_GAP = 12;
@@ -73,6 +74,19 @@ const TRIPOLI_REGION = {
   longitudeDelta: 0.15,
 };
 
+// Slider bounds for the price filter — the ends of the range stand in for
+// "no lower/upper bound" (same meaning the old empty-string min/max had),
+// so listings above PRICE_MAX still show up when the upper thumb is left at
+// the max. Round LYD figure, not derived from live listing data, so it
+// doesn't shift under a user's feet as new listings come in.
+const PRICE_MIN = 0;
+const PRICE_MAX = 2000000;
+const PRICE_STEP = 5000;
+// pickerModalBackdrop has 32px padding each side, pickerModalCard has 16px
+// padding each side, and the slider thumbs need a little breathing room of
+// their own so they don't clip against the card edge mid-drag.
+const SLIDER_WIDTH = Dimensions.get('window').width - 32 * 2 - 16 * 2 - 24;
+
 // List-view-only sort options — map view has no meaningful sort order (pin
 // position is spatial), so this never affects marker iteration. 'featured'
 // is the default/floor: featured listings always lead regardless of which
@@ -95,8 +109,10 @@ const SORT_LABEL_KEYS = {
 const LIBYA_BOUNDS = { minLat: 19.5, maxLat: 33.2, minLon: 9.3, maxLon: 25.2 };
 
 export default function HomeMapScreen({ navigation }) {
-  const { listings, theme, dataLoading, dataErrors, fetchListings, language } = useAppContext();
+  const { listings, blockedSellers, theme, dataLoading, dataErrors, fetchListings, language } =
+    useAppContext();
   const t = useT();
+  const isRTL = language === 'ar';
   // Sorted by the currently displayed label, not by the fixed key order in
   // districts.js — Arabic and English alphabetical order aren't the same,
   // so this can't be a single hardcoded order.
@@ -113,15 +129,24 @@ export default function HomeMapScreen({ navigation }) {
     return localeSort(a, b);
   });
   const colors = useThemeColors();
+  const filterAccent = theme === 'dark' ? '#66A3FF' : colors.accent;
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState('map'); // 'map' | 'list'
   const [region, setRegion] = useState(TRIPOLI_REGION);
+  // Only turns on once we've confirmed the device's real GPS fix is inside
+  // Libya — stays off for denied permission, a fix outside Libya, or before
+  // the one-time location effect below has resolved.
+  const [showsUserLocation, setShowsUserLocation] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [listingType, setListingType] = useState('sale');
-  const [propertyType, setPropertyType] = useState('all');
+  const [selectedPropertyTypes, setSelectedPropertyTypes] = useState([]);
   const [propertyTypePickerVisible, setPropertyTypePickerVisible] = useState(false);
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
+  // Numeric, not string state — the price filter is a drag-only slider now,
+  // there's no typed digit input to normalize with toEnglishDigits anymore.
+  // PRICE_MIN/PRICE_MAX at the ends of the range mean "no bound", same as
+  // the old empty-string min/max did.
+  const [minPrice, setMinPrice] = useState(PRICE_MIN);
+  const [maxPrice, setMaxPrice] = useState(PRICE_MAX);
   const [priceFilterVisible, setPriceFilterVisible] = useState(false);
   const [cityFilter, setCityFilter] = useState('all');
   const [districtFilter, setDistrictFilter] = useState('all');
@@ -217,12 +242,46 @@ export default function HomeMapScreen({ navigation }) {
   // choice made under one purpose isn't necessarily meaningful under the other.
   const handleListingTypeChange = (type) => {
     setListingType(type);
-    setPropertyType('all');
+    setSelectedPropertyTypes([]);
     setAudienceFilter('all');
   };
   // Istiraha rentals get an extra audience sub-filter (Families/Youth) — that
   // distinction is specific to renting a chalet short-term, not buying one.
-  const showAudienceFilter = listingType === 'rent' && propertyType === CHALET_PROPERTY_TYPE;
+  const showAudienceFilter = listingType === 'rent' && selectedPropertyTypes.includes(CHALET_PROPERTY_TYPE);
+  const formatFilterSummary = (category, values) => {
+    const selected = values.filter(Boolean);
+    if (selected.length === 0) return category;
+    if (selected.length === 1) return selected[0];
+    return `${category} ${selected.length.toLocaleString(language === 'ar' ? 'ar' : 'en')}`;
+  };
+  const propertyTypeSummary = formatFilterSummary(
+    t('propertyTypeLabel'),
+    selectedPropertyTypes.map((type) => t(PROPERTY_TYPE_LABEL_KEYS[type]))
+  );
+  const priceSummary = formatFilterSummary(
+    t('priceFilterLabel'),
+    minPrice > PRICE_MIN || maxPrice < PRICE_MAX
+      ? [
+          `${minPrice.toLocaleString('en-US')} - ${
+            maxPrice >= PRICE_MAX ? '∞' : maxPrice.toLocaleString('en-US')
+          }`,
+        ]
+      : []
+  );
+  const locationSummary = formatFilterSummary(
+    t('cityLabel'),
+    cityFilter === 'all'
+      ? []
+      : [
+          districtFilter === 'all'
+            ? t(CITIES.find((item) => item.key === cityFilter)?.labelKey)
+            : t(DISTRICTS.find((item) => item.key === districtFilter)?.labelKey),
+        ]
+  );
+  const sortSummary = formatFilterSummary(
+    t('sortLabel'),
+    sortBy === 'featured' ? [] : [t(SORT_LABEL_KEYS[sortBy])]
+  );
 
   // Buyer-facing map/list only ever shows admin-approved listings, filtered by
   // purpose + type — featured ones are pinned to the top of that same list
@@ -230,12 +289,13 @@ export default function HomeMapScreen({ navigation }) {
   const filteredListings = listings
     .filter((listing) => {
       if (listing.status !== 'approved' || listing.listingType !== listingType) return false;
+      if (blockedSellers.includes(listing.agentId)) return false;
       // Sold/rented is excluded the same way expired is — gone from buyer
       // browsing regardless of which one, just for a different reason.
       if (listing.listingState === 'expired' || listing.listingState === 'sold') return false;
-      if (propertyType !== 'all' && listing.propertyType !== propertyType) return false;
-      if (minPrice.trim() && listing.price < Number(minPrice)) return false;
-      if (maxPrice.trim() && listing.price > Number(maxPrice)) return false;
+      if (selectedPropertyTypes.length > 0 && !selectedPropertyTypes.includes(listing.propertyType)) return false;
+      if (minPrice > PRICE_MIN && listing.price < minPrice) return false;
+      if (maxPrice < PRICE_MAX && listing.price > maxPrice) return false;
       if (cityFilter !== 'all' && listing.city !== cityFilter) return false;
       if (districtFilter !== 'all' && listing.district !== districtFilter) return false;
       if (showAudienceFilter && audienceFilter !== 'all' && listing.audienceTarget !== audienceFilter) {
@@ -377,7 +437,13 @@ export default function HomeMapScreen({ navigation }) {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
-      const position = await Location.getCurrentPositionAsync({});
+      const position = await Location.getCurrentPositionAsync({
+        // The default is Balanced (roughly city-block accuracy). Request the
+        // best available fix so the native user-location marker and initial
+        // map center use the device's precise GPS position when the OS allows it.
+        accuracy: Location.Accuracy.Highest,
+        mayShowUserSettingsDialog: true,
+      });
       const { latitude, longitude } = position.coords;
       const isInLibya =
         latitude >= LIBYA_BOUNDS.minLat &&
@@ -386,8 +452,10 @@ export default function HomeMapScreen({ navigation }) {
         longitude <= LIBYA_BOUNDS.maxLon;
       // Outside Libya (e.g. browsing from genuinely overseas): keep the
       // default TRIPOLI_REGION instead of zooming to wherever the device
-      // actually is.
+      // actually is, and don't show the native blue dot either — it would
+      // just be sitting off in another country, out of context.
       if (!isInLibya) return;
+      setShowsUserLocation(true);
       setRegion({
         latitude,
         longitude,
@@ -410,7 +478,7 @@ export default function HomeMapScreen({ navigation }) {
   // must be reset in step with it, not just set once and left stale across
   // a hide/show cycle (e.g. selecting then deselecting a map pin).
   const featuredCarouselVisible =
-    viewMode === 'map' && !selectedListing && featuredListings.length > 0;
+    BOOST_PURCHASES_ENABLED && viewMode === 'map' && !selectedListing && featuredListings.length > 0;
   if (!featuredCarouselVisible) {
     featuredCarouselReadyRef.current = false;
   }
@@ -449,6 +517,7 @@ export default function HomeMapScreen({ navigation }) {
           style={StyleSheet.absoluteFill}
           region={region}
           onRegionChangeComplete={setRegion}
+          showsUserLocation={showsUserLocation}
           userInterfaceStyle={theme}
           customMapStyle={theme === 'dark' ? darkMapStyle : []}
           clusteringEnabled
@@ -496,7 +565,7 @@ export default function HomeMapScreen({ navigation }) {
                     styles.pricePin,
                     { borderColor: colors.accent, backgroundColor: colors.surface },
                     selectedId === listing.id && { backgroundColor: colors.accent },
-                    listing.isFeatured && styles.pricePinFeatured,
+                    BOOST_PURCHASES_ENABLED && listing.isFeatured && styles.pricePinFeatured,
                   ]}
                 >
                   <Text
@@ -531,7 +600,7 @@ export default function HomeMapScreen({ navigation }) {
           // filteredListings is already sorted featured-first — this just
           // labels that leading run, right under the filter row above.
           ListHeaderComponent={
-            filteredListings[0]?.isFeatured ? (
+            BOOST_PURCHASES_ENABLED && filteredListings[0]?.isFeatured ? (
               <View style={styles.featuredSectionHeader}>
                 <Ionicons name="star" size={14} color={FEATURED_GOLD} />
                 <Text style={[styles.featuredSectionHeaderText, { color: FEATURED_GOLD }]}>
@@ -550,7 +619,7 @@ export default function HomeMapScreen({ navigation }) {
         <View
           style={[
             styles.mapEmptyBanner,
-            { top: contentTopOffset - 50, backgroundColor: colors.surface },
+            { top: contentTopOffset, backgroundColor: colors.surface },
           ]}
         >
           <Text style={[styles.mapEmptyTitle, { color: colors.text }]}>
@@ -600,59 +669,85 @@ export default function HomeMapScreen({ navigation }) {
           })}
         </View>
 
-        <View style={[styles.filterPillRow, styles.audienceRow]}>
+        <ScrollView
+          key={`filter-row-${language}`}
+          horizontal
+          style={[styles.filterScroll, { direction: isRTL ? 'rtl' : 'ltr' }]}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.filterPillRow,
+            styles.audienceRow,
+            { flexDirection: 'row', direction: isRTL ? 'rtl' : 'ltr' },
+          ]}
+          scrollEventThrottle={16}
+        >
           <Pressable
             onPress={() => setPropertyTypePickerVisible(true)}
             style={[
               styles.pickerDropdown,
-              { backgroundColor: colors.surface, borderColor: colors.accent },
+              isRTL && styles.pickerDropdownRTL,
+              { backgroundColor: colors.surface, borderColor: filterAccent },
             ]}
             accessibilityRole="button"
           >
-            <Text style={[styles.filterChipText, { color: colors.accent }]} numberOfLines={1}>
-              {/* Always prefixed with what the pill actually is, not just its
-                  current value — "Apartment" alone doesn't tell a
-                  first-time user this is the property-type filter. Same
-                  reasoning applies to the three pills below. */}
-              {t('propertyTypeLabel')}: {propertyType === 'all' ? t('allFilter') : t(PROPERTY_TYPE_LABEL_KEYS[propertyType])}
+            <Text
+              style={[
+                styles.filterChipText,
+                isRTL && styles.filterChipTextRTL,
+                { color: filterAccent },
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {propertyTypeSummary}
             </Text>
-            <Ionicons name="chevron-down" size={16} color={colors.accent} />
+            <Ionicons name="chevron-down" size={16} color={filterAccent} />
           </Pressable>
 
           <Pressable
             onPress={() => setPriceFilterVisible(true)}
             style={[
               styles.pickerDropdown,
-              { backgroundColor: colors.surface, borderColor: colors.accent },
+              isRTL && styles.pickerDropdownRTL,
+              { backgroundColor: colors.surface, borderColor: filterAccent },
             ]}
             accessibilityRole="button"
           >
-            <Text style={[styles.filterChipText, { color: colors.accent }]} numberOfLines={1}>
-              {t('priceFilterLabel')}:{' '}
-              {minPrice.trim() || maxPrice.trim()
-                ? `${minPrice.trim() || '0'} - ${maxPrice.trim() || '∞'}`
-                : t('allFilter')}
+            <Text
+              style={[
+                styles.filterChipText,
+                isRTL && styles.filterChipTextRTL,
+                { color: filterAccent },
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {priceSummary}
             </Text>
-            <Ionicons name="chevron-down" size={16} color={colors.accent} />
+            <Ionicons name="chevron-down" size={16} color={filterAccent} />
           </Pressable>
 
           <Pressable
             onPress={openLocationFilter}
             style={[
               styles.pickerDropdown,
-              { backgroundColor: colors.surface, borderColor: colors.accent },
+              isRTL && styles.pickerDropdownRTL,
+              { backgroundColor: colors.surface, borderColor: filterAccent },
             ]}
             accessibilityRole="button"
           >
-            <Text style={[styles.filterChipText, { color: colors.accent }]} numberOfLines={1}>
-              {t('cityLabel')}:{' '}
-              {cityFilter === 'all'
-                ? t('allFilter')
-                : districtFilter === 'all'
-                ? t(CITIES.find((item) => item.key === cityFilter)?.labelKey)
-                : t(DISTRICTS.find((item) => item.key === districtFilter)?.labelKey)}
+            <Text
+              style={[
+                styles.filterChipText,
+                isRTL && styles.filterChipTextRTL,
+                { color: filterAccent },
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {locationSummary}
             </Text>
-            <Ionicons name="chevron-down" size={16} color={colors.accent} />
+            <Ionicons name="chevron-down" size={16} color={filterAccent} />
           </Pressable>
 
           {/* List-view only — map pin order isn't meaningful to sort. */}
@@ -661,16 +756,25 @@ export default function HomeMapScreen({ navigation }) {
               onPress={() => setSortPickerVisible(true)}
               style={[
                 styles.pickerDropdown,
-                { backgroundColor: colors.surface, borderColor: colors.accent },
+                isRTL && styles.pickerDropdownRTL,
+                { backgroundColor: colors.surface, borderColor: filterAccent },
               ]}
             >
-              <Text style={[styles.filterChipText, { color: colors.accent }]} numberOfLines={1}>
-                {t('sortLabel')}: {t(SORT_LABEL_KEYS[sortBy])}
+              <Text
+                style={[
+                  styles.filterChipText,
+                  isRTL && styles.filterChipTextRTL,
+                  { color: filterAccent },
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {sortSummary}
               </Text>
-              <Ionicons name="chevron-down" size={16} color={colors.accent} />
+              <Ionicons name="chevron-down" size={16} color={filterAccent} />
             </Pressable>
           )}
-        </View>
+        </ScrollView>
 
         <Modal
           visible={propertyTypePickerVisible}
@@ -693,31 +797,46 @@ export default function HomeMapScreen({ navigation }) {
               </Text>
               <ScrollView>
                 {['all', ...PROPERTY_TYPES].map((type) => {
-                  const active = propertyType === type;
+                  const active = type === 'all'
+                    ? selectedPropertyTypes.length === 0
+                    : selectedPropertyTypes.includes(type);
                   const label = type === 'all' ? t('allFilter') : t(PROPERTY_TYPE_LABEL_KEYS[type]);
                   return (
                     <Pressable
                       key={type}
                       onPress={() => {
-                        setPropertyType(type);
-                        setPropertyTypePickerVisible(false);
+                        if (type === 'all') {
+                          setSelectedPropertyTypes([]);
+                          return;
+                        }
+                        setSelectedPropertyTypes((previous) =>
+                          previous.includes(type)
+                            ? previous.filter((value) => value !== type)
+                            : [...previous, type]
+                        );
                       }}
-                      style={[styles.pickerOption, active && { backgroundColor: `${colors.accent}22` }]}
+                      style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
                     >
                       <Text
                         style={[
                           styles.pickerOptionText,
-                          { color: active ? colors.accent : colors.text },
+                          { color: active ? filterAccent : colors.text },
                           active && styles.pickerOptionTextActive,
                         ]}
                       >
                         {label}
                       </Text>
-                      {active && <Ionicons name="checkmark" size={18} color={colors.accent} />}
+                      {active && <Ionicons name="checkmark" size={18} color={filterAccent} />}
                     </Pressable>
                   );
                 })}
               </ScrollView>
+              <Pressable
+                style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
+                onPress={() => setPropertyTypePickerVisible(false)}
+              >
+                <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>\n                  {t('applyFilter')}\n                </Text>
+              </Pressable>
             </Pressable>
           </Pressable>
         </Modal>
@@ -741,37 +860,47 @@ export default function HomeMapScreen({ navigation }) {
               <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
                 {t('priceFilterLabel')}
               </Text>
-              <View style={styles.priceInputRow}>
-                <TextInput
-                  style={[
-                    styles.priceInput,
-                    { borderColor: colors.inputBorder, color: colors.text },
-                  ]}
-                  placeholder={t('minPricePlaceholder')}
-                  placeholderTextColor={colors.placeholderText}
-                  keyboardType="number-pad"
-                  value={minPrice}
-                  onChangeText={(text) => setMinPrice(toEnglishDigits(text))}
-                />
+              <View style={styles.priceValueRow}>
+                <Text style={[styles.priceValueText, { color: colors.text }]}>
+                  {minPrice.toLocaleString('en-US')}
+                </Text>
                 <Text style={[styles.priceInputSeparator, { color: colors.textMuted }]}>—</Text>
-                <TextInput
-                  style={[
-                    styles.priceInput,
-                    { borderColor: colors.inputBorder, color: colors.text },
-                  ]}
-                  placeholder={t('maxPricePlaceholder')}
-                  placeholderTextColor={colors.placeholderText}
-                  keyboardType="number-pad"
-                  value={maxPrice}
-                  onChangeText={(text) => setMaxPrice(toEnglishDigits(text))}
+                <Text style={[styles.priceValueText, { color: colors.text }]}>
+                  {maxPrice >= PRICE_MAX ? `${PRICE_MAX.toLocaleString('en-US')}+` : maxPrice.toLocaleString('en-US')}
+                </Text>
+              </View>
+              <View style={styles.priceSliderWrap}>
+                <MultiSlider
+                  values={[minPrice, maxPrice]}
+                  min={PRICE_MIN}
+                  max={PRICE_MAX}
+                  step={PRICE_STEP}
+                  sliderLength={SLIDER_WIDTH}
+                  onValuesChange={([nextMin, nextMax]) => {
+                    setMinPrice(nextMin);
+                    setMaxPrice(nextMax);
+                  }}
+                  allowOverlap={false}
+                  snapped
+                  selectedStyle={{ backgroundColor: colors.accent }}
+                  unselectedStyle={{ backgroundColor: colors.inputBorder }}
+                  markerStyle={{
+                    backgroundColor: colors.accent,
+                    borderWidth: 0,
+                    height: 22,
+                    width: 22,
+                  }}
+                  pressedMarkerStyle={{ height: 26, width: 26 }}
+                  containerStyle={styles.priceSliderContainer}
+                  trackStyle={styles.priceSliderTrack}
                 />
               </View>
               <View style={styles.priceButtonRow}>
                 <Pressable
                   style={[styles.priceClearButton, { borderColor: colors.inputBorder }]}
                   onPress={() => {
-                    setMinPrice('');
-                    setMaxPrice('');
+                    setMinPrice(PRICE_MIN);
+                    setMaxPrice(PRICE_MAX);
                   }}
                 >
                   <Text style={[styles.priceClearButtonText, { color: colors.textMuted }]}>
@@ -782,9 +911,9 @@ export default function HomeMapScreen({ navigation }) {
                   style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
                   onPress={() => setPriceFilterVisible(false)}
                 >
-                  <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
-                    {t('applyFilter')}
-                  </Text>
+                <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
+                  {t('applyFilter')}
+                </Text>
                 </Pressable>
               </View>
             </Pressable>
@@ -817,7 +946,7 @@ export default function HomeMapScreen({ navigation }) {
                     <Ionicons
                       name={language === 'ar' ? 'chevron-forward' : 'chevron-back'}
                       size={20}
-                      color={colors.accent}
+                      color={filterAccent}
                     />
                   </Pressable>
                 )}
@@ -844,18 +973,18 @@ export default function HomeMapScreen({ navigation }) {
                         <Pressable
                           key={key}
                           onPress={() => handleCityFilterChange(key)}
-                          style={[styles.pickerOption, active && { backgroundColor: `${colors.accent}22` }]}
+                          style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
                         >
                           <Text
                             style={[
                               styles.pickerOptionText,
-                              { color: active ? colors.accent : colors.text },
+                              { color: active ? filterAccent : colors.text },
                               active && styles.pickerOptionTextActive,
                             ]}
                           >
                             {label}
                           </Text>
-                          {active && <Ionicons name="checkmark" size={18} color={colors.accent} />}
+                          {active && <Ionicons name="checkmark" size={18} color={filterAccent} />}
                         </Pressable>
                       );
                     })
@@ -869,18 +998,18 @@ export default function HomeMapScreen({ navigation }) {
                         <Pressable
                           key={key}
                           onPress={() => handleDistrictFilterChange(key)}
-                          style={[styles.pickerOption, active && { backgroundColor: `${colors.accent}22` }]}
+                          style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
                         >
                           <Text
                             style={[
                               styles.pickerOptionText,
-                              { color: active ? colors.accent : colors.text },
+                              { color: active ? filterAccent : colors.text },
                               active && styles.pickerOptionTextActive,
                             ]}
                           >
                             {label}
                           </Text>
-                          {active && <Ionicons name="checkmark" size={18} color={colors.accent} />}
+                          {active && <Ionicons name="checkmark" size={18} color={filterAccent} />}
                         </Pressable>
                       );
                     })}
@@ -918,18 +1047,18 @@ export default function HomeMapScreen({ navigation }) {
                         setSortBy(option);
                         setSortPickerVisible(false);
                       }}
-                      style={[styles.pickerOption, active && { backgroundColor: `${colors.accent}22` }]}
+                      style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
                     >
                       <Text
                         style={[
                           styles.pickerOptionText,
-                          { color: active ? colors.accent : colors.text },
+                          { color: active ? filterAccent : colors.text },
                           active && styles.pickerOptionTextActive,
                         ]}
                       >
                         {t(SORT_LABEL_KEYS[option])}
                       </Text>
-                      {active && <Ionicons name="checkmark" size={18} color={colors.accent} />}
+                      {active && <Ionicons name="checkmark" size={18} color={filterAccent} />}
                     </Pressable>
                   );
                 })}
@@ -956,7 +1085,7 @@ export default function HomeMapScreen({ navigation }) {
                   accessibilityState={{ selected: active }}
                   style={[
                     styles.filterChip,
-                    { backgroundColor: colors.surface, borderColor: colors.accent },
+                    { backgroundColor: colors.surface, borderColor: filterAccent },
                     active && { backgroundColor: colors.accent },
                   ]}
                 >
@@ -1167,6 +1296,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingEnd: 4,
   },
+  filterScroll: {
+    width: '100%',
+    flexGrow: 0,
+  },
   audienceRow: {
     marginTop: 8,
   },
@@ -1182,12 +1315,20 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   filterChipText: {
+    flexShrink: 1,
+    maxWidth: 160,
     fontWeight: '600',
     fontSize: 13,
+  },
+  filterChipTextRTL: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   pickerDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
+    maxWidth: 196,
+    flexShrink: 0,
     justifyContent: 'space-between',
     alignSelf: 'flex-start',
     gap: 8,
@@ -1195,11 +1336,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 18,
     borderWidth: 1,
+    // Belt-and-suspenders against a long label pushing the pill past the
+    // screen edge — numberOfLines/ellipsizeMode truncation on the inner
+    // Text is unreliable for RTL (Arabic) content on Android, so this
+    // container-level clip is what actually guarantees the pill never
+    // grows past maxWidth regardless of whether the ellipsis kicked in.
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 1 },
     elevation: 2,
+  },
+  pickerDropdownRTL: {
+    flexDirection: 'row',
+    direction: 'rtl',
   },
   pickerModalBackdrop: {
     flex: 1,
@@ -1242,26 +1393,37 @@ const styles = StyleSheet.create({
   },
   filterPillRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  priceInputRow: {
-    flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 8,
-    marginBottom: 16,
+    paddingStart: 4,
+    paddingEnd: 8,
   },
-  priceInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
+  priceValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 8,
+  },
+  priceValueText: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   priceInputSeparator: {
     fontSize: 15,
+  },
+  priceSliderWrap: {
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  priceSliderContainer: {
+    height: 40,
+  },
+  priceSliderTrack: {
+    height: 4,
+    borderRadius: 2,
   },
   priceButtonRow: {
     flexDirection: 'row',
