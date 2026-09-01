@@ -108,6 +108,129 @@ const SORT_LABEL_KEYS = {
 // user's actual location if they're browsing from genuinely overseas.
 const LIBYA_BOUNDS = { minLat: 19.5, maxLat: 33.2, minLon: 9.3, maxLon: 25.2 };
 
+// Shared by every filter modal below (and mirrored in AuthModal) — "end",
+// not "right", so it lands top-right in English and top-left in Arabic on
+// its own, no isRTL branch needed.
+// isRTL branches explicitly to a literal left/right — no "end", no relying
+// on the app-wide native RTL auto-mirror. A Modal mounts its content into a
+// separate native root, which doesn't reliably inherit either of those, so
+// this is the one spot on the screen that has to pick its own side.
+function ModalCloseButton({ onPress, colors, label, isRTL }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={10}
+      style={[styles.pickerModalCloseButton, isRTL ? styles.pickerModalCloseButtonRTL : styles.pickerModalCloseButtonLTR]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Ionicons name="close" size={20} color={colors.textMuted} />
+    </Pressable>
+  );
+}
+
+// Deliberately isolated from HomeMapScreen's own state/re-render cycle.
+// MultiSlider's onValuesChange fires on every pixel of drag; wiring that
+// straight to HomeMapScreen's minPrice/maxPrice state re-rendered the whole
+// screen — live MapView included — dozens of times a second while dragging,
+// which is what fed react-native-map-clustering into React's own "Maximum
+// update depth exceeded" crash. Keeping the live drag position in this
+// component's own state means dragging never touches HomeMapScreen at all;
+// the real minPrice/maxPrice only updates once, via onApply, when the user
+// actually confirms.
+function PriceRangeModal({ visible, onClose, minPrice, maxPrice, onApply, colors, t, isRTL }) {
+  const [draftMin, setDraftMin] = useState(minPrice);
+  const [draftMax, setDraftMax] = useState(maxPrice);
+
+  // Re-sync the draft to the committed values on every open — covers both a
+  // fresh open and a Clear that happened while this modal stayed mounted.
+  useEffect(() => {
+    if (visible) {
+      setDraftMin(minPrice);
+      setDraftMax(maxPrice);
+    }
+  }, [visible, minPrice, maxPrice]);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      navigationBarTranslucent
+    >
+      <Pressable style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]} onPress={onClose}>
+        <Pressable style={[styles.pickerModalCard, { backgroundColor: colors.surface }]} onPress={() => {}}>
+          <ModalCloseButton onPress={onClose} colors={colors} label={t('close')} isRTL={isRTL} />
+          <Text style={[styles.pickerModalTitle, { color: colors.text, textAlign: isRTL ? 'right' : 'left' }]}>
+            {t('priceFilterLabel')}
+          </Text>
+          <View style={styles.priceValueRow}>
+            <Text style={[styles.priceValueText, { color: colors.text }]}>
+              {draftMin.toLocaleString('en-US')}
+            </Text>
+            <Text style={[styles.priceInputSeparator, { color: colors.textMuted }]}>—</Text>
+            <Text style={[styles.priceValueText, { color: colors.text }]}>
+              {draftMax >= PRICE_MAX ? `${PRICE_MAX.toLocaleString('en-US')}+` : draftMax.toLocaleString('en-US')}
+            </Text>
+          </View>
+          <View style={styles.priceSliderWrap}>
+            <MultiSlider
+              values={[draftMin, draftMax]}
+              min={PRICE_MIN}
+              max={PRICE_MAX}
+              step={PRICE_STEP}
+              sliderLength={SLIDER_WIDTH}
+              onValuesChange={([nextMin, nextMax]) => {
+                setDraftMin(nextMin);
+                setDraftMax(nextMax);
+              }}
+              allowOverlap={false}
+              snapped
+              selectedStyle={{ backgroundColor: colors.accent }}
+              unselectedStyle={{ backgroundColor: colors.inputBorder }}
+              markerStyle={{
+                backgroundColor: colors.accent,
+                borderWidth: 0,
+                height: 22,
+                width: 22,
+              }}
+              pressedMarkerStyle={{ height: 26, width: 26 }}
+              containerStyle={styles.priceSliderContainer}
+              trackStyle={styles.priceSliderTrack}
+            />
+          </View>
+          <View style={styles.priceButtonRow}>
+            <Pressable
+              style={[styles.priceClearButton, { borderColor: colors.inputBorder }]}
+              onPress={() => {
+                setDraftMin(PRICE_MIN);
+                setDraftMax(PRICE_MAX);
+              }}
+            >
+              <Text style={[styles.priceClearButtonText, { color: colors.textMuted }]}>
+                {t('clearFilter')}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
+              onPress={() => {
+                onApply(draftMin, draftMax);
+                onClose();
+              }}
+            >
+              <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
+                {t('applyFilter')}
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 export default function HomeMapScreen({ navigation }) {
   const { listings, blockedSellers, theme, dataLoading, dataErrors, fetchListings, language } =
     useAppContext();
@@ -214,7 +337,16 @@ export default function HomeMapScreen({ navigation }) {
   const handleMarkersChange = useCallback((markers) => {
     if (Platform.OS !== 'android') return;
     const counts = [...new Set((markers ?? []).filter((m) => m.properties.point_count > 0).map((m) => m.properties.point_count))];
-    setClusterCounts(counts);
+    // Bail out when the actual count set hasn't changed. Without this, every
+    // parent re-render that makes react-native-map-clustering recompute
+    // (even to identical clusters) hands back a new-but-equal array here,
+    // which would set state, trigger a re-render, trigger a recompute, and
+    // so on — a feedback loop that compounds with fast-changing parent state
+    // (see the price slider fix in PriceRangeModal) into React's own
+    // "Maximum update depth exceeded" crash.
+    setClusterCounts((prev) =>
+      prev.length === counts.length && prev.every((count) => counts.includes(count)) ? prev : counts
+    );
   }, []);
   const handleClusterCaptured = useCallback((count, uri) => {
     setCapturedClusterImages((prev) => ({ ...prev, [count]: uri }));
@@ -254,10 +386,17 @@ export default function HomeMapScreen({ navigation }) {
     if (selected.length === 1) return selected[0];
     return `${category} ${selected.length.toLocaleString(language === 'ar' ? 'ar' : 'en')}`;
   };
-  const propertyTypeSummary = formatFilterSummary(
-    t('propertyTypeLabel'),
-    selectedPropertyTypes.map((type) => t(PROPERTY_TYPE_LABEL_KEYS[type]))
-  );
+  // Its own format, not formatFilterSummary — "Properties" (not "Property
+  // Type") when nothing's picked, the type name itself for exactly one, and
+  // "Type: 3" (not "Property Type 3") once 2+ are selected.
+  const propertyTypeSummary =
+    selectedPropertyTypes.length === 0
+      ? t('propertiesLabel')
+      : selectedPropertyTypes.length === 1
+        ? t(PROPERTY_TYPE_LABEL_KEYS[selectedPropertyTypes[0]])
+        : `${t('propertyTypeShortLabel')}: ${selectedPropertyTypes.length.toLocaleString(
+            language === 'ar' ? 'ar' : 'en'
+          )}`;
   const priceSummary = formatFilterSummary(
     t('priceFilterLabel'),
     minPrice > PRICE_MIN || maxPrice < PRICE_MAX
@@ -683,10 +822,11 @@ export default function HomeMapScreen({ navigation }) {
         >
           <Pressable
             onPress={() => setPropertyTypePickerVisible(true)}
-            style={[
+            style={({ pressed }) => [
               styles.pickerDropdown,
               isRTL && styles.pickerDropdownRTL,
               { backgroundColor: colors.surface, borderColor: filterAccent },
+              pressed && { opacity: 0.6 },
             ]}
             accessibilityRole="button"
           >
@@ -706,10 +846,11 @@ export default function HomeMapScreen({ navigation }) {
 
           <Pressable
             onPress={() => setPriceFilterVisible(true)}
-            style={[
+            style={({ pressed }) => [
               styles.pickerDropdown,
               isRTL && styles.pickerDropdownRTL,
               { backgroundColor: colors.surface, borderColor: filterAccent },
+              pressed && { opacity: 0.6 },
             ]}
             accessibilityRole="button"
           >
@@ -729,10 +870,11 @@ export default function HomeMapScreen({ navigation }) {
 
           <Pressable
             onPress={openLocationFilter}
-            style={[
+            style={({ pressed }) => [
               styles.pickerDropdown,
               isRTL && styles.pickerDropdownRTL,
               { backgroundColor: colors.surface, borderColor: filterAccent },
+              pressed && { opacity: 0.6 },
             ]}
             accessibilityRole="button"
           >
@@ -754,10 +896,11 @@ export default function HomeMapScreen({ navigation }) {
           {viewMode === 'list' && (
             <Pressable
               onPress={() => setSortPickerVisible(true)}
-              style={[
+              style={({ pressed }) => [
                 styles.pickerDropdown,
                 isRTL && styles.pickerDropdownRTL,
                 { backgroundColor: colors.surface, borderColor: filterAccent },
+                pressed && { opacity: 0.6 },
               ]}
             >
               <Text
@@ -792,7 +935,13 @@ export default function HomeMapScreen({ navigation }) {
               style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
               onPress={() => {}}
             >
-              <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
+              <ModalCloseButton
+                onPress={() => setPropertyTypePickerVisible(false)}
+                colors={colors}
+                label={t('close')}
+                isRTL={isRTL}
+              />
+              <Text style={[styles.pickerModalTitle, { color: colors.text, textAlign: isRTL ? 'right' : 'left' }]}>
                 {t('propertyTypeLabel')}
               </Text>
               <ScrollView>
@@ -820,7 +969,7 @@ export default function HomeMapScreen({ navigation }) {
                       <Text
                         style={[
                           styles.pickerOptionText,
-                          { color: active ? filterAccent : colors.text },
+                          { color: active ? filterAccent : colors.text, textAlign: isRTL ? 'right' : 'left' },
                           active && styles.pickerOptionTextActive,
                         ]}
                       >
@@ -835,90 +984,27 @@ export default function HomeMapScreen({ navigation }) {
                 style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
                 onPress={() => setPropertyTypePickerVisible(false)}
               >
-                <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>\n                  {t('applyFilter')}\n                </Text>
+                <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
+                  {t('applyFilter')}
+                </Text>
               </Pressable>
             </Pressable>
           </Pressable>
         </Modal>
 
-        <Modal
+        <PriceRangeModal
           visible={priceFilterVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setPriceFilterVisible(false)}
-          statusBarTranslucent
-          navigationBarTranslucent
-        >
-          <Pressable
-            style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
-            onPress={() => setPriceFilterVisible(false)}
-          >
-            <Pressable
-              style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
-              onPress={() => {}}
-            >
-              <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
-                {t('priceFilterLabel')}
-              </Text>
-              <View style={styles.priceValueRow}>
-                <Text style={[styles.priceValueText, { color: colors.text }]}>
-                  {minPrice.toLocaleString('en-US')}
-                </Text>
-                <Text style={[styles.priceInputSeparator, { color: colors.textMuted }]}>—</Text>
-                <Text style={[styles.priceValueText, { color: colors.text }]}>
-                  {maxPrice >= PRICE_MAX ? `${PRICE_MAX.toLocaleString('en-US')}+` : maxPrice.toLocaleString('en-US')}
-                </Text>
-              </View>
-              <View style={styles.priceSliderWrap}>
-                <MultiSlider
-                  values={[minPrice, maxPrice]}
-                  min={PRICE_MIN}
-                  max={PRICE_MAX}
-                  step={PRICE_STEP}
-                  sliderLength={SLIDER_WIDTH}
-                  onValuesChange={([nextMin, nextMax]) => {
-                    setMinPrice(nextMin);
-                    setMaxPrice(nextMax);
-                  }}
-                  allowOverlap={false}
-                  snapped
-                  selectedStyle={{ backgroundColor: colors.accent }}
-                  unselectedStyle={{ backgroundColor: colors.inputBorder }}
-                  markerStyle={{
-                    backgroundColor: colors.accent,
-                    borderWidth: 0,
-                    height: 22,
-                    width: 22,
-                  }}
-                  pressedMarkerStyle={{ height: 26, width: 26 }}
-                  containerStyle={styles.priceSliderContainer}
-                  trackStyle={styles.priceSliderTrack}
-                />
-              </View>
-              <View style={styles.priceButtonRow}>
-                <Pressable
-                  style={[styles.priceClearButton, { borderColor: colors.inputBorder }]}
-                  onPress={() => {
-                    setMinPrice(PRICE_MIN);
-                    setMaxPrice(PRICE_MAX);
-                  }}
-                >
-                  <Text style={[styles.priceClearButtonText, { color: colors.textMuted }]}>
-                    {t('clearFilter')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
-                  onPress={() => setPriceFilterVisible(false)}
-                >
-                <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
-                  {t('applyFilter')}
-                </Text>
-                </Pressable>
-              </View>
-            </Pressable>
-          </Pressable>
-        </Modal>
+          onClose={() => setPriceFilterVisible(false)}
+          minPrice={minPrice}
+          maxPrice={maxPrice}
+          onApply={(nextMin, nextMax) => {
+            setMinPrice(nextMin);
+            setMaxPrice(nextMax);
+          }}
+          colors={colors}
+          t={t}
+          isRTL={isRTL}
+        />
 
         <Modal
           visible={locationFilterVisible}
@@ -936,7 +1022,15 @@ export default function HomeMapScreen({ navigation }) {
               style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
               onPress={() => {}}
             >
-              <View style={styles.pickerModalHeaderRow}>
+              <ModalCloseButton
+                onPress={() => setLocationFilterVisible(false)}
+                colors={colors}
+                label={t('close')}
+                isRTL={isRTL}
+              />
+              <View
+                style={[styles.pickerModalHeaderRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}
+              >
                 {locationFilterStep === 'district' && (
                   <Pressable
                     onPress={() => setLocationFilterStep('city')}
@@ -950,7 +1044,7 @@ export default function HomeMapScreen({ navigation }) {
                     />
                   </Pressable>
                 )}
-                <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
+                <Text style={[styles.pickerModalTitle, { color: colors.text, textAlign: isRTL ? 'right' : 'left' }]}>
                   {locationFilterStep === 'city'
                     ? t('cityLabel')
                     : t(CITIES.find((item) => item.key === cityFilter)?.labelKey)}
@@ -978,7 +1072,7 @@ export default function HomeMapScreen({ navigation }) {
                           <Text
                             style={[
                               styles.pickerOptionText,
-                              { color: active ? filterAccent : colors.text },
+                              { color: active ? filterAccent : colors.text, textAlign: isRTL ? 'right' : 'left' },
                               active && styles.pickerOptionTextActive,
                             ]}
                           >
@@ -1003,7 +1097,7 @@ export default function HomeMapScreen({ navigation }) {
                           <Text
                             style={[
                               styles.pickerOptionText,
-                              { color: active ? filterAccent : colors.text },
+                              { color: active ? filterAccent : colors.text, textAlign: isRTL ? 'right' : 'left' },
                               active && styles.pickerOptionTextActive,
                             ]}
                           >
@@ -1034,7 +1128,13 @@ export default function HomeMapScreen({ navigation }) {
               style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
               onPress={() => {}}
             >
-              <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
+              <ModalCloseButton
+                onPress={() => setSortPickerVisible(false)}
+                colors={colors}
+                label={t('close')}
+                isRTL={isRTL}
+              />
+              <Text style={[styles.pickerModalTitle, { color: colors.text, textAlign: isRTL ? 'right' : 'left' }]}>
                 {t('sortLabel')}
               </Text>
               <ScrollView>
@@ -1052,7 +1152,7 @@ export default function HomeMapScreen({ navigation }) {
                       <Text
                         style={[
                           styles.pickerOptionText,
-                          { color: active ? filterAccent : colors.text },
+                          { color: active ? filterAccent : colors.text, textAlign: isRTL ? 'right' : 'left' },
                           active && styles.pickerOptionTextActive,
                         ]}
                       >
@@ -1360,7 +1460,23 @@ const styles = StyleSheet.create({
   pickerModalCard: {
     borderRadius: 16,
     padding: 16,
+    // Extra headroom above the title/back row specifically, so the close
+    // button (position:absolute, ignores this padding) has its own clear
+    // strip instead of sitting on top of them.
+    paddingTop: 40,
     maxHeight: '70%',
+  },
+  pickerModalCloseButton: {
+    position: 'absolute',
+    top: 12,
+    zIndex: 1,
+    padding: 4,
+  },
+  pickerModalCloseButtonLTR: {
+    right: 12,
+  },
+  pickerModalCloseButtonRTL: {
+    left: 12,
   },
   pickerModalTitle: {
     fontSize: 16,

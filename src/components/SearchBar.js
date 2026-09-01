@@ -1,15 +1,31 @@
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 
 export default function SearchBar({ value, onChangeText, placeholder, colors, style, testID }) {
   const t = useT();
+  const { language } = useAppContext();
+  const isRTL = language === 'ar';
 
   return (
-    <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }, style]}>
+    <View
+      style={[
+        styles.row,
+        { backgroundColor: colors.surface, borderColor: colors.border, direction: isRTL ? 'rtl' : 'ltr' },
+        style,
+      ]}
+    >
       <Ionicons name="search" size={18} color={colors.textMuted} accessibilityElementsHidden importantForAccessibility="no" />
       <TextInput
-        style={[styles.input, { color: colors.text }]}
+        style={[
+          styles.input,
+          {
+            color: colors.text,
+            textAlign: isRTL ? 'right' : 'left',
+            writingDirection: isRTL ? 'rtl' : 'ltr',
+          },
+        ]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}

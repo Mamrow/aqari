@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
@@ -17,7 +18,8 @@ import PhoneInput, { withLibyaPrefix, isValidLibyanMobile } from './PhoneInput';
 import PasswordInput from './PasswordInput';
 
 export default function AuthModal() {
-  const { authModalVisible, closeAuthModal, signUp, signIn, sendPasswordReset } = useAppContext();
+  const { authModalVisible, closeAuthModal, signUp, signIn, sendPasswordReset, language } = useAppContext();
+  const isRTL = language === 'ar';
   const t = useT();
   const colors = useThemeColors();
 
@@ -131,6 +133,16 @@ export default function AuthModal() {
           {/* Swallows the tap so it doesn't bubble up to the backdrop's
               onPress above — tapping inside the card must not close it. */}
           <Pressable style={[styles.card, { backgroundColor: colors.surface }]} onPress={() => {}}>
+            <Pressable
+              onPress={handleClose}
+              hitSlop={10}
+              style={[styles.closeButton, isRTL ? styles.closeButtonRTL : styles.closeButtonLTR]}
+              accessibilityRole="button"
+              accessibilityLabel={t('close')}
+            >
+              <Ionicons name="close" size={20} color={colors.textMuted} />
+            </Pressable>
+
             <View style={[styles.tabRow, { borderColor: colors.accent }]}>
               <Tab
                 label={t('signInTab')}
@@ -156,7 +168,10 @@ export default function AuthModal() {
                 that instead of a separate label element. */}
             {mode === 'signUp' && (
               <TextInput
-                style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
+                style={[
+                  styles.input,
+                  { borderColor: colors.inputBorder, color: colors.text, textAlign: isRTL ? 'right' : 'left' },
+                ]}
                 placeholder={`${t('authNamePlaceholder')} *`}
                 placeholderTextColor={colors.placeholderText}
                 value={name}
@@ -261,6 +276,27 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 16,
     padding: 24,
+    // Extra headroom above the tab row specifically, so the close button
+    // (position:absolute, ignores this padding) has its own clear strip
+    // above it instead of sitting on top of the Sign In/Sign Up tabs.
+    paddingTop: 48,
+  },
+  // isRTL branches explicitly to a literal left/right — no "end", no
+  // relying on the app-wide native RTL auto-mirror. A Modal mounts its
+  // content into a separate native root, which doesn't reliably inherit
+  // either of those, so this is the one spot on the screen that has to
+  // pick its own side.
+  closeButton: {
+    position: 'absolute',
+    top: 14,
+    zIndex: 1,
+    padding: 4,
+  },
+  closeButtonLTR: {
+    right: 14,
+  },
+  closeButtonRTL: {
+    left: 14,
   },
   tabRow: {
     flexDirection: 'row',

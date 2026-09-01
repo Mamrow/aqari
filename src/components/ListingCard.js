@@ -23,9 +23,10 @@ export default function ListingCard({
   showSaveButton = true,
   footer,
 }) {
-  const { saved, toggleSave } = useAppContext();
+  const { saved, toggleSave, language } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
+  const isRTL = language === 'ar';
   const isSaved = saved.includes(listing.id);
   // Prefer an actual photo for the thumbnail — a live video player per list
   // row would be both slow and pointless at this size. Only fall back to a
@@ -65,9 +66,9 @@ export default function ListingCard({
             <Text style={styles.statusText}>{t(STATUS_LABEL_KEYS[listing.status])}</Text>
           </View>
         )}
-        <View style={styles.contentRow}>
+        <View style={[styles.contentRow, { direction: isRTL ? 'rtl' : 'ltr' }]}>
           <Pressable
-            style={styles.body}
+            style={[styles.body, { direction: isRTL ? 'rtl' : 'ltr' }]}
             onPress={onPress}
             disabled={!onPress}
             accessibilityRole={onPress ? 'button' : undefined}
@@ -85,20 +86,41 @@ export default function ListingCard({
               </View>
             )}
             <View style={styles.info} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-              <Text style={[styles.price, { color: colors.accent }]}>
+              <Text
+                style={[
+                  styles.price,
+                  { color: colors.accent, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
+                ]}
+              >
                 {listing.price.toLocaleString('en-US')} {t('priceCurrency')}
                 {listing.propertyType === 'chalet' && listing.listingType === 'rent'
                   ? ` ${t('perDay')}`
                   : ''}
               </Text>
-              <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+              <Text
+                style={[
+                  styles.title,
+                  { color: colors.text, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
+                ]}
+                numberOfLines={1}
+              >
                 {listing.title}
               </Text>
-              <Text style={[styles.area, { color: colors.textMuted }]}>
+              <Text
+                style={[
+                  styles.area,
+                  { color: colors.textMuted, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
+                ]}
+              >
                 {listing.area.toLocaleString('en-US')} {t('areaUnit')}
               </Text>
               {(listing.propertyType || listing.listingType) && (
-                <Text style={[styles.badge, { color: colors.accent }]}>
+                <Text
+                  style={[
+                    styles.badge,
+                    { color: colors.accent, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
+                  ]}
+                >
                   {[
                     listing.propertyType && t(PROPERTY_TYPE_LABEL_KEYS[listing.propertyType]),
                     listing.listingType && t(LISTING_TYPE_LABEL_KEYS[listing.listingType]),

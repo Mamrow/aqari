@@ -50,13 +50,21 @@ EN: "Welcome to Aqari — browse, save, and list properties for sale or rent."
 AR: "مرحبًا بكم في عقاري — تصفح واحفظ وأضف عقارات للبيع أو الإيجار."
 
 ## Support URL
-[Pending domain — e.g. https://aqari.com/support]
+https://lyaqari.netlify.app/support/
 
 ## Marketing URL (optional, iOS)
-[Pending domain]
+https://lyaqari.netlify.app/
 
 ## Privacy Policy URL (required by both stores)
-https://claude.ai/code/artifact/5bc797dc-3fa0-465e-a90a-af696ad89a4e — hosted from legal/privacy-policy.md (bilingual EN/AR, language toggle). Must be set to "Shared" from the page's share menu before submitting — Apple/Google reviewers need public access, and this link is private by default.
+https://lyaqari.netlify.app/privacy/
+
+## Terms of Service URL
+https://lyaqari.netlify.app/terms/
+
+## Account Deletion URL (required by Google Play; not required by Apple since deletion is also available in-app)
+https://lyaqari.netlify.app/delete-account/ — has both in-app instructions and a real request mechanism (a form that opens a pre-filled email to aaqaaryy@gmail.com), not just descriptive text.
+
+All four pages live at [legal/site/](site/) in this repo (source of truth — edit there, then re-zip and redeploy to Netlify to update). Bilingual EN/AR with a language toggle, no login required, verified live.
 
 ---
 
@@ -64,4 +72,5 @@ https://claude.ai/code/artifact/5bc797dc-3fa0-465e-a90a-af696ad89a4e — hosted 
 - Screenshots: both stores require screenshots per device size class (iOS: 6.7" and 6.5" iPhone at minimum; Android: phone + optionally tablet). Take these from a real build once EAS build is done, not Expo Go.
 - App icon: needs a proper 1024×1024 source (current assets are 554×554 — see conversation).
 - Google Play "Data safety" form and Apple "App Privacy" (nutrition label) — fill these out based on the Information We Collect section in legal/privacy-policy.md: name, phone number, email, photos, location (collected but not stored/transmitted — mark as "used but not linked to identity, not stored").
-- Privacy Policy: ✅ done, hosted, and linked above — just needs sharing (see note above) before submission.
+- Privacy Policy / Terms / Support / Delete Account: ✅ done, hosted at https://lyaqari.netlify.app, verified live and publicly reachable. The app also provides native in-app versions and links to the corresponding public pages.
+- Account deletion: ✅ done. The Edge Function removes the caller's avatar and listing media from the `listing-photos` bucket, blanks `agent_phone`/`agent_id` on their retained listings (so their real phone number stops being publicly dialable — contactActions.js and ListingDetailScreen both treat an empty phone as "seller no longer available"), then deletes the Auth account.

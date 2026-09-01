@@ -117,7 +117,7 @@ export default function StatusScreen({
           onPress={primaryAction.onPress}
           style={({ pressed }) => [
             styles.primaryButton,
-            { backgroundColor: iconColor, opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
+            { backgroundColor: iconColor, opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
           ]}
         >
           <Text style={styles.primaryButtonText}>{primaryAction.label}</Text>

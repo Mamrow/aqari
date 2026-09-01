@@ -6,21 +6,24 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/aqari-splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0066FF"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mamrow.aqari"
+      "bundleIdentifier": "com.mamrow.aqari",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0066FF"
       },
       "edgeToEdgeEnabled": true,
       "config": {},
@@ -52,6 +55,12 @@
       "expo-video",
       "expo-secure-store",
       "expo-notifications"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d27cc2cb-859d-4093-9733-8113772aef6d"
+      }
+    },
+    "owner": "mamrow"
   }
 }

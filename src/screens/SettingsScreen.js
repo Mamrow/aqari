@@ -29,7 +29,7 @@ export default function SettingsScreen({ navigation }) {
     deleteAccount,
     language,
     setLanguage,
-    theme,
+    themePreference,
     setTheme,
     requireAuth,
     updateProfile,
@@ -59,6 +59,7 @@ export default function SettingsScreen({ navigation }) {
   ];
 
   const themeOptions = [
+    { value: 'system', label: t('themeSystem') },
     { value: 'light', label: t('themeLight') },
     { value: 'dark', label: t('themeDark') },
   ];
@@ -274,7 +275,10 @@ export default function SettingsScreen({ navigation }) {
                 {t('signInPrompt')}
               </Text>
               <Pressable
-                style={[styles.signInButton, { backgroundColor: colors.accent }]}
+                style={({ pressed }) => [
+                  styles.signInButton,
+                  { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 },
+                ]}
                 onPress={() => requireAuth(() => {})}
               >
                 <Text style={[styles.signInButtonText, { color: colors.accentText }]}>
@@ -291,7 +295,7 @@ export default function SettingsScreen({ navigation }) {
             <View style={[styles.card, { backgroundColor: colors.surface }]}>
               <Pressable
                 onPress={() => navigation.navigate('PaymentHistory')}
-                style={styles.iconRow}
+                style={({ pressed }) => [styles.iconRow, pressed && styles.iconRowPressed]}
               >
                 <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
                   <Ionicons name="card-outline" size={18} color={colors.accent} />
@@ -302,31 +306,6 @@ export default function SettingsScreen({ navigation }) {
                   </Text>
                   <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
                     {t('paymentHistoryRowSubtitle')}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-              </Pressable>
-            </View>
-          </>
-        )}
-
-        {auth.loggedIn && !isAdmin && (
-          <>
-            <SectionHeading icon="shield-outline" label={t('safetyLabel')} colors={colors} />
-            <View style={[styles.card, { backgroundColor: colors.surface }]}>
-              <Pressable
-                onPress={() => navigation.navigate('BlockedSellers')}
-                style={styles.iconRow}
-              >
-                <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
-                  <Ionicons name="person-remove-outline" size={18} color={colors.accent} />
-                </View>
-                <View style={styles.rowTextBlock}>
-                  <Text style={[styles.subLabel, { color: colors.text }]}>
-                    {t('blockedSellersRow')}
-                  </Text>
-                  <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
-                    {t('blockedSellersRowSubtitle')}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -355,7 +334,13 @@ export default function SettingsScreen({ navigation }) {
 
           <View style={[styles.subLabelRow, styles.subLabelSpacing]}>
             <Ionicons
-              name={theme === 'dark' ? 'moon-outline' : 'sunny-outline'}
+              name={
+                themePreference === 'system'
+                  ? 'contrast-outline'
+                  : themePreference === 'dark'
+                    ? 'moon-outline'
+                    : 'sunny-outline'
+              }
               size={15}
               color={colors.textMuted}
             />
@@ -366,7 +351,7 @@ export default function SettingsScreen({ navigation }) {
               <Chip
                 key={option.value}
                 label={option.label}
-                active={theme === option.value}
+                active={themePreference === option.value}
                 colors={colors}
                 onPress={() => setTheme(option.value)}
               />
@@ -408,7 +393,10 @@ export default function SettingsScreen({ navigation }) {
                   </Pressable>
                 </View>
               ) : (
-                <Pressable onPress={() => setSettingPassword(true)} style={styles.iconRow}>
+                <Pressable
+                  onPress={() => setSettingPassword(true)}
+                  style={({ pressed }) => [styles.iconRow, pressed && styles.iconRowPressed]}
+                >
                   <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
                     <Ionicons name="key-outline" size={18} color={colors.accent} />
                   </View>
@@ -427,11 +415,55 @@ export default function SettingsScreen({ navigation }) {
           </>
         )}
 
+        {auth.loggedIn && !isAdmin && (
+          <>
+            <SectionHeading icon="shield-outline" label={t('safetyLabel')} colors={colors} />
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <Pressable
+                onPress={() => navigation.navigate('BlockedSellers')}
+                style={({ pressed }) => [styles.iconRow, pressed && styles.iconRowPressed]}
+              >
+                <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
+                  <Ionicons name="person-remove-outline" size={18} color={colors.accent} />
+                </View>
+                <View style={styles.rowTextBlock}>
+                  <Text style={[styles.subLabel, { color: colors.text }]}>
+                    {t('blockedSellersRow')}
+                  </Text>
+                  <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+                    {t('blockedSellersRowSubtitle')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+            </View>
+          </>
+        )}
+
+        <SectionHeading icon="help-circle-outline" label={t('helpLabel')} colors={colors} />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <Pressable
+            onPress={replayOnboarding}
+            style={({ pressed }) => [styles.iconRow, pressed && styles.iconRowPressed]}
+          >
+            <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
+              <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
+            </View>
+            <View style={styles.rowTextBlock}>
+              <Text style={[styles.subLabel, { color: colors.text }]}>{t('howItWorksRow')}</Text>
+              <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+                {t('howItWorksRowSubtitle')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </Pressable>
+        </View>
+
         <SectionHeading icon="shield-checkmark-outline" label={t('legalSupportLabel')} colors={colors} />
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <Pressable
             onPress={() => navigation.navigate('PrivacyPolicy')}
-            style={styles.iconRow}
+            style={({ pressed }) => [styles.iconRow, pressed && styles.iconRowPressed]}
             accessibilityRole="button"
             accessibilityLabel={t('privacyPolicyRow')}
           >
@@ -450,7 +482,12 @@ export default function SettingsScreen({ navigation }) {
           </Pressable>
           <Pressable
             onPress={() => navigation.navigate('TermsOfService')}
-            style={[styles.iconRow, styles.rowDivider, { borderTopColor: colors.border }]}
+            style={({ pressed }) => [
+              styles.iconRow,
+              styles.rowDivider,
+              { borderTopColor: colors.border },
+              pressed && styles.iconRowPressed,
+            ]}
             accessibilityRole="button"
             accessibilityLabel={t('termsOfServiceRow')}
           >
@@ -469,7 +506,12 @@ export default function SettingsScreen({ navigation }) {
           </Pressable>
           <Pressable
             onPress={() => navigation.navigate('Support')}
-            style={[styles.iconRow, styles.rowDivider, { borderTopColor: colors.border }]}
+            style={({ pressed }) => [
+              styles.iconRow,
+              styles.rowDivider,
+              { borderTopColor: colors.border },
+              pressed && styles.iconRowPressed,
+            ]}
             accessibilityRole="button"
             accessibilityLabel={t('supportRow')}
           >
@@ -501,25 +543,13 @@ export default function SettingsScreen({ navigation }) {
           </Text>
         </View>
 
-        <SectionHeading icon="help-circle-outline" label={t('helpLabel')} colors={colors} />
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <Pressable onPress={replayOnboarding} style={styles.iconRow}>
-            <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
-              <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
-            </View>
-            <View style={styles.rowTextBlock}>
-              <Text style={[styles.subLabel, { color: colors.text }]}>{t('howItWorksRow')}</Text>
-              <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
-                {t('howItWorksRowSubtitle')}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </Pressable>
-        </View>
-
         {auth.loggedIn && (
           <Pressable
-            style={[styles.card, styles.logoutRow, { backgroundColor: colors.surface }]}
+            style={({ pressed }) => [
+              styles.card,
+              styles.logoutRow,
+              { backgroundColor: colors.surface, opacity: pressed ? 0.6 : 1 },
+            ]}
             onPress={handleLogout}
           >
             <Ionicons name="log-out-outline" size={18} color={colors.danger} />
@@ -528,7 +558,11 @@ export default function SettingsScreen({ navigation }) {
         )}
 
         {auth.loggedIn && (
-          <Pressable onPress={() => setShowDeleteAccount(true)} style={styles.deleteLinkRow} hitSlop={8}>
+          <Pressable
+            onPress={() => setShowDeleteAccount(true)}
+            style={({ pressed }) => [styles.deleteLinkRow, pressed && { opacity: 0.6 }]}
+            hitSlop={8}
+          >
             <Text style={[styles.deleteLinkText, { color: colors.textMuted }]}>{t('deleteAccount')}</Text>
           </Pressable>
         )}
@@ -550,10 +584,11 @@ function Chip({ label, active, colors, onPress }) {
   return (
     <Pressable
       onPress={onPress}
-      style={[
+      style={({ pressed }) => [
         styles.chip,
         { borderColor: colors.accent },
         active && { backgroundColor: colors.accent },
+        pressed && { opacity: 0.6 },
       ]}
     >
       <Text style={[styles.chipText, { color: active ? colors.accentText : colors.accent }]}>
@@ -713,13 +748,16 @@ const styles = StyleSheet.create({
   iconRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
+    gap: 10,
+    paddingVertical: 4,
+  },
+  iconRowPressed: {
+    opacity: 0.55,
   },
   rowIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -754,8 +792,8 @@ const styles = StyleSheet.create({
   },
   rowDivider: {
     borderTopWidth: 1,
-    marginTop: 3,
-    paddingTop: 15,
+    marginTop: 2,
+    paddingTop: 7,
   },
   logoutRow: {
     flexDirection: 'row',

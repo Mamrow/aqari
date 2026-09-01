@@ -10,9 +10,10 @@ import { useThemeColors } from '../theme/useThemeColors';
 // phone whose seller entry no longer exists (removed by admin) just shows
 // the phone number on its own.
 export default function BlockedSellersScreen() {
-  const { blockedSellers, agents, unblockSeller } = useAppContext();
+  const { blockedSellers, agents, unblockSeller, language } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
+  const rtlText = { textAlign: language === 'ar' ? 'right' : 'left' };
 
   if (blockedSellers.length === 0) {
     return (
@@ -35,11 +36,11 @@ export default function BlockedSellersScreen() {
         return (
           <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.info}>
-              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+              <Text style={[styles.name, rtlText, { color: colors.text }]} numberOfLines={1}>
                 {seller?.name ?? phone}
               </Text>
               {seller?.name && (
-                <Text style={[styles.phone, { color: colors.textMuted }]}>{phone}</Text>
+                <Text style={[styles.phone, rtlText, { color: colors.textMuted }]}>{phone}</Text>
               )}
             </View>
             <Pressable

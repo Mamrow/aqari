@@ -10,9 +10,11 @@ import StatusScreen from '../components/StatusScreen';
 import { friendlyErrorMessage } from '../utils/friendlyError';
 
 export default function AdminAgentsScreen({ navigation }) {
-  const { agents, removeAgent, setAgentVerified, agentsLoading, dataErrors, fetchAgents } = useAppContext();
+  const { agents, removeAgent, setAgentVerified, agentsLoading, dataErrors, fetchAgents, language } =
+    useAppContext();
   const t = useT();
   const colors = useThemeColors();
+  const rtlText = { textAlign: language === 'ar' ? 'right' : 'left' };
 
   const handleRemove = (agent) => {
     Alert.alert(
@@ -74,14 +76,14 @@ export default function AdminAgentsScreen({ navigation }) {
             onPress={() => navigation.navigate('AdminSellerListings', { phone: item.phone, name: item.name })}
           >
             <View style={styles.nameRow}>
-              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+              <Text style={[styles.name, rtlText, { color: colors.text }]} numberOfLines={1}>
                 {item.name}
               </Text>
               {item.verified && (
                 <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
               )}
             </View>
-            <Text style={[styles.phone, { color: colors.textMuted }]}>{item.phone}</Text>
+            <Text style={[styles.phone, rtlText, { color: colors.textMuted }]}>{item.phone}</Text>
           </Pressable>
           <Pressable
             style={[styles.iconButton, { borderColor: colors.accent }]}

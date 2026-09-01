@@ -24,10 +24,11 @@ function statusColor(status, colors) {
 }
 
 export default function AdminReportsScreen({ navigation }) {
-  const { reports, updateReportStatus, deleteReport, reportsLoading, dataErrors, fetchReports } =
+  const { reports, updateReportStatus, deleteReport, reportsLoading, dataErrors, fetchReports, language } =
     useAppContext();
   const t = useT();
   const colors = useThemeColors();
+  const rtlText = { textAlign: language === 'ar' ? 'right' : 'left' };
 
   const handleDelete = (report) => {
     Alert.alert(
@@ -89,7 +90,7 @@ export default function AdminReportsScreen({ navigation }) {
           style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
         >
           <View style={styles.headerRow}>
-            <Text style={[styles.listingTitle, { color: colors.text }]} numberOfLines={1}>
+            <Text style={[styles.listingTitle, rtlText, { color: colors.text }]} numberOfLines={1}>
               {item.listingTitle ?? t('listingNotFoundTitle')}
             </Text>
             <View style={[styles.statusPill, { backgroundColor: `${statusColor(item.status, colors)}22` }]}>
@@ -99,11 +100,11 @@ export default function AdminReportsScreen({ navigation }) {
             </View>
           </View>
 
-          <Text style={[styles.reason, { color: colors.accent }]}>
+          <Text style={[styles.reason, rtlText, { color: colors.accent }]}>
             {t(REPORT_REASON_LABEL_KEYS[item.reason])}
           </Text>
           {item.note ? (
-            <Text style={[styles.note, { color: colors.textMuted }]}>{item.note}</Text>
+            <Text style={[styles.note, rtlText, { color: colors.textMuted }]}>{item.note}</Text>
           ) : null}
 
           <View style={styles.actions}>

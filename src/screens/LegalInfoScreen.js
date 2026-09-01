@@ -5,6 +5,12 @@ import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 
+const PUBLIC_PAGE_URLS = {
+  privacy: 'https://lyaqari.netlify.app/privacy/',
+  terms: 'https://lyaqari.netlify.app/terms/',
+  support: 'https://lyaqari.netlify.app/support/',
+};
+
 const PAGE_CONFIG = {
   privacy: {
     titleKey: 'privacyPolicyTitle',
@@ -58,6 +64,14 @@ export default function LegalInfoScreen({ navigation, route }) {
   const handleEmailSupport = () => {
     Linking.openURL('mailto:aaqaaryy@gmail.com').catch((error) => {
       console.warn('Could not open support email', error);
+    });
+  };
+
+  const handleOpenPublicPage = () => {
+    const url = PUBLIC_PAGE_URLS[pageType];
+    if (!url) return;
+    Linking.openURL(url).catch((error) => {
+      console.warn('Could not open public legal page', error);
     });
   };
 
@@ -118,6 +132,16 @@ export default function LegalInfoScreen({ navigation, route }) {
           </View>
         ))}
 
+        <Pressable
+          onPress={handleOpenPublicPage}
+          style={[styles.publicLinkButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+          accessibilityRole="link"
+          accessibilityLabel={t('viewOnlineLabel')}
+        >
+          <Ionicons name="open-outline" size={17} color={colors.accent} />
+          <Text style={[styles.publicLinkText, { color: colors.accent }]}>{t('viewOnlineLabel')}</Text>
+        </Pressable>
+
         {pageType === 'support' && (
           <View style={[styles.contactCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.contactIcon, { backgroundColor: `${colors.accent}18` }]}>
@@ -164,6 +188,19 @@ const styles = StyleSheet.create({
   section: { marginBottom: 22 },
   sectionHeading: { fontSize: 18, fontWeight: '700', marginBottom: 7, lineHeight: 24 },
   sectionBody: { fontSize: 14, lineHeight: 22 },
+  publicLinkButton: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    marginTop: 2,
+    marginBottom: 16,
+  },
+  publicLinkText: { fontSize: 14, fontWeight: '700' },
   contactCard: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 16, padding: 14, marginTop: 2 },
   contactIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   contactCopy: { flex: 1 },

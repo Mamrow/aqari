@@ -214,7 +214,12 @@ export default function MyListingsScreen({ navigation }) {
                             <>
                               {(isExpired || isExpiringSoon) && (
                                 <View style={styles.expiryRow}>
-                                  <Text style={[styles.expiryText, { color: colors.danger }]}>
+                                  <Text
+                                    style={[
+                                      styles.expiryText,
+                                      { color: colors.danger, textAlign: language === 'ar' ? 'right' : 'left' },
+                                    ]}
+                                  >
                                     {isExpired
                                       ? t('listingExpiredBanner')
                                       : t('listingExpiringSoonBanner')

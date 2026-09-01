@@ -25,9 +25,11 @@ export default function AdminApprovalsScreen({ navigation }) {
     dataLoading,
     dataErrors,
     fetchListings,
+    language,
   } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
+  const rtlText = { textAlign: language === 'ar' ? 'right' : 'left' };
   const [searchQuery, setSearchQuery] = useState('');
 
   const matchesSearch = (listing) => {
@@ -90,7 +92,7 @@ export default function AdminApprovalsScreen({ navigation }) {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.heading, { color: colors.heading }]}>{t('adminHeading')}</Text>
+      <Text style={[styles.heading, rtlText, { color: colors.heading }]}>{t('adminHeading')}</Text>
 
       <Pressable
         style={[styles.agentsLink, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -158,7 +160,7 @@ export default function AdminApprovalsScreen({ navigation }) {
                   (agent) => agent.phone === item.agentId || agent.phone === item.agentPhone
                 );
                 return (
-                  <Text style={[styles.sellerLabel, { color: colors.textMuted }]} numberOfLines={1}>
+                  <Text style={[styles.sellerLabel, rtlText, { color: colors.textMuted }]} numberOfLines={1}>
                     {t('listedByLabel')} {seller?.name ?? item.agentPhone}
                   </Text>
                 );

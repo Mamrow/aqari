@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aqari Legal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="shell topbar-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 11.5L12 4l8 7.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 20v-5h4v5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span>Aqari <span class="brand-sep">·</span> <span id="brandSuffix">Legal</span></span>
+    </a>
+    <div class="lang-toggle" role="group" aria-label="Language">
+      <button type="button" id="btnEn" aria-pressed="true" onclick="aqariSetLang('en')">EN</button>
+      <button type="button" id="btnAr" aria-pressed="false" onclick="aqariSetLang('ar')">عربي</button>
+    </div>
+  </div>
+</div>
+
+<main class="shell">
+  <div id="content-en" dir="ltr" lang="en">
+    <div class="meta">
+      <h1 class="title">Aqari Legal &amp; Support</h1>
+      <p class="lede">Privacy Policy, Terms of Service, account deletion, and support — for the Aqari real estate marketplace app.</p>
+    </div>
+
+    <nav class="toc" aria-label="Pages" style="margin-top:28px;">
+      <p class="toc-label">Pages</p>
+      <ol>
+        <li><a href="/privacy/">Privacy Policy</a></li>
+        <li><a href="/terms/">Terms of Service</a></li>
+        <li><a href="/delete-account/">Delete Your Account</a></li>
+        <li><a href="/support/">Support</a></li>
+      </ol>
+    </nav>
+  </div>
+
+  <div id="content-ar" dir="rtl" lang="ar" hidden>
+    <div class="meta">
+      <h1 class="title">الشؤون القانونية والدعم – عقاري</h1>
+      <p class="lede">سياسة الخصوصية، شروط الخدمة، حذف الحساب، والدعم — لتطبيق عقاري للعقارات.</p>
+    </div>
+
+    <nav class="toc" aria-label="الصفحات" style="margin-top:28px;">
+      <p class="toc-label">الصفحات</p>
+      <ol>
+        <li><a href="/privacy/">سياسة الخصوصية</a></li>
+        <li><a href="/terms/">شروط الخدمة</a></li>
+        <li><a href="/delete-account/">حذف الحساب</a></li>
+        <li><a href="/support/">الدعم</a></li>
+      </ol>
+    </nav>
+  </div>
+</main>
+
+<footer class="page-footer">
+  <span>Aqari — Tripoli, Libya</span>
+  <span>aaqaaryy@gmail.com</span>
+</footer>
+
+<script src="/script.js"></script>
+</body>
+</html>

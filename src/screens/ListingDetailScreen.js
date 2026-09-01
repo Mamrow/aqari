@@ -48,9 +48,12 @@ export default function ListingDetailScreen({ route, navigation }) {
     blockedSellers,
     blockSeller,
     unblockSeller,
+    language,
   } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
+  const isRTL = language === 'ar';
+  const rtlText = { textAlign: isRTL ? 'right' : 'left' };
   const insets = useSafeAreaInsets();
   const [galleryIndex, setGalleryIndex] = useState(null);
   const [reportModalVisible, setReportModalVisible] = useState(false);
@@ -196,7 +199,7 @@ export default function ListingDetailScreen({ route, navigation }) {
       />
 
       <View style={styles.headerRow}>
-        <Text style={[styles.price, { color: colors.accent }]}>
+        <Text style={[styles.price, rtlText, { color: colors.accent }]}>
           {listing.price.toLocaleString('en-US')} {t('priceCurrency')}
           {listing.propertyType === 'chalet' && listing.listingType === 'rent' ? ` ${t('perDay')}` : ''}
         </Text>
@@ -227,14 +230,14 @@ export default function ListingDetailScreen({ route, navigation }) {
         </View>
       </View>
 
-      <Text style={[styles.title, { color: colors.text }]}>{listing.title}</Text>
-      <Text style={[styles.area, { color: colors.textMuted }]}>
+      <Text style={[styles.title, rtlText, { color: colors.text }]}>{listing.title}</Text>
+      <Text style={[styles.area, rtlText, { color: colors.textMuted }]}>
         {listing.area.toLocaleString('en-US')} {t('areaUnit')}
         {listing.rooms ? ` · ${listing.rooms} ${t('roomsSuffix')}` : ''}
       </Text>
 
       {(listing.propertyType || listing.listingType) && (
-        <Text style={[styles.badge, { color: colors.accent }]}>
+        <Text style={[styles.badge, rtlText, { color: colors.accent }]}>
           {[
             listing.propertyType && t(PROPERTY_TYPE_LABEL_KEYS[listing.propertyType]),
             listing.listingType && t(LISTING_TYPE_LABEL_KEYS[listing.listingType]),
@@ -245,7 +248,7 @@ export default function ListingDetailScreen({ route, navigation }) {
       )}
 
       {listing.audienceTarget && (
-        <Text style={[styles.badge, { color: colors.textMuted }]}>
+        <Text style={[styles.badge, rtlText, { color: colors.textMuted }]}>
           {t('audienceLabel')}: {t(AUDIENCE_LABEL_KEYS[listing.audienceTarget])}
         </Text>
       )}
@@ -266,12 +269,12 @@ export default function ListingDetailScreen({ route, navigation }) {
       )}
 
       {listing.description ? (
-        <Text style={[styles.description, { color: colors.text }]}>{listing.description}</Text>
+        <Text style={[styles.description, rtlText, { color: colors.text }]}>{listing.description}</Text>
       ) : null}
 
       {listing.latitude != null && listing.longitude != null && (
         <>
-          <Text style={[styles.label, { color: colors.textMuted }]}>{t('locationLabel')}</Text>
+          <Text style={[styles.label, rtlText, { color: colors.textMuted }]}>{t('locationLabel')}</Text>
           <MapView
             style={styles.map}
             initialRegion={{
@@ -290,7 +293,7 @@ export default function ListingDetailScreen({ route, navigation }) {
 
       {!isOwner && listingAgent && (
         <View style={styles.listedByRow}>
-          <Text style={[styles.listedByText, { color: colors.textMuted }]}>
+          <Text style={[styles.listedByText, rtlText, { color: colors.textMuted }]}>
             {t('listedByLabel')} {listingAgent.name}
           </Text>
           {listingAgent.verified && (
@@ -304,36 +307,46 @@ export default function ListingDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      <View style={styles.actionRow}>
-        {isOwner ? (
-          <ActionButton
-            icon="create-outline"
-            label={t('editListingButton')}
-            colors={colors}
-            onPress={handleEdit}
-          />
-        ) : (
-          <>
+      {/* A listing whose seller deleted their account has an empty
+          agentPhone (see supabase/functions/delete-account) — showing Call/
+          WhatsApp buttons that are guaranteed to fail is worse than not
+          showing them at all. */}
+      {isOwner || listing.agentPhone ? (
+        <View style={styles.actionRow}>
+          {isOwner ? (
             <ActionButton
-              icon="call"
-              label={t('callButton')}
+              icon="create-outline"
+              label={t('editListingButton')}
               colors={colors}
-              onPress={handleCall}
-              accessibilityLabel={t('a11yCallSeller')}
-              testID="listing-call"
+              onPress={handleEdit}
             />
-            <ActionButton
-              icon="logo-whatsapp"
-              label={t('whatsappButton')}
-              colors={colors}
-              backgroundColor={WHATSAPP_GREEN}
-              onPress={handleWhatsapp}
-              accessibilityLabel={t('a11yWhatsappSeller')}
-              testID="listing-whatsapp"
-            />
-          </>
-        )}
-      </View>
+          ) : (
+            <>
+              <ActionButton
+                icon="call"
+                label={t('callButton')}
+                colors={colors}
+                onPress={handleCall}
+                accessibilityLabel={t('a11yCallSeller')}
+                testID="listing-call"
+              />
+              <ActionButton
+                icon="logo-whatsapp"
+                label={t('whatsappButton')}
+                colors={colors}
+                backgroundColor={WHATSAPP_GREEN}
+                onPress={handleWhatsapp}
+                accessibilityLabel={t('a11yWhatsappSeller')}
+                testID="listing-whatsapp"
+              />
+            </>
+          )}
+        </View>
+      ) : (
+        <Text style={[styles.sellerUnavailable, { color: colors.textMuted }]}>
+          {t('sellerUnavailableMessage')}
+        </Text>
+      )}
 
       {!isOwner && (
         <View style={styles.safetyRow}>
@@ -388,7 +401,7 @@ export default function ListingDetailScreen({ route, navigation }) {
           onPress={() => setReportModalVisible(false)}
         >
           <Pressable style={[styles.reportCard, { backgroundColor: colors.surface }]} onPress={() => {}}>
-            <Text style={[styles.reportTitle, { color: colors.text }]}>{t('reportModalTitle')}</Text>
+            <Text style={[styles.reportTitle, rtlText, { color: colors.text }]}>{t('reportModalTitle')}</Text>
 
             {REPORT_REASONS.map((reason) => {
               const active = reportReason === reason;
@@ -401,6 +414,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                   <Text
                     style={[
                       styles.reportOptionText,
+                      rtlText,
                       { color: active ? colors.accent : colors.text },
                       active && styles.reportOptionTextActive,
                     ]}
@@ -413,7 +427,7 @@ export default function ListingDetailScreen({ route, navigation }) {
             })}
 
             <TextInput
-              style={[styles.reportNoteInput, { borderColor: colors.inputBorder, color: colors.text }]}
+              style={[styles.reportNoteInput, rtlText, { borderColor: colors.inputBorder, color: colors.text }]}
               placeholder={t('reportNotePlaceholder')}
               placeholderTextColor={colors.placeholderText}
               value={reportNote}
@@ -562,6 +576,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 24,
+  },
+  sellerUnavailable: {
+    marginTop: 24,
+    fontSize: 13,
+    textAlign: 'center',
   },
   actionButton: {
     flex: 1,

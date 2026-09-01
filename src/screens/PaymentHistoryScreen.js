@@ -35,6 +35,7 @@ export default function PaymentHistoryScreen({ navigation }) {
   const { listings, getMyId, isAdmin, fetchBoostPayments, language } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
+  const rtlText = { textAlign: language === 'ar' ? 'right' : 'left' };
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,7 +103,7 @@ export default function PaymentHistoryScreen({ navigation }) {
         ListHeaderComponent={
           myFeaturedListings.length > 0 ? (
             <View style={styles.featuredSummary}>
-              <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
+              <Text style={[styles.sectionLabel, rtlText, { color: colors.textMuted }]}>
                 {t('currentlyFeaturedLabel')}
               </Text>
               {myFeaturedListings.map((item) => {
@@ -117,7 +118,7 @@ export default function PaymentHistoryScreen({ navigation }) {
                   >
                     <Ionicons name="star" size={16} color={FEATURED_GOLD} />
                     <Text
-                      style={[styles.featuredRowTitle, { color: colors.text }]}
+                      style={[styles.featuredRowTitle, rtlText, { color: colors.text }]}
                       numberOfLines={1}
                     >
                       {item.title}
@@ -162,7 +163,7 @@ export default function PaymentHistoryScreen({ navigation }) {
         renderItem={({ item }) => (
           <View style={[styles.paymentCard, { backgroundColor: colors.surface }]}>
             <View style={styles.paymentTopRow}>
-              <Text style={[styles.paymentTitle, { color: colors.text }]} numberOfLines={1}>
+              <Text style={[styles.paymentTitle, rtlText, { color: colors.text }]} numberOfLines={1}>
                 {item.listingTitle ?? t('paymentListingDeletedLabel')}
               </Text>
               <View
@@ -182,10 +183,10 @@ export default function PaymentHistoryScreen({ navigation }) {
               </View>
             </View>
             {isAdmin && item.agentPhone && (
-              <Text style={[styles.paymentMeta, { color: colors.textMuted }]}>{item.agentPhone}</Text>
+              <Text style={[styles.paymentMeta, rtlText, { color: colors.textMuted }]}>{item.agentPhone}</Text>
             )}
             <View style={styles.paymentBottomRow}>
-              <Text style={[styles.paymentMeta, { color: colors.textMuted }]}>
+              <Text style={[styles.paymentMeta, rtlText, { color: colors.textMuted }]}>
                 {t(`payMethod_${item.payMethod}`)} · {item.durationDays}{' '}
                 {dayWord(item.durationDays, language)}
               </Text>
@@ -193,7 +194,7 @@ export default function PaymentHistoryScreen({ navigation }) {
                 {item.amount.toLocaleString('en-US')} {t('priceCurrency')}
               </Text>
             </View>
-            <Text style={[styles.paymentDate, { color: colors.textMuted }]}>
+            <Text style={[styles.paymentDate, rtlText, { color: colors.textMuted }]}>
               {new Date(item.createdAt).toLocaleDateString()}
             </Text>
           </View>

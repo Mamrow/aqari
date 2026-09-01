@@ -67,6 +67,12 @@ export default function AddListingScreen({ navigation, route }) {
   const { listings, submitListing, updateListing, resubmitRejectedListing, theme, auth, language } =
     useAppContext();
   const t = useT();
+  const isRTL = language === 'ar';
+  // Every plain block-level label/value Text on this screen needs this
+  // explicit — unlike a flex row with an icon (which just visually ends up
+  // on the right because the row itself auto-mirrors), a lone full-width
+  // Text does NOT auto-align for RTL on its own.
+  const rtlText = { textAlign: isRTL ? 'right' : 'left' };
   // Sorted by the currently displayed label, not by the fixed key order in
   // districts.js — Arabic and English alphabetical order aren't the same,
   // so this can't be a single hardcoded order.
@@ -361,20 +367,23 @@ export default function AddListingScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-      <Text style={[styles.requiredLegend, { color: colors.textMuted }]}>
+      <Text style={[styles.requiredLegend, rtlText, { color: colors.textMuted }]}>
         {t('requiredFieldsLegend')}
       </Text>
 
-      <RequiredLabel colors={colors}>{t('listingTitleLabel')}</RequiredLabel>
+      <RequiredLabel colors={colors} isRTL={isRTL}>{t('listingTitleLabel')}</RequiredLabel>
       <TextInput
-        style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
+        style={[
+          styles.input,
+          { borderColor: colors.inputBorder, color: colors.text, textAlign: language === 'ar' ? 'right' : 'left' },
+        ]}
         placeholder={t('listingTitlePlaceholder')}
         placeholderTextColor={colors.placeholderText}
         value={title}
         onChangeText={setTitle}
       />
 
-      <RequiredLabel colors={colors}>
+      <RequiredLabel colors={colors} isRTL={isRTL}>
         {t(isChaletRental ? 'dailyPriceLabel' : 'listingPriceLabel')}
       </RequiredLabel>
       <TextInput
@@ -386,7 +395,7 @@ export default function AddListingScreen({ navigation, route }) {
         onChangeText={(text) => setPrice(toEnglishDigits(text))}
       />
 
-      <RequiredLabel colors={colors}>{t('listingAreaLabel')}</RequiredLabel>
+      <RequiredLabel colors={colors} isRTL={isRTL}>{t('listingAreaLabel')}</RequiredLabel>
       <TextInput
         style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
         placeholder={t('listingAreaPlaceholder')}
@@ -396,7 +405,7 @@ export default function AddListingScreen({ navigation, route }) {
         onChangeText={(text) => setArea(toEnglishDigits(text))}
       />
 
-      <RequiredLabel colors={colors}>{t('agentPhoneLabel')}</RequiredLabel>
+      <RequiredLabel colors={colors} isRTL={isRTL}>{t('agentPhoneLabel')}</RequiredLabel>
       <PhoneInput
         value={agentPhone}
         onChangeText={setAgentPhone}
@@ -404,12 +413,16 @@ export default function AddListingScreen({ navigation, route }) {
         placeholder={t('authPhonePlaceholder')}
       />
 
-      <RequiredLabel colors={colors}>{t('descriptionLabel')}</RequiredLabel>
+      <RequiredLabel colors={colors} isRTL={isRTL}>{t('descriptionLabel')}</RequiredLabel>
       <TextInput
         style={[
           styles.input,
           styles.textArea,
-          { borderColor: colors.inputBorder, color: colors.text },
+          // Overrides .input's marginBottom:16 — the char-count/warning text
+          // right below needs to read as attached to this box, not to
+          // whatever section heading happens to follow it.
+          styles.textAreaSpacing,
+          { borderColor: colors.inputBorder, color: colors.text, textAlign: language === 'ar' ? 'right' : 'left' },
         ]}
         placeholder={t('descriptionPlaceholder')}
         placeholderTextColor={colors.placeholderText}
@@ -419,24 +432,32 @@ export default function AddListingScreen({ navigation, route }) {
         value={description}
         onChangeText={setDescription}
       />
-      <Text
-        style={[
-          styles.charCount,
-          {
-            color: description.trim().length < MIN_DESCRIPTION_LENGTH ? colors.danger : colors.textMuted,
-            // RN's Text has no logical 'start'/'end' textAlign — the same
-            // physical-vs-logical gap the rest of this app works around by
-            // checking `language` directly rather than assuming 'left'.
-            textAlign: language === 'ar' ? 'left' : 'right',
-          },
-        ]}
-      >
-        {description.trim().length < MIN_DESCRIPTION_LENGTH
-          ? t('descriptionTooShort').replace('{min}', String(MIN_DESCRIPTION_LENGTH))
-          : `${description.length}/${MAX_DESCRIPTION_LENGTH}`}
-      </Text>
+      {/* Hidden on an untouched/empty field — showing "too short" before the
+          user has typed anything reads as an error on a form they haven't
+          gotten to yet. Once they've typed something, this doubles as the
+          length counter once they clear the minimum. */}
+      {description.length > 0 && (
+        <Text
+          style={[
+            styles.charCount,
+            {
+              color: description.trim().length < MIN_DESCRIPTION_LENGTH ? colors.danger : colors.textMuted,
+              // RN's Text has no logical 'start'/'end' textAlign — the same
+              // physical-vs-logical gap the rest of this app works around by
+              // checking `language` directly rather than assuming 'left'.
+              textAlign: language === 'ar' ? 'left' : 'right',
+            },
+          ]}
+        >
+          {description.trim().length < MIN_DESCRIPTION_LENGTH
+            ? t('descriptionTooShort').replace('{min}', String(MIN_DESCRIPTION_LENGTH))
+            : `${description.length}/${MAX_DESCRIPTION_LENGTH}`}
+        </Text>
+      )}
 
-      <Text style={[styles.label, { color: colors.textMuted }]}>{t('purposeLabel')}</Text>
+      <Text style={[styles.label, styles.sectionSpacing, rtlText, { color: colors.textMuted }]}>
+        {t('purposeLabel')}
+      </Text>
       <View style={styles.chipRow}>
         {LISTING_TYPES.map((type) => (
           <Chip
@@ -449,7 +470,7 @@ export default function AddListingScreen({ navigation, route }) {
         ))}
       </View>
 
-      <Text style={[styles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+      <Text style={[styles.label, styles.sectionSpacing, rtlText, { color: colors.textMuted }]}>
         {t('propertyTypeLabel')}
       </Text>
       <Pressable
@@ -457,9 +478,13 @@ export default function AddListingScreen({ navigation, route }) {
           Keyboard.dismiss();
           setPropertyTypePickerVisible(true);
         }}
-        style={[styles.dropdownField, { borderColor: colors.inputBorder }]}
+        style={({ pressed }) => [
+          styles.dropdownField,
+          { borderColor: colors.inputBorder },
+          pressed && { opacity: 0.6 },
+        ]}
       >
-        <Text style={{ color: colors.text }}>{t(PROPERTY_TYPE_LABEL_KEYS[propertyType])}</Text>
+        <Text style={[rtlText, { color: colors.text }]}>{t(PROPERTY_TYPE_LABEL_KEYS[propertyType])}</Text>
         <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
       </Pressable>
 
@@ -479,7 +504,13 @@ export default function AddListingScreen({ navigation, route }) {
             style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
             onPress={() => {}}
           >
-            <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
+            <ModalCloseButton
+              onPress={() => setPropertyTypePickerVisible(false)}
+              colors={colors}
+              label={t('close')}
+              isRTL={isRTL}
+            />
+            <Text style={[styles.pickerModalTitle, rtlText, { color: colors.text }]}>
               {t('propertyTypeLabel')}
             </Text>
             <ScrollView>
@@ -497,6 +528,7 @@ export default function AddListingScreen({ navigation, route }) {
                     <Text
                       style={[
                         styles.pickerOptionText,
+                        rtlText,
                         { color: active ? colors.accent : colors.text },
                         active && styles.pickerOptionTextActive,
                       ]}
@@ -512,14 +544,18 @@ export default function AddListingScreen({ navigation, route }) {
         </Pressable>
       </Modal>
 
-      <Text style={[styles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+      <Text style={[styles.label, styles.sectionSpacing, rtlText, { color: colors.textMuted }]}>
         {t('cityLabel')}
       </Text>
       <Pressable
         onPress={openLocationPicker}
-        style={[styles.dropdownField, { borderColor: colors.inputBorder }]}
+        style={({ pressed }) => [
+          styles.dropdownField,
+          { borderColor: colors.inputBorder },
+          pressed && { opacity: 0.6 },
+        ]}
       >
-        <Text style={{ color: city ? colors.text : colors.placeholderText }}>
+        <Text style={[rtlText, { color: city ? colors.text : colors.placeholderText }]}>
           {!city
             ? t('cityPlaceholder')
             : district
@@ -545,7 +581,13 @@ export default function AddListingScreen({ navigation, route }) {
             style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
             onPress={() => {}}
           >
-            <View style={styles.pickerModalHeaderRow}>
+            <ModalCloseButton
+              onPress={() => setLocationPickerVisible(false)}
+              colors={colors}
+              label={t('close')}
+              isRTL={isRTL}
+            />
+            <View style={[styles.pickerModalHeaderRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}>
               {locationPickerStep === 'district' && (
                 <Pressable
                   onPress={() => setLocationPickerStep('city')}
@@ -559,7 +601,7 @@ export default function AddListingScreen({ navigation, route }) {
                   />
                 </Pressable>
               )}
-              <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
+              <Text style={[styles.pickerModalTitle, rtlText, { color: colors.text }]}>
                 {locationPickerStep === 'city'
                   ? t('cityLabel')
                   : t(CITIES.find((item) => item.key === city)?.labelKey)}
@@ -578,6 +620,7 @@ export default function AddListingScreen({ navigation, route }) {
                         <Text
                           style={[
                             styles.pickerOptionText,
+                            rtlText,
                             { color: active ? colors.accent : colors.text },
                             active && styles.pickerOptionTextActive,
                           ]}
@@ -601,6 +644,7 @@ export default function AddListingScreen({ navigation, route }) {
                         <Text
                           style={[
                             styles.pickerOptionText,
+                            rtlText,
                             { color: active ? colors.accent : colors.text },
                             active && styles.pickerOptionTextActive,
                           ]}
@@ -618,7 +662,7 @@ export default function AddListingScreen({ navigation, route }) {
 
       {roomsRequired && (
         <>
-          <RequiredLabel colors={colors} style={styles.sectionSpacing}>
+          <RequiredLabel colors={colors} isRTL={isRTL} style={styles.sectionSpacing}>
             {t('roomsLabel')}
           </RequiredLabel>
           <View style={styles.chipRow}>
@@ -637,7 +681,7 @@ export default function AddListingScreen({ navigation, route }) {
 
       {isChaletRental && (
         <>
-          <Text style={[styles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+          <Text style={[styles.label, styles.sectionSpacing, rtlText, { color: colors.textMuted }]}>
             {t('amenitiesLabel')}
           </Text>
           <View style={styles.chipRow}>
@@ -656,7 +700,7 @@ export default function AddListingScreen({ navigation, route }) {
 
       {isChaletRental && (
         <>
-          <RequiredLabel colors={colors} style={styles.sectionSpacing}>
+          <RequiredLabel colors={colors} isRTL={isRTL} style={styles.sectionSpacing}>
             {t('audienceLabel')}
           </RequiredLabel>
           <View style={styles.chipRow}>
@@ -673,11 +717,11 @@ export default function AddListingScreen({ navigation, route }) {
         </>
       )}
 
-      <RequiredLabel colors={colors} style={styles.sectionSpacing}>
+      <RequiredLabel colors={colors} isRTL={isRTL} style={styles.sectionSpacing}>
         {t('photosLabel')}
       </RequiredLabel>
       {images.length > 0 && (
-        <Text style={[styles.photosHint, { color: colors.textMuted }]}>
+        <Text style={[styles.photosHint, rtlText, { color: colors.textMuted }]}>
           {t('photosCountHint')
             .replace('{count}', String(images.length))
             .replace('{min}', String(MIN_PHOTOS))
@@ -731,10 +775,10 @@ export default function AddListingScreen({ navigation, route }) {
         )}
       </View>
 
-      <Text style={[styles.label, styles.sectionSpacing, { color: colors.textMuted }]}>
+      <Text style={[styles.label, styles.sectionSpacing, rtlText, { color: colors.textMuted }]}>
         {t('locationLabel')}
       </Text>
-      <Text style={[styles.hint, { color: colors.textMuted }]}>{t('locationHint')}</Text>
+      <Text style={[styles.hint, rtlText, { color: colors.textMuted }]}>{t('locationHint')}</Text>
       <MapView
         style={styles.map}
         initialRegion={{ ...location, latitudeDelta: 0.15, longitudeDelta: 0.15 }}
@@ -746,9 +790,9 @@ export default function AddListingScreen({ navigation, route }) {
       </MapView>
 
       <Pressable
-        style={[
+        style={({ pressed }) => [
           styles.submitButton,
-          { backgroundColor: canSubmit ? colors.accent : colors.disabled },
+          { backgroundColor: canSubmit ? colors.accent : colors.disabled, opacity: pressed ? 0.85 : 1 },
         ]}
         onPress={handleSubmit}
         disabled={!canSubmit || submitting}
@@ -762,7 +806,11 @@ export default function AddListingScreen({ navigation, route }) {
         )}
       </Pressable>
 
-      <Pressable style={styles.cancelButton} onPress={handleCancel} disabled={submitting}>
+      <Pressable
+        style={({ pressed }) => [styles.cancelButton, pressed && { opacity: 0.6 }]}
+        onPress={handleCancel}
+        disabled={submitting}
+      >
         <Text style={[styles.cancelText, { color: colors.danger }]}>{t('cancel')}</Text>
       </Pressable>
       </ScrollView>
@@ -773,11 +821,25 @@ export default function AddListingScreen({ navigation, route }) {
 // A red "*" appended to a field label — only for fields canSubmit actually
 // gates on, not decorative on every label (amenities/city stay unmarked
 // since they're genuinely optional).
-function RequiredLabel({ children, colors, style }) {
+function RequiredLabel({ children, colors, style, isRTL }) {
   return (
-    <Text style={[styles.label, style, { color: colors.textMuted }]}>
+    <Text style={[styles.label, style, { color: colors.textMuted, textAlign: isRTL ? 'right' : 'left' }]}>
       {children} <Text style={{ color: colors.danger }}>*</Text>
     </Text>
+  );
+}
+
+function ModalCloseButton({ onPress, colors, label, isRTL }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={10}
+      style={[styles.pickerModalCloseButton, isRTL ? styles.pickerModalCloseButtonRTL : styles.pickerModalCloseButtonLTR]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Ionicons name="close" size={20} color={colors.textMuted} />
+    </Pressable>
   );
 }
 
@@ -785,10 +847,11 @@ function Chip({ label, active, colors, onPress }) {
   return (
     <Pressable
       onPress={onPress}
-      style={[
+      style={({ pressed }) => [
         styles.chip,
         { borderColor: colors.accent },
         active && { backgroundColor: colors.accent },
+        pressed && { opacity: 0.6 },
       ]}
     >
       <Text style={[styles.chipText, { color: active ? colors.accentText : colors.accent }]}>
@@ -845,6 +908,9 @@ const styles = StyleSheet.create({
     minHeight: 90,
     textAlignVertical: 'top',
   },
+  textAreaSpacing: {
+    marginBottom: 4,
+  },
   dropdownField: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -863,6 +929,10 @@ const styles = StyleSheet.create({
   pickerModalCard: {
     borderRadius: 16,
     padding: 16,
+    // Extra headroom above the title/back row specifically, so the close
+    // button (position:absolute, ignores this padding) has its own clear
+    // strip instead of sitting on top of them.
+    paddingTop: 40,
     maxHeight: '70%',
   },
   pickerModalTitle: {
@@ -870,6 +940,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 8,
     paddingHorizontal: 8,
+  },
+  // isRTL branches explicitly to a literal left/right — no "end", no
+  // relying on the app-wide native RTL auto-mirror. A Modal mounts its
+  // content into a separate native root, which doesn't reliably inherit
+  // either of those, so this is the one spot on the screen that has to
+  // pick its own side.
+  pickerModalCloseButton: {
+    position: 'absolute',
+    top: 12,
+    zIndex: 1,
+    padding: 4,
+  },
+  pickerModalCloseButtonLTR: {
+    right: 12,
+  },
+  pickerModalCloseButtonRTL: {
+    left: 12,
   },
   pickerModalHeaderRow: {
     flexDirection: 'row',

@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete Your Aqari Account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="shell topbar-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 11.5L12 4l8 7.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 20v-5h4v5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span>Aqari</span>
+    </a>
+    <nav class="nav-links" aria-label="Legal pages">
+      <a href="/privacy/">Privacy</a>
+      <a href="/terms/">Terms</a>
+      <a href="/delete-account/" aria-current="page">Delete Account</a>
+      <a href="/support/">Support</a>
+    </nav>
+    <div class="lang-toggle" role="group" aria-label="Language">
+      <button type="button" id="btnEn" aria-pressed="true" onclick="aqariSetLang('en')">EN</button>
+      <button type="button" id="btnAr" aria-pressed="false" onclick="aqariSetLang('ar')">عربي</button>
+    </div>
+  </div>
+</div>
+
+<main class="shell">
+
+  <!-- ================= ENGLISH ================= -->
+  <div id="content-en" dir="ltr" lang="en">
+    <div class="meta">
+      <h1 class="title">Delete Your Aqari Account</h1>
+      <p class="lede">You can permanently delete your Aqari account and its associated data at any time. There are two ways to do this, depending on whether you still have the app installed.</p>
+    </div>
+
+    <div class="prose" style="padding-top:8px;">
+      <section style="border:none;padding-top:0;">
+        <h2>Option 1 — In the app (fastest)</h2>
+        <div class="step-card">
+          <h3><span class="step-num">1</span>Open Aqari and sign in</h3>
+          <p>Use the account you want to delete.</p>
+        </div>
+        <div class="step-card">
+          <h3><span class="step-num">2</span>Go to Settings</h3>
+          <p>Tap the Settings tab, then scroll to the account section.</p>
+        </div>
+        <div class="step-card">
+          <h3><span class="step-num">3</span>Tap "Delete Account" and confirm</h3>
+          <p>You'll see a confirmation screen explaining what gets removed. Confirming deletes your account immediately.</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>Option 2 — Request deletion here</h2>
+        <p>If you no longer have the app installed, or can't sign in, use this form to request deletion. Submitting it opens your email app with a pre-filled message to <strong>aaqaaryy@gmail.com</strong> — review it and hit send.</p>
+
+        <form class="request-card" id="delete-form-en" onsubmit="return false;">
+          <h2>Request account deletion</h2>
+          <p>We use your phone number to find and verify your account before deleting it.</p>
+          <div class="field">
+            <label for="phone-en">Phone number associated with your account *</label>
+            <input type="tel" id="phone-en" required placeholder="+218 9XX XXX XXX">
+          </div>
+          <div class="field">
+            <label for="email-en">Email (optional, for a reply)</label>
+            <input type="email" id="email-en" placeholder="you@example.com">
+          </div>
+          <div class="field">
+            <label for="notes-en">Anything else we should know? (optional)</label>
+            <textarea id="notes-en" placeholder="Reason for deletion, or any details that help us find your account"></textarea>
+          </div>
+          <button type="button" class="request-submit" onclick="aqariSubmitDeletion('en')">
+            Send deletion request
+          </button>
+          <p class="request-note">We process deletion requests within 30 days of receiving them. You'll get a reply at the email you provide, or you can follow up with us directly at aaqaaryy@gmail.com.</p>
+        </form>
+      </section>
+
+      <section>
+        <h2>What gets deleted, and what's retained</h2>
+        <table class="retain-table">
+          <thead><tr><th>Data</th><th>Outcome</th></tr></thead>
+          <tbody>
+            <tr><td>Account (login, name, phone, email)</td><td>Deleted</td></tr>
+            <tr><td>Profile photo</td><td>Deleted</td></tr>
+            <tr><td>Saved listings ("favorites")</td><td>Deleted</td></tr>
+            <tr><td>Seller directory entry</td><td>Deleted</td></tr>
+            <tr><td>Push-notification token</td><td>Deleted</td></tr>
+            <tr><td>Listings you've submitted</td><td>Kept, but detached from your account and stripped of your personal contact details — so buyers who already reached out aren't left with a broken link</td></tr>
+          </tbody>
+        </table>
+        <p>Full detail is in our <a href="/privacy/">Privacy Policy</a>.</p>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= ARABIC ================= -->
+  <div id="content-ar" dir="rtl" lang="ar" hidden>
+    <div class="meta">
+      <h1 class="title">حذف حسابك في عقاري</h1>
+      <p class="lede">يمكنك حذف حسابك في عقاري وبياناته المرتبطة به نهائيًا في أي وقت. هناك طريقتان لذلك، حسب ما إذا كان التطبيق مثبتًا لديك أم لا.</p>
+    </div>
+
+    <div class="prose" style="padding-top:8px;">
+      <section style="border:none;padding-top:0;">
+        <h2>الخيار الأول — من داخل التطبيق (الأسرع)</h2>
+        <div class="step-card">
+          <h3><span class="step-num">1</span>افتح تطبيق عقاري وسجّل الدخول</h3>
+          <p>استخدم الحساب الذي تريد حذفه.</p>
+        </div>
+        <div class="step-card">
+          <h3><span class="step-num">2</span>اذهب إلى الإعدادات</h3>
+          <p>اضغط على تبويب الإعدادات، ثم انتقل إلى قسم الحساب.</p>
+        </div>
+        <div class="step-card">
+          <h3><span class="step-num">3</span>اضغط "حذف الحساب" وأكّد</h3>
+          <p>ستظهر لك شاشة تأكيد توضح ما سيتم حذفه. تأكيدك يحذف حسابك فورًا.</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>الخيار الثاني — اطلب الحذف من هنا</h2>
+        <p>إذا لم يعد التطبيق مثبتًا لديك، أو تعذّر عليك تسجيل الدخول، استخدم هذا النموذج لطلب الحذف. عند الإرسال سيفتح تطبيق البريد لديك برسالة معبّأة مسبقًا إلى <strong>aaqaaryy@gmail.com</strong> — راجعها ثم أرسلها.</p>
+
+        <form class="request-card" id="delete-form-ar" onsubmit="return false;">
+          <h2>طلب حذف الحساب</h2>
+          <p>نستخدم رقم هاتفك لإيجاد حسابك والتحقق منه قبل حذفه.</p>
+          <div class="field">
+            <label for="phone-ar">رقم الهاتف المرتبط بحسابك *</label>
+            <input type="tel" id="phone-ar" required placeholder="+218 9XX XXX XXX">
+          </div>
+          <div class="field">
+            <label for="email-ar">البريد الإلكتروني (اختياري، للرد عليك)</label>
+            <input type="email" id="email-ar" placeholder="you@example.com">
+          </div>
+          <div class="field">
+            <label for="notes-ar">أي معلومات إضافية؟ (اختياري)</label>
+            <textarea id="notes-ar" placeholder="سبب الحذف أو أي تفاصيل تساعدنا في إيجاد حسابك"></textarea>
+          </div>
+          <button type="button" class="request-submit" onclick="aqariSubmitDeletion('ar')">
+            إرسال طلب الحذف
+          </button>
+          <p class="request-note">نعالج طلبات الحذف خلال 30 يومًا من استلامها. سنرد عليك عبر البريد الذي تقدمه، أو يمكنك متابعة الطلب مباشرة عبر aaqaaryy@gmail.com.</p>
+        </form>
+      </section>
+
+      <section>
+        <h2>ما الذي يُحذف وما الذي يُحتفظ به</h2>
+        <table class="retain-table">
+          <thead><tr><th>البيانات</th><th>النتيجة</th></tr></thead>
+          <tbody>
+            <tr><td>الحساب (تسجيل الدخول، الاسم، الهاتف، البريد)</td><td>يُحذف</td></tr>
+            <tr><td>الصورة الشخصية</td><td>تُحذف</td></tr>
+            <tr><td>العقارات المحفوظة (المفضلة)</td><td>تُحذف</td></tr>
+            <tr><td>إدراجك في دليل البائعين</td><td>يُحذف</td></tr>
+            <tr><td>رمز الإشعارات الفورية</td><td>يُحذف</td></tr>
+            <tr><td>الإعلانات التي نشرتها</td><td>تبقى، لكن دون ارتباط بحسابك ودون بيانات التواصل الشخصية — حتى لا ينقطع التواصل مع من راسلك مسبقًا</td></tr>
+          </tbody>
+        </table>
+        <p>التفاصيل الكاملة في <a href="/privacy/">سياسة الخصوصية</a>.</p>
+      </section>
+    </div>
+  </div>
+
+  <footer class="page-footer" style="max-width:none;padding-inline:0;margin-top:8px;">
+    <span>Aqari — Tripoli, Libya</span>
+    <span>aaqaaryy@gmail.com</span>
+  </footer>
+</main>
+
+<script src="/script.js"></script>
+<script>
+  function aqariSubmitDeletion(lang) {
+    var phone = document.getElementById('phone-' + lang).value.trim();
+    var email = document.getElementById('email-' + lang).value.trim();
+    var notes = document.getElementById('notes-' + lang).value.trim();
+
+    if (!phone) {
+      document.getElementById('phone-' + lang).focus();
+      return;
+    }
+
+    var subject, bodyLines;
+    if (lang === 'ar') {
+      subject = 'طلب حذف حساب - عقاري';
+      bodyLines = [
+        'رقم الهاتف: ' + phone,
+        'البريد الإلكتروني للرد: ' + (email || 'غير محدد'),
+        '',
+        'ملاحظات إضافية:',
+        notes || '(لا يوجد)',
+      ];
+    } else {
+      subject = 'Aqari Account Deletion Request';
+      bodyLines = [
+        'Phone number: ' + phone,
+        'Reply email: ' + (email || 'not provided'),
+        '',
+        'Additional notes:',
+        notes || '(none)',
+      ];
+    }
+
+    var mailto = 'mailto:aaqaaryy@gmail.com'
+      + '?subject=' + encodeURIComponent(subject)
+      + '&body=' + encodeURIComponent(bodyLines.join('\n'));
+
+    window.location.href = mailto;
+  }
+</script>
+</body>
+</html>

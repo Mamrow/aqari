@@ -9,11 +9,24 @@ import { Linking } from 'react-native';
 // in this codebase (see submitListing's history). onError is optional so
 // existing call sites that don't care about feedback (e.g. admin's own
 // contact-row taps) keep working unchanged.
+// A listing whose seller deleted their account has agent_phone/agent_id
+// blanked out server-side (see supabase/functions/delete-account) — guarding
+// here means every call site (buyer-facing and admin) gets the same "nothing
+// to contact" behavior for free, without a dial/WhatsApp attempt against an
+// empty number.
 export function callAgent(phone, onError) {
+  if (!phone) {
+    onError?.();
+    return;
+  }
   Linking.openURL(`tel:${phone}`).catch(() => onError?.());
 }
 
 export function whatsappAgent(phone, message, onError) {
+  if (!phone) {
+    onError?.();
+    return;
+  }
   const digitsOnly = phone.replace(/[^\d]/g, '');
   Linking.openURL(`https://wa.me/${digitsOnly}?text=${encodeURIComponent(message)}`).catch(() => onError?.());
 }

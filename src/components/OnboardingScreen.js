@@ -53,7 +53,6 @@ export default function OnboardingScreen({ onDone }) {
   };
   const isLast = index === SLIDES.length - 1;
   const slide = SLIDES[index];
-  const paginationSlides = isRTL ? [...SLIDES].reverse() : SLIDES;
   const backIcon = isRTL ? 'chevron-forward' : 'chevron-back';
 
   const goBack = () => {
@@ -68,10 +67,14 @@ export default function OnboardingScreen({ onDone }) {
     setIndex((value) => value + 1);
   };
 
+  // Fixed at the leading corner (opposite Next, which is fixed at the
+  // trailing corner below) — deliberately not next to Next, so it can't be
+  // fat-fingered when reaching for Next. Only rendered once there's
+  // somewhere to go back to.
   const backButton = index > 0 ? (
     <Pressable
       style={({ pressed }) => [
-        styles.backButtonBottom,
+        styles.backButtonFixed,
         { opacity: pressed ? 0.65 : 1 },
       ]}
       onPress={goBack}
@@ -109,7 +112,19 @@ export default function OnboardingScreen({ onDone }) {
         </View>
 
         <View style={styles.topBar}>
-          <View style={[styles.brandLockup, isRTL ? styles.brandRTL : styles.brandLTR]}>
+          {/* left/right are auto-mirrored for RTL by RN itself (they map to
+              start/end at the native layer whenever I18nManager.isRTL is on —
+              see RCTShadowView.m / LayoutShadowNode.java's doLeftAndRightSwapInRTL).
+              Always using the plain "left" value here and letting that
+              happen is correct for a trailing/leading-corner element like
+              this one — brandLockup/skipButton/nextButtonFixed/
+              backButtonFixed all rely on exactly this, unconditionally, with
+              no isRTL branch. copyBlock below is the one exception: it wants
+              the *same* physical side in both languages (not the opposite
+              corner), which needs the opposite style key per language
+              specifically to counteract this same auto-mirror — see its own
+              comment. */}
+          <View style={[styles.brandLockup, styles.brandLTR]}>
             <RNImage
               source={require('../../assets/onboarding/onboarding-brand.png')}
               style={styles.brandImage}
@@ -119,13 +134,13 @@ export default function OnboardingScreen({ onDone }) {
             />
           </View>
           {isLast ? (
-              <View style={[styles.skipButtonPlaceholder, isRTL ? styles.skipRTL : styles.skipLTR]} />
+              <View style={[styles.skipButtonPlaceholder, styles.skipLTR]} />
           ) : (
             <Pressable
               onPress={onDone}
               style={({ pressed }) => [
                 styles.skipButton,
-                isRTL ? styles.skipRTL : styles.skipLTR,
+                styles.skipLTR,
                 { opacity: pressed ? 0.55 : 1 },
               ]}
               hitSlop={8}
@@ -138,88 +153,78 @@ export default function OnboardingScreen({ onDone }) {
           )}
         </View>
 
-        <View
-          style={[
-            styles.copyBlock,
-            isRTL ? styles.copyBlockRTL : styles.copyBlockLTR,
-            { direction: isRTL ? 'rtl' : 'ltr', writingDirection: isRTL ? 'rtl' : 'ltr' },
-          ]}
-        >
-          <Text
-            style={[
-              styles.title,
-              isRTL && styles.titleRTL,
-              {
-                textAlign: isRTL ? 'right' : 'left',
-                writingDirection: isRTL ? 'rtl' : 'ltr',
-                direction: isRTL ? 'rtl' : 'ltr',
-              },
-            ]}
+        {/* English: untouched from the original design — copyBlock +
+            copyBlockLTR, one absolute box pinned at left:20/width:76%.
+            Nothing about this path should ever change for an Arabic-only
+            fix; three earlier attempts at a "shared" structure for both
+            languages each ended up moving English too (most recently:
+            English text dropping down into the footer buttons), which is
+            exactly the kind of collateral damage a single shared path
+            risks. Keeping the two languages on fully separate JSX branches
+            here is deliberate, not an oversight. */}
+        {isRTL ? (
+          // Arabic: absolute left:0/right:0 (both true screen edges —
+          // unambiguous, nothing to mirror) plus alignItems:'flex-end' to
+          // actually pick the right side. alignItems:'flex-end' is already
+          // established elsewhere in this codebase (see AuthModal.js's
+          // forgotRow) as always physical-right regardless of RTL — no
+          // mirroring, no guessing, unlike three earlier left/right-offset
+          // attempts here that each landed somewhere unexpected. The inner
+          // copyBlockInner (width:76%) is what actually constrains
+          // title/body to the same box — both use width:'100%' of it and
+          // textAlign:'right', so they start at the same edge as each
+          // other by construction, not by coincidence.
+          <View style={[styles.copyBlockBandRTL]}>
+            <View style={[styles.copyBlockInner, { direction: 'rtl', writingDirection: 'rtl' }]}>
+              <Text style={[styles.title, styles.titleRTL, { writingDirection: 'rtl', direction: 'rtl' }]}>
+                {displayCopy(slide.titleKey)}
+              </Text>
+              <Text
+                numberOfLines={3}
+                style={[styles.body, styles.bodyRTL, { writingDirection: 'rtl', direction: 'rtl' }]}
+              >
+                {displayCopy(slide.bodyKey)}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View
+            style={[styles.copyBlock, styles.copyBlockLTR, { direction: 'ltr', writingDirection: 'ltr' }]}
           >
-            {displayCopy(slide.titleKey)}
-          </Text>
-          <Text
-            numberOfLines={3}
-            style={[
-              styles.body,
-              isRTL && styles.bodyRTL,
-              {
-                textAlign: isRTL ? 'right' : 'left',
-                writingDirection: isRTL ? 'rtl' : 'ltr',
-                direction: isRTL ? 'rtl' : 'ltr',
-              },
-            ]}
-          >
-            {displayCopy(slide.bodyKey)}
-          </Text>
-        </View>
+            <Text style={[styles.title, { textAlign: 'left', writingDirection: 'ltr', direction: 'ltr' }]}>
+              {displayCopy(slide.titleKey)}
+            </Text>
+            <Text
+              numberOfLines={3}
+              style={[styles.body, { textAlign: 'left', writingDirection: 'ltr', direction: 'ltr' }]}
+            >
+              {displayCopy(slide.bodyKey)}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.footer}>
           <View style={styles.footerRow}>
-            {!isRTL && (
-              <View
-                style={[
-                  styles.dotsRow,
-                  styles.dotsRowLTR,
-                ]}
-                accessibilityLabel={`${index + 1} / ${SLIDES.length}`}
-              >
-                {paginationSlides.map((item) => {
-                  const active = item.key === slide.key;
-                  return (
-                    <View
-                      key={item.key}
-                      style={[styles.dot, { backgroundColor: active ? ONBOARDING_BLUE : '#D8D8D8' }]}
-                    />
-                  );
-                })}
-              </View>
-            )}
+            {backButton}
 
-            <View
-              style={[
-                styles.actionRow,
-                index > 0 ? styles.actionRowWithBack : styles.actionRowWithoutBack,
-                isRTL ? styles.actionRowRTL : styles.actionRowLTR,
+            {/* Fixed width/position regardless of index — it must never
+                shift, or a user's next tap for the same corner they used
+                on the previous slide can accidentally land on the newly
+                appeared Back button (or vice versa). */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.nextButtonFixed,
+                { backgroundColor: ONBOARDING_BLUE, opacity: pressed ? 0.88 : 1 },
               ]}
+              onPress={goNext}
+              accessibilityRole="button"
+              accessibilityLabel={isLast ? t('onboardGetStarted') : t('onboardNext')}
+              testID="onboarding-next"
             >
-              <Pressable
-                style={({ pressed }) => [
-                  styles.nextButton,
-                  { backgroundColor: ONBOARDING_BLUE, opacity: pressed ? 0.88 : 1 },
-                ]}
-                onPress={goNext}
-                accessibilityRole="button"
-                accessibilityLabel={isLast ? t('onboardGetStarted') : t('onboardNext')}
-                testID="onboarding-next"
-              >
-                <Text style={styles.nextText}>
-                  {isLast ? t('onboardGetStarted') : t('onboardNext')}
-                </Text>
-              </Pressable>
-
-              {backButton}
-            </View>
+              <Text style={styles.nextText}>
+                {isLast ? t('onboardGetStarted') : t('onboardNext')}
+              </Text>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -276,9 +281,6 @@ const styles = StyleSheet.create({
   brandLTR: {
     left: 24,
   },
-  brandRTL: {
-    right: 24,
-  },
   brandImage: {
     width: '100%',
     height: '100%',
@@ -302,14 +304,13 @@ const styles = StyleSheet.create({
   skipLTR: {
     right: 24,
   },
-  skipRTL: {
-    left: 24,
-  },
   skipText: {
     color: ONBOARDING_NAVY,
     fontSize: 15,
     fontWeight: '400',
   },
+  // English's original, untouched box — see the comment where this is
+  // applied for why English and Arabic are on separate style paths now.
   copyBlock: {
     position: 'absolute',
     top: '72%',
@@ -317,14 +318,25 @@ const styles = StyleSheet.create({
     zIndex: 6,
   },
   copyBlockLTR: {
-    left: 28,
+    left: 20,
   },
-  copyBlockRTL: {
-    left: '44%',
-    right: 24,
-    top: '70%',
-    width: 'auto',
-    alignItems: 'stretch',
+  // Arabic-only band: both edges pinned (left:0/right:0) so there's nothing
+  // for RTL mirroring to act on either way, plus alignItems:'flex-end' to
+  // actually pick the right side — see the comment where this is applied.
+  copyBlockBandRTL: {
+    position: 'absolute',
+    top: '72%',
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    alignItems: 'flex-end',
+    zIndex: 6,
+  },
+  // The actual content column inside that band — 76% of it, so title and
+  // body (both width:'100%' of this) start at the exact same right edge as
+  // each other, and there's still a visible gap to the opposite edge.
+  copyBlockInner: {
+    width: '76%',
   },
   title: {
     color: ONBOARDING_NAVY,
@@ -369,36 +381,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     zIndex: 7,
   },
+  // Purely a positioning frame now — dots/backButton/nextButtonFixed are all
+  // position:absolute within it (fixed corners instead of flex order), so
+  // there's no row layout left to auto-mirror here.
   footerRow: {
     position: 'relative',
     width: '100%',
     minHeight: 60,
-    alignItems: 'center',
-    // Plain 'row', not conditionally 'row-reverse' — I18nManager.forceRTL
-    // (set app-wide at boot, see App.js) already auto-mirrors 'row' once
-    // Arabic is active. Manually reversing on top of that cancels the
-    // automatic mirroring and renders this row as if it were still LTR.
-    flexDirection: 'row',
   },
-  actionRow: {
+  // Fixed at the trailing corner (right, auto-mirrored to left for RTL) —
+  // same position/width on every slide regardless of whether Back is showing.
+  nextButtonFixed: {
     position: 'absolute',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  actionRowLTR: {
+    top: 0,
     right: 0,
+    width: '46%',
+    minHeight: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 30,
+    paddingHorizontal: 16,
   },
-  actionRowRTL: {
+  // Fixed at the leading corner (left, auto-mirrored to right for RTL) —
+  // the opposite corner from Next, on purpose (see the comment where this
+  // is rendered).
+  backButtonFixed: {
+    position: 'absolute',
     left: 0,
-  },
-  actionRowWithoutBack: {
-    width: '52%',
-  },
-  actionRowWithBack: {
-    width: '82%',
-  },
-  backButtonBottom: {
+    top: 4,
     minWidth: 84,
     minHeight: 52,
     borderRadius: 26,
@@ -410,30 +420,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     flexDirection: 'row',
     gap: 5,
-  },
-  dotsRow: {
-    position: 'absolute',
-    width: 82,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    minHeight: 18,
-  },
-  dotsRowLTR: {
-    left: 0,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  nextButton: {
-    flex: 1,
-    minHeight: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 30,
-    paddingHorizontal: 16,
   },
   backText: {
     color: '#68717F',

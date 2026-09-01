@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { DevSettings, I18nManager } from 'react-native';
+import { DevSettings, I18nManager, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import { LANGUAGE_STORAGE_KEY, ONBOARDING_SEEN_KEY } from '../i18n/constants';
@@ -43,7 +43,16 @@ export function AppProvider({ children }) {
   const [dataErrors, setDataErrors] = useState({});
   const [agentsLoading, setAgentsLoading] = useState(false);
   const [reportsLoading, setReportsLoading] = useState(false);
-  const [theme, setTheme] = useState(initialState.theme);
+  // themePreference is the raw, persisted choice — 'light' | 'dark' | 'system'
+  // — shown/selected in Settings. `theme` below (what every screen actually
+  // renders with) is that preference resolved to a real 'light'/'dark',
+  // following the OS setting live when the preference is 'system' — this
+  // needs to be a hook (not read once) so the app actually re-renders the
+  // moment the user flips their OS-level appearance, not just on next launch.
+  const [themePreference, setThemePreference] = useState(initialState.theme);
+  const systemColorScheme = useColorScheme();
+  const theme =
+    themePreference === 'system' ? (systemColorScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const [language, setLanguageState] = useState(I18nManager.isRTL ? 'ar' : 'en');
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -98,7 +107,7 @@ export function AppProvider({ children }) {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
         const persisted = JSON.parse(raw);
-        setTheme(persisted.theme ?? initialState.theme);
+        setThemePreference(persisted.theme ?? initialState.theme);
       }
       const storedLang = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
       if (storedLang) setLanguageState(storedLang);
@@ -137,10 +146,13 @@ export function AppProvider({ children }) {
 
   // Only theme is a pure local UI preference now — everything identity-related
   // (auth/role) always comes fresh from the real account, not this blob.
+  // Persists the raw preference ('system' included), not the resolved
+  // light/dark — resolving from a saved 'system' on next launch is exactly
+  // what lets it keep following the OS setting across app restarts.
   useEffect(() => {
     if (!hydrated) return;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ theme }));
-  }, [hydrated, theme]);
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ theme: themePreference }));
+  }, [hydrated, themePreference]);
 
   const recordDataError = useCallback((key, error) => {
     console.warn(`${key} data error`, error);
@@ -1028,7 +1040,8 @@ export function AppProvider({ children }) {
     agentsLoading,
     reportsLoading,
     theme,
-    setTheme,
+    themePreference,
+    setTheme: setThemePreference,
     language,
     setLanguage,
     authModalVisible,

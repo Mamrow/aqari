@@ -38,7 +38,7 @@ function AddListingTabButton({ children, onPress, onLongPress, accessibilityStat
 export default function MainTabs() {
   const t = useT();
   const colors = useThemeColors();
-  const { requireAuth } = useAppContext();
+  const { auth, requireAuth } = useAppContext();
 
   return (
     <Tab.Navigator screenOptions={{ headerShown: false, tabBarLabelPosition: 'below-icon' }}>
@@ -68,6 +68,28 @@ export default function MainTabs() {
           tabBarIcon: () => <Ionicons name="add" size={28} color={colors.accentText} />,
           tabBarButton: (props) => <AddListingTabButton {...props} />,
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // A signed-in tap is untouched: let the default tab focus happen,
+            // same as before — AddListingRedirect's own focus effect hands
+            // off to AddListing immediately (a focus effect, not this
+            // listener, specifically because a cross-tab navigate() from a
+            // tabPress listener is what caused the earlier "GO_BACK not
+            // handled" bug — see AddListingRedirect's comment).
+            //
+            // A guest tap is different: focusing this tab first (to show the
+            // sign-in modal on top of it) left a blank white screen behind
+            // the modal, because AddListingRedirect renders null. Preventing
+            // the tab switch here and gating with requireAuth instead keeps
+            // the guest on whatever screen they were already viewing, shows
+            // the sign-in modal over *that*, and — same as Favorites/
+            // MyListings' own gate below — lands them on AddListing the
+            // moment sign-in finishes.
+            if (auth.loggedIn) return;
+            e.preventDefault();
+            requireAuth(() => navigation.navigate('MyListings', { screen: 'AddListing' }));
+          },
+        })}
       />
       <Tab.Screen
         name="MyListings"
