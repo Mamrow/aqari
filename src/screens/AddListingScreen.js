@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker } from 'react-native-maps';
+import { Map, Marker } from '@maplibre/maplibre-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
@@ -38,7 +38,7 @@ import {
 } from '../data/propertyTypes';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
-import { darkMapStyle } from '../theme/darkMapStyle';
+import { getMapStyleUrl } from '../theme/mapStyle';
 import PhoneInput, {
   stripLibyaPrefix,
   withLibyaPrefix,
@@ -779,15 +779,18 @@ export default function AddListingScreen({ navigation, route }) {
         {t('locationLabel')}
       </Text>
       <Text style={[styles.hint, rtlText, { color: colors.textMuted }]}>{t('locationHint')}</Text>
-      <MapView
+      <Map
         style={styles.map}
-        initialRegion={{ ...location, latitudeDelta: 0.15, longitudeDelta: 0.15 }}
-        onPress={(event) => setLocation(event.nativeEvent.coordinate)}
-        userInterfaceStyle={theme}
-        customMapStyle={theme === 'dark' ? darkMapStyle : []}
+        mapStyle={getMapStyleUrl(theme)}
+        onPress={(event) => {
+          const [longitude, latitude] = event.nativeEvent.lngLat;
+          setLocation({ latitude, longitude });
+        }}
       >
-        <Marker coordinate={location} />
-      </MapView>
+        <Marker id="listing-location" lngLat={[location.longitude, location.latitude]}>
+          <View style={[styles.locationPin, { backgroundColor: colors.accent }]} />
+        </Marker>
+      </Map>
 
       <Pressable
         style={({ pressed }) => [
@@ -1040,6 +1043,13 @@ const styles = StyleSheet.create({
     height: 340,
     borderRadius: 12,
     marginBottom: 20,
+  },
+  locationPin: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 3,
+    borderColor: '#fff',
   },
   submitButton: {
     borderRadius: 10,

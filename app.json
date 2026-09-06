@@ -26,7 +26,6 @@
         "backgroundColor": "#0066FF"
       },
       "edgeToEdgeEnabled": true,
-      "config": {},
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
@@ -54,13 +53,14 @@
       ],
       "expo-video",
       "expo-secure-store",
-      "expo-notifications"
+      "expo-notifications",
+      "@maplibre/maplibre-react-native"
     ],
+    "owner": "mamrow",
     "extra": {
       "eas": {
-        "projectId": "d27cc2cb-859d-4093-9733-8113772aef6d"
+        "projectId": "ba30e803-8e75-435f-83de-2b953025a60f"
       }
-    },
-    "owner": "mamrow"
+    }
   }
 }

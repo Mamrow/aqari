@@ -4,14 +4,15 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "typecheck:mobile": "tsc --noEmit",
     "typecheck:functions": "deno check supabase/functions/*/index.ts",
     "build:android:check": "expo export --platform android --output-dir .expo-bundle-check"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
+    "@maplibre/maplibre-react-native": "^11.3.9",
     "@ptomasroos/react-native-multi-slider": "^2.2.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.18.8",
@@ -38,13 +39,11 @@
     "prop-types": "^15.8.1",
     "react": "19.1.0",
     "react-native": "0.81.5",
-    "react-native-map-clustering": "^4.0.0",
-    "react-native-maps": "1.20.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-url-polyfill": "^4.0.0",
-    "react-native-view-shot": "4.0.3"
+    "supercluster": "^9.1.0"
   },
   "private": true,
   "devDependencies": {

@@ -1,0 +1,17 @@
+# Home screen in list view (toggled from the map's list/map switch).
+appId: com.mamrow.aqari
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "onboarding-skip"
+    commands:
+      - tapOn: "onboarding-skip"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn: "map-list-toggle"
+- waitForAnimationToEnd
+- takeScreenshot: "${LOCALE}_02_home_list"

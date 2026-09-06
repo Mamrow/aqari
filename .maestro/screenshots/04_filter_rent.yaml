@@ -1,0 +1,18 @@
+# Map view filtered to Rent — a second, distinct filter state from the
+# default screenshot (01_home_map defaults to Sale).
+appId: com.mamrow.aqari
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "onboarding-skip"
+    commands:
+      - tapOn: "onboarding-skip"
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn: "listing-type-rent"
+- waitForAnimationToEnd
+- takeScreenshot: "${LOCALE}_04_filter_rent"

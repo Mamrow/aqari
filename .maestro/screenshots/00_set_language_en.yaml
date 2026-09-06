@@ -1,0 +1,46 @@
+# Switches the app to English via Settings, confirming the change alert, and
+# waits out the DevSettings.reload() this triggers (see AppContext.js's
+# setLanguage — only works on a debug/dev-client build, not a release build,
+# since DevSettings.reload() is a no-op there). Run this once before the
+# 01-04 screenshot flows with `-e LOCALE=en`; the language choice persists in
+# AsyncStorage across the reload and subsequent app launches.
+appId: com.mamrow.aqari
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "onboarding-skip"
+    commands:
+      - tapOn: "onboarding-skip"
+- waitForAnimationToEnd:
+    timeout: 5000
+# Settings is the last tab regardless of language — tab titles are localized
+# text, not stable ids, so match either label rather than assume current
+# language.
+- runFlow:
+    when:
+      visible: "الإعدادات"
+    commands:
+      - tapOn: "الإعدادات"
+- runFlow:
+    when:
+      visible: "Settings"
+    commands:
+      - tapOn: "Settings"
+- tapOn: "English"
+# Confirm alert text depends on the language being switched FROM.
+- runFlow:
+    when:
+      visible: "متابعة"
+    commands:
+      - tapOn: "متابعة"
+- runFlow:
+    when:
+      visible: "Continue"
+    commands:
+      - tapOn: "Continue"
+- waitForAnimationToEnd:
+    timeout: 8000

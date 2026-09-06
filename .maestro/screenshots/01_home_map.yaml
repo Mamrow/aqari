@@ -1,0 +1,19 @@
+# Home / map browse screen — the primary store screenshot.
+# Run with: maestro test .maestro/screenshots/01_home_map.yaml -e LOCALE=ar
+# (or LOCALE=en once 00_set_language_en.yaml has switched the app's language —
+# see .maestro/screenshots/README.md for the full sequence).
+appId: com.mamrow.aqari
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+- waitForAnimationToEnd
+# If onboarding is still showing (fresh install / cleared state), skip past it.
+- runFlow:
+    when:
+      visible: "onboarding-skip"
+    commands:
+      - tapOn: "onboarding-skip"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: "${LOCALE}_01_home_map"

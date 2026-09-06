@@ -1,0 +1,39 @@
+# Switches the app back to Arabic (the app's default) — same mechanism as
+# 00_set_language_en.yaml, reversed. Run before the 01-04 flows with
+# `-e LOCALE=ar` if the device is currently on English.
+appId: com.mamrow.aqari
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "onboarding-skip"
+    commands:
+      - tapOn: "onboarding-skip"
+- waitForAnimationToEnd:
+    timeout: 5000
+- runFlow:
+    when:
+      visible: "الإعدادات"
+    commands:
+      - tapOn: "الإعدادات"
+- runFlow:
+    when:
+      visible: "Settings"
+    commands:
+      - tapOn: "Settings"
+- tapOn: "العربية"
+- runFlow:
+    when:
+      visible: "متابعة"
+    commands:
+      - tapOn: "متابعة"
+- runFlow:
+    when:
+      visible: "Continue"
+    commands:
+      - tapOn: "Continue"
+- waitForAnimationToEnd:
+    timeout: 8000

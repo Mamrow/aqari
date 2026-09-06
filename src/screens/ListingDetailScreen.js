@@ -14,13 +14,13 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker } from 'react-native-maps';
+import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import PlaceholderScreen from '../components/PlaceholderScreen';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
-import { darkMapStyle } from '../theme/darkMapStyle';
+import { getMapStyleUrl } from '../theme/mapStyle';
 import { WHATSAPP_GREEN } from '../theme/colors';
 import {
   LISTING_TYPE_LABEL_KEYS,
@@ -275,19 +275,12 @@ export default function ListingDetailScreen({ route, navigation }) {
       {listing.latitude != null && listing.longitude != null && (
         <>
           <Text style={[styles.label, rtlText, { color: colors.textMuted }]}>{t('locationLabel')}</Text>
-          <MapView
-            style={styles.map}
-            initialRegion={{
-              latitude: listing.latitude,
-              longitude: listing.longitude,
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
-            }}
-            userInterfaceStyle={theme}
-            customMapStyle={theme === 'dark' ? darkMapStyle : []}
-          >
-            <Marker coordinate={{ latitude: listing.latitude, longitude: listing.longitude }} />
-          </MapView>
+          <Map style={styles.map} mapStyle={getMapStyleUrl(theme)}>
+            <Camera initialViewState={{ center: [listing.longitude, listing.latitude], zoom: 15 }} />
+            <Marker id="listing-location" lngLat={[listing.longitude, listing.latitude]}>
+              <View style={[styles.locationPin, { backgroundColor: colors.accent }]} />
+            </Marker>
+          </Map>
         </>
       )}
 
@@ -552,6 +545,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 180,
     borderRadius: 12,
+  },
+  locationPin: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 3,
+    borderColor: '#fff',
   },
   listedByRow: {
     flexDirection: 'row',
