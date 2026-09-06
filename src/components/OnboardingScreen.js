@@ -164,15 +164,22 @@ export default function OnboardingScreen({ onDone }) {
             here is deliberate, not an oversight. */}
         {isRTL ? (
           // Arabic: absolute left:0/right:0 (both true screen edges —
-          // unambiguous, nothing to mirror) plus alignItems:'flex-end' to
-          // actually pick the right side. alignItems:'flex-end' is already
-          // established elsewhere in this codebase (see AuthModal.js's
-          // forgotRow) as always physical-right regardless of RTL — no
-          // mirroring, no guessing, unlike three earlier left/right-offset
-          // attempts here that each landed somewhere unexpected. The inner
-          // copyBlockInner (width:76%) is what actually constrains
-          // title/body to the same box — both use width:'100%' of it and
-          // textAlign:'right', so they start at the same edge as each
+          // unambiguous, nothing to mirror on that part) but alignItems and
+          // textAlign are a different story — verified live on-device
+          // (RN 0.81, Fabric/new-arch) that with I18nManager.isRTL true,
+          // Yoga/Fabric DOES auto-mirror alignItems:'flex-start'/'flex-end'
+          // on this column's cross axis, and Text's own textAlign:'left'/
+          // 'right' gets mirrored the same way — both are logical, not
+          // physical, under RTL here, despite writingDirection/direction
+          // being pinned to 'rtl' alongside them. So copyBlockBandRTL uses
+          // alignItems:'flex-start' and titleRTL/bodyRTL use
+          // textAlign:'left' — both of which *render* as visually-right
+          // under isRTL:true, which is what they're named for. Don't
+          // "simplify" these back to flex-end/right without re-verifying on
+          // a real RTL device/emulator — that reads as obviously correct
+          // and renders backwards. The inner copyBlockInner (width:76%) is
+          // what actually constrains title/body to the same box — both use
+          // width:'100%' of it, so they start at the same edge as each
           // other by construction, not by coincidence.
           <View style={[styles.copyBlockBandRTL]}>
             <View style={[styles.copyBlockInner, { direction: 'rtl', writingDirection: 'rtl' }]}>
@@ -321,15 +328,16 @@ const styles = StyleSheet.create({
     left: 20,
   },
   // Arabic-only band: both edges pinned (left:0/right:0) so there's nothing
-  // for RTL mirroring to act on either way, plus alignItems:'flex-end' to
-  // actually pick the right side — see the comment where this is applied.
+  // for RTL mirroring to act on there, but alignItems itself IS mirrored —
+  // 'flex-start' here is what actually renders visually-right under
+  // I18nManager.isRTL:true. See the comment where this is applied.
   copyBlockBandRTL: {
     position: 'absolute',
     top: '72%',
     left: 0,
     right: 0,
     paddingHorizontal: 20,
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     zIndex: 6,
   },
   // The actual content column inside that band — 76% of it, so title and
@@ -356,7 +364,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     marginBottom: 10,
     writingDirection: 'rtl',
-    textAlign: 'right',
+    textAlign: 'left', // mirrored under RTL — renders visually-right, see copyBlockBandRTL
   },
   body: {
     color: ONBOARDING_BODY,
@@ -371,7 +379,7 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     fontWeight: '400',
     writingDirection: 'rtl',
-    textAlign: 'right',
+    textAlign: 'left', // mirrored under RTL — renders visually-right, see copyBlockBandRTL
   },
   footer: {
     position: 'absolute',
