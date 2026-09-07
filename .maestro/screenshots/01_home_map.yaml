@@ -11,9 +11,25 @@ appId: com.mamrow.aqari
 # If onboarding is still showing (fresh install / cleared state), skip past it.
 - runFlow:
     when:
-      visible: "onboarding-skip"
+      visible:
+        id: "onboarding-skip"
     commands:
-      - tapOn: "onboarding-skip"
+      - tapOn:
+          id: "onboarding-skip"
 - waitForAnimationToEnd:
     timeout: 5000
+# Resuming a persisted session (stopApp: false above) can leave the app on
+# whatever tab a previous run/manual session left it on — explicitly select
+# Home regardless of current state, matching either language's tab label.
+- runFlow:
+    when:
+      visible: "الرئيسية"
+    commands:
+      - tapOn: "الرئيسية"
+- runFlow:
+    when:
+      visible: "Home"
+    commands:
+      - tapOn: "Home"
+- waitForAnimationToEnd
 - takeScreenshot: "${LOCALE}_01_home_map"

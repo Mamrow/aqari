@@ -12,9 +12,11 @@ appId: com.mamrow.aqari
 - waitForAnimationToEnd
 - runFlow:
     when:
-      visible: "onboarding-skip"
+      visible:
+        id: "onboarding-skip"
     commands:
-      - tapOn: "onboarding-skip"
+      - tapOn:
+          id: "onboarding-skip"
 - waitForAnimationToEnd:
     timeout: 5000
 # Settings is the last tab regardless of language — tab titles are localized
