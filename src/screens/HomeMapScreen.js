@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -13,17 +13,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Map, Camera, Marker, UserLocation } from '@maplibre/maplibre-react-native';
-// MapLibre's Marker renders a real native View (Android: native Views placed
-// on the map projection; iOS: MLNPointAnnotation) rather than react-native-maps'
-// Fabric-snapshot-to-bitmap approach, so the live price-pill/cluster-bubble
-// Views below render directly on both platforms — no per-platform branch, no
-// react-native-view-shot capture-to-PNG workaround needed (see git history
-// for the react-native-maps-era version of this file, which needed both).
-// Clustering itself is supercluster directly — react-native-map-clustering
-// wrapped the same library; MapLibre has no equivalent JS-side wrapper, so
-// this file drives it itself (see clusterIndex/clusters below).
-import Supercluster from 'supercluster';
+// Apple Maps on iOS, MapLibre + MapTiler on Android. Metro picks the right
+// implementation from the .ios.js / .android.js pair, so nothing here — and
+// nothing in the two other map screens — branches on Platform itself. Both
+// sides share the same props, the same ref API (`centerOn`), the same
+// supercluster index and the same marker components, so the two platforms
+// cluster identically and the pins are pixel-identical; only the map
+// underneath differs. See src/components/map/.
+import ListingsMap from '../components/map/ListingsMap';
 import * as Location from 'expo-location';
 import { useAppContext } from '../context/AppContext';
 import ListingCard from '../components/ListingCard';
@@ -32,7 +29,6 @@ import LoadingView from '../components/LoadingView';
 import StatusScreen from '../components/StatusScreen';
 import { friendlyErrorMessage } from '../utils/friendlyError';
 import SearchBar from '../components/SearchBar';
-import { TRIPOLI_CENTER } from '../data/constants';
 import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { CITIES, DISTRICTS, PRIORITY_CITY_KEYS } from '../data/districts';
 import {
@@ -46,7 +42,6 @@ import {
 } from '../data/propertyTypes';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
-import { getMapStyleUrl } from '../theme/mapStyle';
 import { FEATURED_GOLD } from '../theme/colors';
 import { BOOST_PURCHASES_ENABLED } from '../config/features';
 
@@ -62,18 +57,6 @@ const FEATURED_CARD_GAP = 12;
 const FEATURED_SCROLL_SPEED = 25; // px/second
 const FEATURED_SCROLL_TICK_MS = 100;
 
-const TRIPOLI_CENTER_LNGLAT = [TRIPOLI_CENTER.longitude, TRIPOLI_CENTER.latitude];
-// Roughly equivalent to the old react-native-maps region's 0.15 lat/lng delta
-// (city-wide default view) — MapLibre's Camera is zoom-based, not delta-based.
-const DEFAULT_ZOOM = 11;
-// Matches the old 0.05 delta used once the device's real GPS fix comes in — a
-// tighter, neighborhood-level view.
-const USER_LOCATION_ZOOM = 14;
-// supercluster's own radius unit: pixels at the tile's base zoom, not meters —
-// 60 reads as visually similar grouping distance to react-native-map-clustering's
-// default.
-const CLUSTER_RADIUS = 60;
-const CLUSTER_MAX_ZOOM = 17;
 
 // Slider bounds for the price filter — the ends of the range stand in for
 // "no lower/upper bound" (same meaning the old empty-string min/max had),
@@ -256,19 +239,11 @@ export default function HomeMapScreen({ navigation }) {
   const filterAccent = theme === 'dark' ? '#66A3FF' : colors.accent;
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState('map'); // 'map' | 'list'
-  const cameraRef = useRef(null);
-  // Current viewport, fed by the Map's onRegionDidChange — this is what
-  // clusterIndex.getClusters(bounds, zoom) below needs on every pan/zoom.
-  // Seeded with a bbox roughly matching DEFAULT_ZOOM around Tripoli so the
-  // first render has something to cluster against before the Map's own
-  // first onRegionDidChange fires.
-  const [mapBounds, setMapBounds] = useState([12.0, 32.7, 13.6, 33.1]);
-  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM);
-  const handleRegionDidChange = useCallback((event) => {
-    const { bounds, zoom } = event.nativeEvent;
-    setMapBounds(bounds);
-    setMapZoom(zoom);
-  }, []);
+  // Viewport tracking and clustering now live inside ListingsMap — each
+  // platform's map reports its viewport differently, so that stayed with the
+  // implementation rather than leaking up here. All this screen needs back is
+  // `centerOn`, for the one-time GPS recenter below.
+  const mapRef = useRef(null);
   // Only turns on once we've confirmed the device's real GPS fix is inside
   // Libya — stays off for denied permission, a fix outside Libya, or before
   // the one-time location effect below has resolved.
@@ -429,42 +404,6 @@ export default function HomeMapScreen({ navigation }) {
       }
     });
 
-  // Rebuilt whenever the filtered set changes (sale/rent toggle, any filter,
-  // search) — supercluster's own .load() cost is cheap enough at this app's
-  // scale (hundreds, not tens-of-thousands, of listings) to just redo it
-  // rather than diff the point set.
-  const clusterIndex = useMemo(() => {
-    const index = new Supercluster({ radius: CLUSTER_RADIUS, maxZoom: CLUSTER_MAX_ZOOM });
-    index.load(
-      filteredListings.map((listing) => ({
-        type: 'Feature',
-        properties: { listingId: listing.id },
-        geometry: { type: 'Point', coordinates: [listing.longitude, listing.latitude] },
-      }))
-    );
-    return index;
-  }, [filteredListings]);
-  // Re-clustered on every pan/zoom (mapBounds/mapZoom, from onRegionDidChange)
-  // as well as whenever the index itself changes.
-  const mapClusters = useMemo(
-    () => clusterIndex.getClusters(mapBounds, Math.round(mapZoom)),
-    [clusterIndex, mapBounds, mapZoom]
-  );
-  const listingsById = useMemo(
-    () => Object.fromEntries(filteredListings.map((listing) => [listing.id, listing])),
-    [filteredListings]
-  );
-  // A cluster tap flies to the zoom level at which supercluster would break
-  // it apart — same "zoom in until it splits" behavior react-native-map-
-  // clustering gave for free.
-  const handleClusterPress = useCallback(
-    (clusterId, coordinates) => {
-      const expansionZoom = Math.min(clusterIndex.getClusterExpansionZoom(clusterId), CLUSTER_MAX_ZOOM + 1);
-      cameraRef.current?.flyTo({ center: coordinates, zoom: expansionZoom, duration: 300 });
-    },
-    [clusterIndex]
-  );
-
   // Map view's own bottom carousel — independent of the sale/rent/type
   // filters above, same as the list view's featured-first sort.
   // Matches the currently selected Sale/Rent tab — mixing both together in
@@ -586,7 +525,7 @@ export default function HomeMapScreen({ navigation }) {
       // would just be sitting off in another country, out of context.
       if (!isInLibya) return;
       setShowsUserLocation(true);
-      cameraRef.current?.flyTo({ center: [longitude, latitude], zoom: USER_LOCATION_ZOOM, duration: 400 });
+      mapRef.current?.centerOn(latitude, longitude);
     })();
   }, []);
 
@@ -638,59 +577,15 @@ export default function HomeMapScreen({ navigation }) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {viewMode === 'map' ? (
-        <Map style={StyleSheet.absoluteFill} mapStyle={getMapStyleUrl(theme)} onRegionDidChange={handleRegionDidChange}>
-          <Camera
-            ref={cameraRef}
-            initialViewState={{ center: TRIPOLI_CENTER_LNGLAT, zoom: DEFAULT_ZOOM }}
-          />
-          {showsUserLocation && <UserLocation />}
-          {mapClusters.map((feature) => {
-            const [longitude, latitude] = feature.geometry.coordinates;
-            if (feature.properties.cluster) {
-              const count = feature.properties.point_count;
-              return (
-                <Marker
-                  key={`cluster-${feature.properties.cluster_id}`}
-                  id={`cluster-${feature.properties.cluster_id}`}
-                  lngLat={[longitude, latitude]}
-                  onPress={() => handleClusterPress(feature.properties.cluster_id, [longitude, latitude])}
-                >
-                  <View style={[styles.clusterBubble, { backgroundColor: colors.accent }]}>
-                    <Text style={styles.clusterBubbleText}>{count}</Text>
-                  </View>
-                </Marker>
-              );
-            }
-            const listing = listingsById[feature.properties.listingId];
-            if (!listing) return null;
-            return (
-              <Marker
-                key={listing.id}
-                id={listing.id}
-                lngLat={[longitude, latitude]}
-                onPress={() => setSelectedId(listing.id)}
-              >
-                <View
-                  style={[
-                    styles.pricePin,
-                    { borderColor: colors.accent, backgroundColor: colors.surface },
-                    selectedId === listing.id && { backgroundColor: colors.accent },
-                    BOOST_PURCHASES_ENABLED && listing.isFeatured && styles.pricePinFeatured,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.pricePinText,
-                      { color: selectedId === listing.id ? colors.accentText : colors.accent },
-                    ]}
-                  >
-                    {listing.price.toLocaleString('en-US')}
-                  </Text>
-                </View>
-              </Marker>
-            );
-          })}
-        </Map>
+        <ListingsMap
+          ref={mapRef}
+          listings={filteredListings}
+          selectedId={selectedId}
+          onSelectListing={setSelectedId}
+          showsUserLocation={showsUserLocation}
+          theme={theme}
+          colors={colors}
+        />
       ) : filteredListings.length === 0 ? (
         <View style={[styles.listEmptyContainer, { paddingTop: contentTopOffset }]}>
           <PlaceholderScreen
@@ -1513,37 +1408,6 @@ const styles = StyleSheet.create({
   },
   priceApplyButtonText: {
     fontWeight: '700',
-    fontSize: 14,
-  },
-  pricePin: {
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderWidth: 1,
-  },
-  pricePinFeatured: {
-    borderColor: FEATURED_GOLD,
-    borderWidth: 2,
-  },
-  pricePinText: {
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  // Same badge look the old ClusterMarkerCapture.js rendered off-screen for
-  // capture — now just rendered live, since MapLibre's Marker doesn't need
-  // the screenshot-to-PNG workaround react-native-maps did on Android.
-  clusterBubble: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  clusterBubbleText: {
-    color: '#fff',
-    fontWeight: '800',
     fontSize: 14,
   },
   floatingCard: {

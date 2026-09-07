@@ -14,13 +14,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
+import SimpleMap from '../components/map/SimpleMap';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import PlaceholderScreen from '../components/PlaceholderScreen';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
-import { getMapStyleUrl } from '../theme/mapStyle';
 import { WHATSAPP_GREEN } from '../theme/colors';
 import {
   LISTING_TYPE_LABEL_KEYS,
@@ -275,12 +274,14 @@ export default function ListingDetailScreen({ route, navigation }) {
       {listing.latitude != null && listing.longitude != null && (
         <>
           <Text style={[styles.label, rtlText, { color: colors.textMuted }]}>{t('locationLabel')}</Text>
-          <Map style={styles.map} mapStyle={getMapStyleUrl(theme)}>
-            <Camera initialViewState={{ center: [listing.longitude, listing.latitude], zoom: 15 }} />
-            <Marker id="listing-location" lngLat={[listing.longitude, listing.latitude]}>
-              <View style={[styles.locationPin, { backgroundColor: colors.accent }]} />
-            </Marker>
-          </Map>
+          <SimpleMap
+            style={styles.map}
+            latitude={listing.latitude}
+            longitude={listing.longitude}
+            zoom={15}
+            theme={theme}
+            colors={colors}
+          />
         </>
       )}
 

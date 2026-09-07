@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Map, Marker } from '@maplibre/maplibre-react-native';
+import SimpleMap from '../components/map/SimpleMap';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
@@ -38,7 +38,6 @@ import {
 } from '../data/propertyTypes';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
-import { getMapStyleUrl } from '../theme/mapStyle';
 import PhoneInput, {
   stripLibyaPrefix,
   withLibyaPrefix,
@@ -779,18 +778,15 @@ export default function AddListingScreen({ navigation, route }) {
         {t('locationLabel')}
       </Text>
       <Text style={[styles.hint, rtlText, { color: colors.textMuted }]}>{t('locationHint')}</Text>
-      <Map
+      <SimpleMap
         style={styles.map}
-        mapStyle={getMapStyleUrl(theme)}
-        onPress={(event) => {
-          const [longitude, latitude] = event.nativeEvent.lngLat;
-          setLocation({ latitude, longitude });
-        }}
-      >
-        <Marker id="listing-location" lngLat={[location.longitude, location.latitude]}>
-          <View style={[styles.locationPin, { backgroundColor: colors.accent }]} />
-        </Marker>
-      </Map>
+        latitude={location.latitude}
+        longitude={location.longitude}
+        zoom={11}
+        onPress={setLocation}
+        theme={theme}
+        colors={colors}
+      />
 
       <Pressable
         style={({ pressed }) => [
