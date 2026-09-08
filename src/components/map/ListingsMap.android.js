@@ -1,19 +1,27 @@
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Camera, Map, Marker, UserLocation } from '@maplibre/maplibre-react-native';
 import { TRIPOLI_MAP_DEFAULT } from '../../data/constants';
 import { getMapStyleUrl } from '../../theme/mapStyle';
-import { CLUSTER_MAX_ZOOM, useListingClusters, useListingsById } from './useListingClusters';
+import {
+  CLUSTER_MAX_ZOOM,
+  MAPLIBRE_ZOOM_OFFSET,
+  useListingClusters,
+  useListingsById,
+  useMapFeatures,
+} from './useListingClusters';
 import { ClusterBubble, PricePin } from './MapPins';
 
 const DEFAULT_CENTER_LNGLAT = [TRIPOLI_MAP_DEFAULT.longitude, TRIPOLI_MAP_DEFAULT.latitude];
-const DEFAULT_ZOOM = TRIPOLI_MAP_DEFAULT.zoom;
-const USER_LOCATION_ZOOM = 14;
+// TRIPOLI_MAP_DEFAULT.zoom, like every zoom outside this file, is on the
+// standard 256px-tile scale; MapLibre wants its own 512px-tile scale.
+const DEFAULT_ZOOM = TRIPOLI_MAP_DEFAULT.zoom - MAPLIBRE_ZOOM_OFFSET;
+const USER_LOCATION_ZOOM = 15 - MAPLIBRE_ZOOM_OFFSET;
 
 // Seeded with a bbox roughly matching DEFAULT_ZOOM around DEFAULT_CENTER so
 // the very first render has something to cluster against, before the Map's
 // own first onRegionDidChange fires.
-const INITIAL_BOUNDS = [13.01, 32.75, 13.37, 32.93];
+const INITIAL_BOUNDS = [13.144, 32.808, 13.226, 32.948];
 
 /**
  * MapLibre + MapTiler implementation of the listings map.
@@ -32,6 +40,7 @@ const ListingsMap = forwardRef(function ListingsMap(
 
   const clusterIndex = useListingClusters(listings);
   const listingsById = useListingsById(listings);
+  const features = useMapFeatures(listings, mapBounds, mapZoom + MAPLIBRE_ZOOM_OFFSET);
 
   useImperativeHandle(ref, () => ({
     centerOn(latitude, longitude, zoom = USER_LOCATION_ZOOM) {
@@ -48,18 +57,17 @@ const ListingsMap = forwardRef(function ListingsMap(
     setMapZoom(zoom);
   }, []);
 
-  const clusters = useMemo(
-    () => clusterIndex.getClusters(mapBounds, Math.round(mapZoom)),
-    [clusterIndex, mapBounds, mapZoom]
-  );
-
   const handleClusterPress = useCallback(
     (clusterId, coordinates) => {
       const expansionZoom = Math.min(
         clusterIndex.getClusterExpansionZoom(clusterId),
         CLUSTER_MAX_ZOOM + 1
       );
-      cameraRef.current?.flyTo({ center: coordinates, zoom: expansionZoom, duration: 300 });
+      cameraRef.current?.flyTo({
+        center: coordinates,
+        zoom: expansionZoom - MAPLIBRE_ZOOM_OFFSET,
+        duration: 300,
+      });
     },
     [clusterIndex]
   );
@@ -73,7 +81,7 @@ const ListingsMap = forwardRef(function ListingsMap(
       <Camera ref={cameraRef} initialViewState={{ center: DEFAULT_CENTER_LNGLAT, zoom: DEFAULT_ZOOM }} />
       {showsUserLocation && <UserLocation />}
 
-      {clusters.map((feature) => {
+      {features.map((feature) => {
         const [longitude, latitude] = feature.geometry.coordinates;
 
         if (feature.properties.cluster) {

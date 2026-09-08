@@ -45,3 +45,5 @@ appId: com.mamrow.aqari
     visible:
       id: "map-list-toggle-to-list"
     timeout: 20000
+# The UI being up doesn't mean the basemap is drawn — see settle.js.
+- runScript: settle.js
