@@ -29,7 +29,15 @@ You need three values from <https://console.twilio.com>:
 
 Create a **Messaging Service** rather than pasting a bare phone number —
 Supabase accepts either, but a Messaging Service is what lets you add or swap
-senders later without touching the app or the Supabase config.
+senders later without touching the app or the Supabase config. The number you
+add to its sender pool must have SMS capability.
+
+**Enable Libya in Geo Permissions first.** Messaging → Settings → **Geo
+Permissions**, find Libya, tick it, save. Twilio ships with most destinations
+switched *off*, so without this every send fails with error **21408
+("Permission to send an SMS has not been enabled for the region")** — which
+looks exactly like a broken integration and isn't one. This is the single
+most common reason phone auth appears not to work on a fresh account.
 
 ## 2. Supabase
 
@@ -78,6 +86,21 @@ Worth knowing before you test, because both limits look like bugs:
   Harmless, but it's in the SMS your testers will see.
 - **The trial credit is small.** Each OTP is a real paid message once you
   upgrade; sign-in deliberately doesn't send one, which is most of why.
+
+## Reading a failure
+
+Twilio → Monitor → **Logs** → Messaging shows every attempt with a status and
+error code. The four worth recognising:
+
+| Code | Means |
+| --- | --- |
+| 21408 | Libya isn't enabled in Geo Permissions |
+| 21608 | Trial account, and the recipient isn't a Verified Caller ID |
+| 30003 / 30005 | Handset unreachable or number doesn't exist — carrier-side |
+| 30007 | Carrier filtered the message as spam |
+
+A message logged as *delivered* that never arrived is a carrier problem, not a
+configuration one. An *undelivered* with a code above usually isn't.
 
 ## WhatsApp
 
