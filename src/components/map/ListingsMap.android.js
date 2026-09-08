@@ -1,19 +1,19 @@
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Camera, Map, Marker, UserLocation } from '@maplibre/maplibre-react-native';
-import { TRIPOLI_CENTER } from '../../data/constants';
+import { TRIPOLI_MAP_DEFAULT } from '../../data/constants';
 import { getMapStyleUrl } from '../../theme/mapStyle';
 import { CLUSTER_MAX_ZOOM, useListingClusters, useListingsById } from './useListingClusters';
 import { ClusterBubble, PricePin } from './MapPins';
 
-const TRIPOLI_CENTER_LNGLAT = [TRIPOLI_CENTER.longitude, TRIPOLI_CENTER.latitude];
-const DEFAULT_ZOOM = 11;
+const DEFAULT_CENTER_LNGLAT = [TRIPOLI_MAP_DEFAULT.longitude, TRIPOLI_MAP_DEFAULT.latitude];
+const DEFAULT_ZOOM = TRIPOLI_MAP_DEFAULT.zoom;
 const USER_LOCATION_ZOOM = 14;
 
-// Seeded with a bbox roughly matching DEFAULT_ZOOM around Tripoli so the very
-// first render has something to cluster against, before the Map's own first
-// onRegionDidChange fires.
-const INITIAL_BOUNDS = [12.0, 32.7, 13.6, 33.1];
+// Seeded with a bbox roughly matching DEFAULT_ZOOM around DEFAULT_CENTER so
+// the very first render has something to cluster against, before the Map's
+// own first onRegionDidChange fires.
+const INITIAL_BOUNDS = [13.01, 32.75, 13.37, 32.93];
 
 /**
  * MapLibre + MapTiler implementation of the listings map.
@@ -70,7 +70,7 @@ const ListingsMap = forwardRef(function ListingsMap(
       mapStyle={getMapStyleUrl(theme)}
       onRegionDidChange={handleRegionDidChange}
     >
-      <Camera ref={cameraRef} initialViewState={{ center: TRIPOLI_CENTER_LNGLAT, zoom: DEFAULT_ZOOM }} />
+      <Camera ref={cameraRef} initialViewState={{ center: DEFAULT_CENTER_LNGLAT, zoom: DEFAULT_ZOOM }} />
       {showsUserLocation && <UserLocation />}
 
       {clusters.map((feature) => {

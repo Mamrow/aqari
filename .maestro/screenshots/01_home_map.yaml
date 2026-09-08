@@ -4,32 +4,5 @@
 # see .maestro/screenshots/README.md for the full sequence).
 appId: com.mamrow.aqari
 ---
-- launchApp:
-    clearState: false
-    stopApp: false
-- waitForAnimationToEnd
-# If onboarding is still showing (fresh install / cleared state), skip past it.
-- runFlow:
-    when:
-      visible:
-        id: "onboarding-skip"
-    commands:
-      - tapOn:
-          id: "onboarding-skip"
-- waitForAnimationToEnd:
-    timeout: 5000
-# Resuming a persisted session (stopApp: false above) can leave the app on
-# whatever tab a previous run/manual session left it on — explicitly select
-# Home regardless of current state, matching either language's tab label.
-- runFlow:
-    when:
-      visible: "الرئيسية"
-    commands:
-      - tapOn: "الرئيسية"
-- runFlow:
-    when:
-      visible: "Home"
-    commands:
-      - tapOn: "Home"
-- waitForAnimationToEnd
+- runFlow: subflows/open_home_map.yaml
 - takeScreenshot: "${LOCALE}_01_home_map"

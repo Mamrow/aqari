@@ -4,11 +4,11 @@ import { StyleSheet } from 'react-native';
 // Passing PROVIDER_GOOGLE here would pull in Google's SDK and the API key /
 // billing account that switching to MapLibre on Android was meant to escape.
 import MapView, { Marker } from 'react-native-maps';
-import { TRIPOLI_CENTER } from '../../data/constants';
+import { TRIPOLI_MAP_DEFAULT } from '../../data/constants';
 import { CLUSTER_MAX_ZOOM, useListingClusters, useListingsById } from './useListingClusters';
 import { ClusterBubble, PricePin } from './MapPins';
 
-const DEFAULT_ZOOM = 11;
+const DEFAULT_ZOOM = TRIPOLI_MAP_DEFAULT.zoom;
 const USER_LOCATION_ZOOM = 14;
 
 // react-native-maps speaks in lat/lng deltas, supercluster speaks in zoom
@@ -22,7 +22,11 @@ const regionForZoom = (latitude, longitude, zoom) => {
   return { latitude, longitude, latitudeDelta: longitudeDelta, longitudeDelta };
 };
 
-const INITIAL_REGION = regionForZoom(TRIPOLI_CENTER.latitude, TRIPOLI_CENTER.longitude, DEFAULT_ZOOM);
+const INITIAL_REGION = regionForZoom(
+  TRIPOLI_MAP_DEFAULT.latitude,
+  TRIPOLI_MAP_DEFAULT.longitude,
+  DEFAULT_ZOOM
+);
 
 /**
  * Apple Maps implementation of the listings map.

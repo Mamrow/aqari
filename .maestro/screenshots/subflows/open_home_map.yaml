@@ -1,0 +1,47 @@
+# Shared preamble for every screenshot flow: get the app to the Home tab in
+# MAP view, in a known state, no matter what the previous flow did.
+#
+# The determinism here is the whole point. These flows used to run with
+# `stopApp: false` and blind-tap the view toggle, which meant flow N inherited
+# flow N-1's view mode, camera position and navigation stack — 04 captured the
+# list instead of the map, and 02 timed out looking for a toggle that had been
+# left on a screen that doesn't render it. Restarting the process resets the
+# React tree (viewMode back to 'map', camera back to its initial region)
+# without touching AsyncStorage, so the persisted language, onboarding-seen
+# flag and auth session all survive. `clearState: false` is what preserves
+# those; `stopApp: true` is what discards the in-memory drift.
+appId: com.mamrow.aqari
+---
+- launchApp:
+    clearState: false
+    stopApp: true
+- waitForAnimationToEnd
+# Onboarding only appears on a fresh install / cleared state.
+- runFlow:
+    when:
+      visible:
+        id: "onboarding-skip"
+    commands:
+      - tapOn:
+          id: "onboarding-skip"
+- waitForAnimationToEnd:
+    timeout: 5000
+# A cold start lands on Home already, but tap it anyway if it's there — cheap,
+# and it keeps the flow honest if a future launch restores a different tab.
+- runFlow:
+    when:
+      visible: "الرئيسية"
+    commands:
+      - tapOn: "الرئيسية"
+- runFlow:
+    when:
+      visible: "Home"
+    commands:
+      - tapOn: "Home"
+# Give MapTiler's tiles time to come in — a half-drawn basemap makes for a
+# poor screenshot, and the tile fetch is network-bound, not animation-bound.
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "map-list-toggle-to-list"
+    timeout: 20000

@@ -1,34 +1,10 @@
 # Home screen in list view (toggled from the map's list/map switch).
 appId: com.mamrow.aqari
 ---
-- launchApp:
-    clearState: false
-    stopApp: false
-- waitForAnimationToEnd
-- runFlow:
-    when:
-      visible:
-        id: "onboarding-skip"
-    commands:
-      - tapOn:
-          id: "onboarding-skip"
-- waitForAnimationToEnd:
-    timeout: 5000
-# Resuming a persisted session (stopApp: false above) can leave the app on
-# whatever tab a previous run/manual session left it on — explicitly select
-# Home regardless of current state, matching either language's tab label.
-- runFlow:
-    when:
-      visible: "الرئيسية"
-    commands:
-      - tapOn: "الرئيسية"
-- runFlow:
-    when:
-      visible: "Home"
-    commands:
-      - tapOn: "Home"
-- waitForAnimationToEnd
+- runFlow: subflows/open_home_map.yaml
+# The toggle's id names the mode it switches *to*, so this is an assertion
+# that we started in map view, not a blind toggle.
 - tapOn:
-    id: "map-list-toggle"
+    id: "map-list-toggle-to-list"
 - waitForAnimationToEnd
 - takeScreenshot: "${LOCALE}_02_home_list"

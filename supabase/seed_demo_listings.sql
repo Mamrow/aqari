@@ -29,9 +29,25 @@
 --     select auth_uid as owner_id, phone as agent_phone
 --     from profiles where phone = '+218911234567'
 --
+-- ─── HOW DEMO ROWS ARE IDENTIFIED ────────────────────────────────────────
+-- Every row is given a deterministic id in a reserved namespace
+-- (d0d0d0d0-0000-4000-8000-...) rather than a visible marker in the title.
+-- An earlier version prefixed every title with "[demo] ", which worked but
+-- put the word "demo" in the middle of every store screenshot. The id
+-- namespace is just as easy to select on and invisible in the UI. It also
+-- makes re-running the seed a clean replace instead of a duplicate: the
+-- delete below runs first, in the same statement batch.
+--
 -- To undo everything this inserts:
---     delete from listings where title like '[demo]%';
+--     delete from listings where id::text like 'd0d0d0d0-0000-4000-8000-%';
 -- ──────────────────────────────────────────────────────────────────────────
+
+-- Re-runnable: clear any previous seed before inserting this one. The second
+-- predicate catches rows from the first version of this file, which marked
+-- demo listings with a '[demo] ' title prefix instead of an id namespace.
+delete from listings
+where id::text like 'd0d0d0d0-0000-4000-8000-%'
+   or title like '[demo]%';
 
 with owner as (
   select auth_uid as owner_id, phone as agent_phone
@@ -185,14 +201,17 @@ rows (title, description, price, area, rooms, listing_type, property_type,
    2800, 70, null, 'rent', 'shop', 'misrata', null, 32.3739, 15.0917, '{}'::text[], null)
 )
 insert into listings (
-  title, description, price, area, rooms,
+  id, title, description, price, area, rooms,
   listing_type, property_type, city, district,
   latitude, longitude, amenities, audience_target,
   images, agent_phone, agent_id, owner_id,
   status, listing_state, expires_at
 )
 select
-  '[demo] ' || r.title,
+  -- Reserved id namespace, so the seed is identifiable (and removable)
+  -- without putting a marker in any user-visible field.
+  ('d0d0d0d0-0000-4000-8000-' || lpad((row_number() over ())::text, 12, '0'))::uuid,
+  r.title,
   r.description,
   r.price,
   r.area,
@@ -224,6 +243,6 @@ cross join demo_photos p;
 -- Sanity check — Tripoli should dominate, the other two cities are token.
 select city, listing_type, count(*)
 from listings
-where title like '[demo]%'
+where id::text like 'd0d0d0d0-0000-4000-8000-%'
 group by city, listing_type
 order by city, listing_type;

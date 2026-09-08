@@ -1,38 +1,17 @@
 # Listing detail — opens the first card in list view. Needs at least one
 # approved listing to exist in whatever Supabase project this build points
-# at (real data reads better in store screenshots than an empty state).
+# at (real data reads better in store screenshots than an empty state);
+# supabase/seed_demo_listings.sql provides one.
 appId: com.mamrow.aqari
 ---
-- launchApp:
-    clearState: false
-    stopApp: false
-- waitForAnimationToEnd
-- runFlow:
-    when:
-      visible:
-        id: "onboarding-skip"
-    commands:
-      - tapOn:
-          id: "onboarding-skip"
-- waitForAnimationToEnd:
-    timeout: 5000
-# Resuming a persisted session (stopApp: false above) can leave the app on
-# whatever tab a previous run/manual session left it on — explicitly select
-# Home regardless of current state, matching either language's tab label.
-- runFlow:
-    when:
-      visible: "الرئيسية"
-    commands:
-      - tapOn: "الرئيسية"
-- runFlow:
-    when:
-      visible: "Home"
-    commands:
-      - tapOn: "Home"
-- waitForAnimationToEnd
+- runFlow: subflows/open_home_map.yaml
 - tapOn:
-    id: "map-list-toggle"
+    id: "map-list-toggle-to-list"
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "listing-card"
+    timeout: 20000
 - tapOn:
     id: "listing-card"
     index: 0

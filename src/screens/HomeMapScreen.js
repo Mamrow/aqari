@@ -1146,7 +1146,11 @@ export default function HomeMapScreen({ navigation }) {
         onPress={toggleViewMode}
         accessibilityRole="button"
         accessibilityLabel={viewMode === 'map' ? t('showList') : t('showMap')}
-        testID="map-list-toggle"
+        // The testID encodes what the button *does next*, not just what it is,
+        // so a Maestro flow can put the screen in a known view mode
+        // (tapOn: map-list-toggle-to-list) instead of blind-toggling and
+        // inheriting whatever mode the previous flow left behind.
+        testID={viewMode === 'map' ? 'map-list-toggle-to-list' : 'map-list-toggle-to-map'}
       >
         <Ionicons name={viewMode === 'map' ? 'list' : 'map'} size={18} color="#fff" />
         <Text style={styles.fabText}>{viewMode === 'map' ? t('showList') : t('showMap')}</Text>

@@ -2,34 +2,10 @@
 # default screenshot (01_home_map defaults to Sale).
 appId: com.mamrow.aqari
 ---
-- launchApp:
-    clearState: false
-    stopApp: false
-- waitForAnimationToEnd
-- runFlow:
-    when:
-      visible:
-        id: "onboarding-skip"
-    commands:
-      - tapOn:
-          id: "onboarding-skip"
-- waitForAnimationToEnd:
-    timeout: 5000
-# Resuming a persisted session (stopApp: false above) can leave the app on
-# whatever tab a previous run/manual session left it on — explicitly select
-# Home regardless of current state, matching either language's tab label.
-- runFlow:
-    when:
-      visible: "الرئيسية"
-    commands:
-      - tapOn: "الرئيسية"
-- runFlow:
-    when:
-      visible: "Home"
-    commands:
-      - tapOn: "Home"
-- waitForAnimationToEnd
+- runFlow: subflows/open_home_map.yaml
 - tapOn:
     id: "listing-type-rent"
+# Changing the filter rebuilds the supercluster index and re-renders every
+# pin, so wait for the map to settle before capturing.
 - waitForAnimationToEnd
 - takeScreenshot: "${LOCALE}_04_filter_rent"
