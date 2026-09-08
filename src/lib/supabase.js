@@ -91,6 +91,26 @@ class LargeSecureStore {
 // sign-in and password reset are all phone + password with a one-time code
 // (see AppContext), so nothing arrives by URL at all. detectSessionInUrl
 // stays off for the same reason: RN has no browser URL for the SDK to read.
+// EXPO_PUBLIC_* values are inlined by Metro at build time, which means a
+// build that ran without them produces a bundle where these are literally
+// undefined — and createClient then throws during module evaluation, before
+// React mounts anything. The symptom is a splash screen followed by a blank
+// window with no error on screen, which is a genuinely awful thing to debug
+// from a TestFlight build. Fail with something a log will actually explain.
+//
+// It happens because `.env` is gitignored and EAS builds from git, so the
+// values have to exist as EAS environment variables (`eas env:list`) mapped
+// to a profile's `environment` in eas.json — a local `.env` alone only ever
+// fixes local builds.
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Supabase config missing: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY ' +
+      'were not set when this bundle was built. For EAS builds set them with ' +
+      '`eas env:create` and give the build profile an `environment` in eas.json; ' +
+      'for local runs copy .env.example to .env.'
+  );
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: new LargeSecureStore(),
