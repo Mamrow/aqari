@@ -71,6 +71,39 @@ Note that `eas.json` sets `"appVersionSource": "remote"` with
 managed by EAS and doesn't need bumping by hand — `version` in `app.json`
 (the marketing version) still does.
 
+## What the first build's IPA actually contained
+
+Verified by unpacking `a80685b7` (build 4, 24MB IPA / 46MB installed):
+
+- `Frameworks/` holds MapLibre, React, ReactNativeDependencies and hermes —
+  **no Google Maps framework**, confirming the podspec reasoning above.
+- `UIDeviceFamily = [1]` — iPhone only, so `supportsTablet: false` took effect.
+- `aps-environment = production` in the provisioning profile, so the push
+  entitlement is really there; `get-task-allow` is false, i.e. distribution
+  signed, not development.
+- MapLibre costs ~7.9MB of that install size on a platform where no JS imports
+  it. Not worth a Podfile hack to strip — it's linked natively regardless of
+  which platform's JS uses it — but that's where the weight is if size ever
+  matters.
+
+It also surfaced three Info.plist entries nobody asked for, since Expo's
+permission plugins write a default usage string for every key they know about
+unless told not to:
+
+- `NSLocationAlwaysUsageDescription` and
+  `NSLocationAlwaysAndWhenInUseUsageDescription`, both set to the boilerplate
+  "Allow aqari to access your location". The app only ever calls
+  `requestForegroundPermissionsAsync`, so declaring *Always* location was
+  asking review for scrutiny it can't justify — App Review treats background
+  location as needing an explicit reason.
+- `NSFaceIDUsageDescription`, from expo-secure-store, which only matters if
+  `requireAuthentication` is used. It isn't.
+
+All three are now removed by passing `false` for those options in `app.json`
+(the same mechanism as `cameraPermission: false` on expo-image-picker —
+`false` deletes the key rather than writing "false"). **This needs a new build
+to take effect**; build 4 still has them.
+
 ## Known unknowns
 
 Nothing here proves the *native* iOS build compiles. The things most likely to
