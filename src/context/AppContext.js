@@ -8,7 +8,6 @@ import {
 } from 'react';
 import { DevSettings, I18nManager, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Linking from 'expo-linking';
 import { LANGUAGE_STORAGE_KEY, ONBOARDING_SEEN_KEY } from '../i18n/constants';
 import { supabase } from '../lib/supabase';
 import {
@@ -20,7 +19,6 @@ import {
   listingReportFromRow,
 } from '../lib/mappers';
 import { OTP_CHANNEL } from '../utils/otp';
-import { phoneToInternalEmail } from '../utils/phoneAuth';
 import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
 
 const STORAGE_KEY = '@aqari/app_state';
@@ -58,7 +56,6 @@ export function AppProvider({ children }) {
   const [hydrated, setHydrated] = useState(false);
   const [authUid, setAuthUid] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   // Read from AsyncStorage in the hydrate effect below. App.js gates on
   // `hydrated` before rendering anything, so this is never acted on before
   // the real stored value has landed.
@@ -317,274 +314,140 @@ export function AppProvider({ children }) {
     setAuthModalVisible(false);
   }, []);
 
-  // ACTIVE sign-up/sign-in path — password + synthetic email (see
-  // phoneToInternalEmail). The phone-OTP functions below this are built and
-  // ready but NOT wired into AuthModal yet — that cutover is paused until
-  // Twilio/Supabase's Phone provider is actually configured (see
-  // splendid-rolling-hamming.md). Do not remove this pair or point
-  // AuthModal back at the OTP path until that setup is confirmed done —
-  // doing so before Phone auth is configured locks out every account
-  // (confirmed: "Signups not allowed for otp" / "Phone logins are
-  // disabled").
-  const signUp = useCallback(
-    async ({ name, phone, email, password }) => {
-      const internalEmail = phoneToInternalEmail(phone);
-      const { data, error } = await supabase.auth.signUp({
-        email: internalEmail,
-        password,
-      });
-      if (error) throw error;
-      if (!data.session) {
-        // No session back means this project still requires email
-        // confirmation — Dashboard → Authentication → Sign In / Providers →
-        // Email → "Confirm email" needs to be off, since phone.aqari.dev
-        // addresses are synthetic and can never actually be confirmed by a
-        // real person. Failing here (before the profiles insert, which would
-        // otherwise silently get blocked by RLS with no session) is what
-        // stops this from creating another orphaned auth user with no
-        // matching profile row.
-        throw new Error('CONFIRM_EMAIL_ENABLED');
-      }
-      const uid = data.session.user.id;
-      setAuthUid(uid);
-
-      const { data: profileRow, error: profileError } = await supabase
-        .from('profiles')
-        .upsert({ phone, name, email, auth_uid: uid })
-        .select()
-        .single();
-      if (profileError) throw profileError;
-      applyProfile(profileRow);
-      refreshIsAdmin();
-
-      setAuthModalVisible(false);
-      const pending = pendingActionRef.current;
-      pendingActionRef.current = null;
-      pending?.();
-    },
-    [applyProfile, refreshIsAdmin]
-  );
-
-  const signIn = useCallback(
-    async ({ phone, password }) => {
-      const internalEmail = phoneToInternalEmail(phone);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: internalEmail,
-        password,
-      });
-      if (error) throw error;
-      const uid = data.user.id;
-
-      const { data: profileRow, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('auth_uid', uid)
-        .maybeSingle();
-      if (profileError) throw profileError;
-      if (!profileRow) {
-        // The auth account exists (password just checked out) but its
-        // profiles row never got written — a signUp that created the auth
-        // user then died before the profile upsert (hit the confirm-email
-        // gate, the mailer rate limit, or was interrupted). Surface this
-        // loudly instead of silently closing the modal with nothing
-        // signed in, which is what happened before this check existed.
-        await supabase.auth.signOut();
-        throw new Error('NO_PROFILE');
-      }
-      setAuthUid(uid);
-      applyProfile(profileRow);
-      refreshIsAdmin();
-
-      setAuthModalVisible(false);
-      const pending = pendingActionRef.current;
-      pendingActionRef.current = null;
-      pending?.();
-    },
-    [applyProfile, refreshIsAdmin]
-  );
-
-  // Phone-OTP path — built, not yet active (see note above). `isNewAccount`
-  // maps straight to Supabase's own `shouldCreateUser`:
-  // signup creates the auth.users row on send, sign-in rejects unknown
-  // numbers instead of silently creating one. Verification (verifyPhoneOtp
-  // below) is what actually establishes a session.
-  const sendPhoneOtp = useCallback(async (phone, { isNewAccount }) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      phone,
-      options: { channel: OTP_CHANNEL, shouldCreateUser: isNewAccount },
-    });
-    if (error) throw error;
-  }, []);
-
-  // Verifies the code from sendPhoneOtp and establishes the session — but
-  // does NOT close the auth modal or resolve the pending action itself.
-  // `type: 'sms'` is correct even for WhatsApp-delivered codes — Supabase
-  // has no separate whatsapp verify type, channel only affects delivery,
-  // not verification. Returns whether this account still needs a profile
-  // (brand new signup) so AuthModal can ask for a name before finishing —
-  // see completeSignupProfile/finishSignIn below.
-  const verifyPhoneOtp = useCallback(async ({ phone, token }) => {
-    const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
-    if (error) throw error;
-    const uid = data.user.id;
-    setAuthUid(uid);
-
-    const { data: profileRow, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('auth_uid', uid)
-      .maybeSingle();
-    if (profileError) throw profileError;
-
-    return { uid, phone, profile: profileRow };
-  }, []);
-
-  // Called after verifyPhoneOtp when profile is null (brand new account) —
-  // AuthModal collects the name in between, then this creates the row and
-  // finishes signing in the same way finishSignIn does for existing ones.
-  const completeSignupProfile = useCallback(
+  // Everything that has to happen once a session exists, whichever door the
+  // user came through: password sign-in, sign-up verification, or a password
+  // reset. Passing `name` is what distinguishes "create this account's
+  // profile" from "load the existing one" — only the sign-up path knows a
+  // name, and only the sign-up path is allowed to write one.
+  const completeAuthedSession = useCallback(
     async ({ uid, phone, name }) => {
-      const { data: inserted, error } = await supabase
-        .from('profiles')
-        .upsert({ phone, name, auth_uid: uid })
-        .select()
-        .single();
-      if (error) throw error;
-      applyProfile(inserted);
-      refreshIsAdmin();
-
-      setAuthModalVisible(false);
-      const pending = pendingActionRef.current;
-      pendingActionRef.current = null;
-      pending?.();
-    },
-    [applyProfile, refreshIsAdmin]
-  );
-
-  // Called after verifyPhoneOtp when profile already exists (returning
-  // account) — no extra step needed, finish immediately.
-  const finishSignIn = useCallback(
-    (profileRow) => {
-      applyProfile(profileRow);
-      refreshIsAdmin();
-
-      setAuthModalVisible(false);
-      const pending = pendingActionRef.current;
-      pendingActionRef.current = null;
-      pending?.();
-    },
-    [applyProfile, refreshIsAdmin]
-  );
-
-  // Optional convenience login for accounts that set a password after
-  // verifying their phone (see updateAccountPassword below) — phone/OTP
-  // always works regardless, this is purely a faster-entry fallback.
-  const signInWithPassword = useCallback(
-    async ({ phone, password }) => {
-      const { data, error } = await supabase.auth.signInWithPassword({ phone, password });
-      if (error) throw error;
-      const uid = data.user.id;
-
-      const { data: profileRow, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('auth_uid', uid)
-        .maybeSingle();
-      if (profileError) throw profileError;
-      if (!profileRow) {
-        await supabase.auth.signOut();
-        throw new Error('NO_PROFILE');
-      }
       setAuthUid(uid);
-      applyProfile(profileRow);
-      refreshIsAdmin();
 
-      setAuthModalVisible(false);
-      const pending = pendingActionRef.current;
-      pendingActionRef.current = null;
-      pending?.();
-    },
-    [applyProfile, refreshIsAdmin]
-  );
-
-  // Lets a signed-in account set/change a password, purely as an optional
-  // faster-entry fallback alongside phone/OTP (which always keeps working
-  // regardless — there's no "forgot password" needed for this, since OTP
-  // itself is the ultimate recovery path).
-  const updateAccountPassword = useCallback(async (password) => {
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) throw error;
-  }, []);
-
-  // Legacy path — only the admin account (grandfathered past
-  // migration_cleanup_users_for_phone_auth.sql) still has the synthetic
-  // phone.aqari.dev email identity this depends on. Every account created
-  // after the phone-OTP cutover has no email identity at all, so "forgot
-  // password" doesn't apply to them — phone/OTP itself is always available
-  // as the recovery path instead. Delegates to the send-password-reset Edge
-  // Function rather than calling supabase.auth.resetPasswordForEmail
-  // directly, since Supabase's own mailer can only ever deliver to an
-  // account's own registered (synthetic) email; the Edge Function mints a
-  // recovery token via the admin API and emails it to the real address via
-  // Resend. Linking.createURL (not a hardcoded "aqari://…" string) is
-  // required here — it resolves to exp://<ip>:<port>/--/reset-password
-  // while running in Expo Go during development, and only becomes a real
-  // aqari://reset-password link in an actual standalone/EAS build.
-  const sendPasswordReset = useCallback(async (phone) => {
-    const { data, error } = await supabase.functions.invoke('send-password-reset', {
-      body: { phone, redirectTo: Linking.createURL('reset-password') },
-    });
-    if (error) throw error;
-    if (data?.error) throw new Error(data.error);
-  }, []);
-
-  // Called from ResetPasswordScreen once a recovery session is active.
-  const updatePasswordAfterReset = useCallback(
-    async (newPassword) => {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      // The recovery session is a genuine session for their account, so pick
-      // up their profile/role and drop into the app normally — no need to
-      // make them log in again right after they just proved account ownership.
-      const { data } = await supabase.auth.getSession();
-      const uid = data.session?.user.id;
-      if (uid) {
-        setAuthUid(uid);
-        const { data: profileRow } = await supabase
+      let profileRow;
+      if (name) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .upsert({ phone, name, auth_uid: uid })
+          .select()
+          .single();
+        if (error) throw error;
+        profileRow = data;
+      } else {
+        const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('auth_uid', uid)
           .maybeSingle();
-        if (profileRow) applyProfile(profileRow);
-        refreshIsAdmin();
+        if (error) throw error;
+        if (!data) {
+          // The auth account exists but its profiles row never got written —
+          // a sign-up that died between verifying the code and the profile
+          // insert. Surface it loudly instead of silently closing the modal
+          // with nothing usable signed in.
+          await supabase.auth.signOut();
+          throw new Error('NO_PROFILE');
+        }
+        profileRow = data;
       }
-      setIsPasswordRecovery(false);
+
+      applyProfile(profileRow);
+      refreshIsAdmin();
+
+      setAuthModalVisible(false);
+      const pending = pendingActionRef.current;
+      pendingActionRef.current = null;
+      pending?.();
     },
     [applyProfile, refreshIsAdmin]
   );
 
-  // The reset email's link (built by the send-password-reset Edge Function)
-  // deep-links back into the app as
-  // aqari://reset-password?token_hash=...&type=recovery — a single-use
-  // token minted via the admin API, redeemed here via verifyOtp. This isn't
-  // the PKCE code_verifier flow (admin.generateLink doesn't support that
-  // regardless of the client's flowType setting), but it's still a
-  // single-use, short-lived, server-verified token — not a raw session.
-  // Called from App.js's Linking listener.
-  const handleAuthDeepLink = useCallback(async (url) => {
-    if (!url || !url.includes('reset-password')) return;
-    const query = url.split('#')[1] ?? url.split('?')[1];
-    if (!query) return;
-    const params = new URLSearchParams(query);
-    const tokenHash = params.get('token_hash');
-    const type = params.get('type');
-    if (!tokenHash || type !== 'recovery') return;
-    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' });
-    if (error) {
-      console.warn('recovery verifyOtp error', error);
-      return;
-    }
-    setIsPasswordRecovery(true);
+  // Sign-up is phone + password, with a one-time code proving the number is
+  // really theirs. Supabase's own phone provider handles delivery — the
+  // Twilio credentials live in the Supabase dashboard, never in this app, so
+  // there's no Twilio SDK here and no auth token shipped to devices.
+  //
+  // No session comes back from this call: the account is unverified until
+  // verifySignUpOtp redeems the code. The name deliberately isn't written
+  // yet either, so abandoning the code screen leaves no profile row behind.
+  const signUp = useCallback(
+    async ({ name, phone, password }) => {
+      const { data, error } = await supabase.auth.signUp({
+        phone,
+        password,
+        options: { channel: OTP_CHANNEL },
+      });
+      if (error) throw error;
+      if (data.session) {
+        // "Confirm phone" is switched off in the project, so Supabase handed
+        // back a session without ever sending a code. Finish the account here
+        // rather than stranding it behind a code screen that will never
+        // receive anything — but this is a misconfiguration worth fixing in
+        // Authentication → Sign In / Providers → Phone.
+        await completeAuthedSession({ uid: data.session.user.id, phone, name });
+        return { verified: true };
+      }
+      return { verified: false };
+    },
+    [completeAuthedSession]
+  );
+
+  // Redeems the sign-up code and, with the session it establishes, writes the
+  // profile. `type: 'sms'` is correct even for a WhatsApp-delivered code —
+  // Supabase has no separate whatsapp verify type; the channel only affects
+  // how the message is delivered, not how the code is checked.
+  const verifySignUpOtp = useCallback(
+    async ({ phone, token, name }) => {
+      const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+      if (error) throw error;
+      await completeAuthedSession({ uid: data.user.id, phone, name });
+    },
+    [completeAuthedSession]
+  );
+
+  // Day-to-day sign-in: phone + password, no code. The code is only ever a
+  // proof-of-ownership step (sign-up, and password reset below), which keeps
+  // the per-message cost off the common path.
+  const signIn = useCallback(
+    async ({ phone, password }) => {
+      const { data, error } = await supabase.auth.signInWithPassword({ phone, password });
+      if (error) throw error;
+      await completeAuthedSession({ uid: data.user.id });
+    },
+    [completeAuthedSession]
+  );
+
+  // Password reset without email: prove the number, then set a new password.
+  // `shouldCreateUser: false` is the load-bearing part — without it an
+  // unknown number would silently get an account created for it, turning
+  // "forgot password" into an accidental sign-up.
+  const sendPasswordResetCode = useCallback(async (phone) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      phone,
+      options: { channel: OTP_CHANNEL, shouldCreateUser: false },
+    });
+    if (error) throw error;
+  }, []);
+
+  // Redeeming the code establishes a real session for the account, which is
+  // exactly the authority needed to change its password — so this needs no
+  // service-role key, no admin API, and no emailed link. (The old flow did
+  // need all three, and carried an unvalidated redirect in the emailed link
+  // as a result; deleting it removes that whole class of problem.)
+  const resetPasswordWithOtp = useCallback(
+    async ({ phone, token, newPassword }) => {
+      const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+      if (error) throw error;
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
+      await completeAuthedSession({ uid: data.user.id });
+    },
+    [completeAuthedSession]
+  );
+
+  // Lets an already signed-in account change its password from Settings.
+  const updateAccountPassword = useCallback(async (password) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
   }, []);
 
   const updateProfile = useCallback(
@@ -1050,20 +913,14 @@ export function AppProvider({ children }) {
     requireAuth,
     closeAuthModal,
     signUp,
+    verifySignUpOtp,
     signIn,
-    sendPhoneOtp,
-    verifyPhoneOtp,
-    completeSignupProfile,
-    finishSignIn,
-    signInWithPassword,
+    sendPasswordResetCode,
+    resetPasswordWithOtp,
     updateAccountPassword,
-    sendPasswordReset,
-    updatePasswordAfterReset,
-    isPasswordRecovery,
     showOnboarding,
     completeOnboarding,
     replayOnboarding,
-    handleAuthDeepLink,
     updateProfile,
     logout,
     deleteAccount,

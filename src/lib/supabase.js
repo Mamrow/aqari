@@ -86,12 +86,11 @@ class LargeSecureStore {
   }
 }
 
-// flowType 'pkce' is what keeps the password-reset email link from carrying
-// raw access/refresh tokens: the link instead carries a single-use `code`
-// that's worthless without the code_verifier this device generated and kept
-// in `storage` when the reset was requested (see AppContext.sendPasswordReset
-// / handleAuthDeepLink). detectSessionInUrl stays off — RN has no browser URL
-// for the SDK to read from; the deep link is parsed and exchanged manually.
+// flowType 'pkce' is the safer default for a mobile client generally, and is
+// kept even though auth no longer involves any emailed link — sign-up,
+// sign-in and password reset are all phone + password with a one-time code
+// (see AppContext), so nothing arrives by URL at all. detectSessionInUrl
+// stays off for the same reason: RN has no browser URL for the SDK to read.
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: new LargeSecureStore(),

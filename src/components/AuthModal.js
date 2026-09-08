@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,110 +14,216 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
+import { toEnglishDigits } from '../utils/digits';
+import { OTP_CHANNEL } from '../utils/otp';
 import PhoneInput, { withLibyaPrefix, isValidLibyanMobile } from './PhoneInput';
 import PasswordInput from './PasswordInput';
 
+// Codes are 6 digits everywhere Supabase's phone provider is concerned.
+const OTP_LENGTH = 6;
+// Long enough that a slow SMS still lands before the button lights up again,
+// short enough not to feel punitive when the first message never arrives.
+const RESEND_COOLDOWN_SECONDS = 60;
+
+// Three flows, and the two that involve a code have a second screen. Keeping
+// them in one enum rather than a pile of booleans is what makes the "which
+// fields am I showing" question below answerable at a glance.
+const STEPS = {
+  SIGN_IN: 'signIn',
+  SIGN_UP: 'signUp',
+  SIGN_UP_CODE: 'signUpCode',
+  RESET_PHONE: 'resetPhone',
+  RESET_CODE: 'resetCode',
+};
+
 export default function AuthModal() {
-  const { authModalVisible, closeAuthModal, signUp, signIn, sendPasswordReset, language } = useAppContext();
+  const {
+    authModalVisible,
+    closeAuthModal,
+    signUp,
+    verifySignUpOtp,
+    signIn,
+    sendPasswordResetCode,
+    resetPasswordWithOtp,
+    language,
+  } = useAppContext();
   const isRTL = language === 'ar';
   const t = useT();
   const colors = useThemeColors();
 
-  const [mode, setMode] = useState('signIn'); // 'signIn' | 'signUp'
+  const [step, setStep] = useState(STEPS.SIGN_IN);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  const onCodeStep = step === STEPS.SIGN_UP_CODE || step === STEPS.RESET_CODE;
+
+  // One interval for the resend countdown, cleared on unmount and whenever it
+  // reaches zero — a stray timer here would keep firing setState against an
+  // unmounted modal every time the user closed it mid-countdown.
+  const cooldownRef = useRef(null);
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    cooldownRef.current = setTimeout(() => setCooldown((n) => n - 1), 1000);
+    return () => clearTimeout(cooldownRef.current);
+  }, [cooldown]);
 
   const resetFields = () => {
     setName('');
     setPhone('');
-    setEmail('');
     setPassword('');
     setConfirmPassword('');
+    setCode('');
+    setCooldown(0);
   };
 
   const handleClose = () => {
     resetFields();
-    setMode('signIn');
+    setStep(STEPS.SIGN_IN);
     closeAuthModal();
   };
 
-  // Libyan mobile numbers are exactly 9 digits after +218 — PhoneInput
-  // already caps typing at 9, this is the matching submit-time floor — a
-  // real Libyan mobile shape, not just "9 digits of something."
-  const canSubmit =
-    mode === 'signIn'
-      ? isValidLibyanMobile(phone.trim()) && password.length > 0
-      : name.trim().length > 0 &&
-        isValidLibyanMobile(phone.trim()) &&
-        email.trim().length > 0 &&
-        password.length >= 6 &&
-        confirmPassword === password;
+  const goToStep = (next) => {
+    setCode('');
+    setStep(next);
+  };
 
-  // Supabase's own error messages are English-only — map the common ones to
-  // localized text, falling back to the raw message for anything else.
+  // Libyan mobile numbers are exactly 9 digits after +218 — PhoneInput caps
+  // typing at 9, this is the matching submit-time floor: a real Libyan mobile
+  // shape, not just "9 digits of something."
+  const phoneOk = isValidLibyanMobile(phone.trim());
+  const passwordOk = password.length >= 6 && confirmPassword === password;
+  const codeOk = code.length === OTP_LENGTH;
+
+  const canSubmit = {
+    [STEPS.SIGN_IN]: phoneOk && password.length > 0,
+    [STEPS.SIGN_UP]: name.trim().length > 0 && phoneOk && passwordOk,
+    [STEPS.SIGN_UP_CODE]: codeOk,
+    [STEPS.RESET_PHONE]: phoneOk,
+    [STEPS.RESET_CODE]: codeOk && passwordOk,
+  }[step];
+
+  // Supabase's own error messages are English-only — map the ones a user can
+  // actually provoke to localized text, and fall back to the raw message so a
+  // misconfiguration is still legible rather than swallowed.
   const friendlyError = (error) => {
     const message = error?.message ?? '';
     if (message.includes('Invalid login credentials')) return t('authErrorInvalidCredentials');
     if (message.includes('already registered') || message.includes('already exists')) {
       return t('authErrorAccountExists');
     }
-    if (message === 'NO_ACCOUNT') return t('authErrorNoAccountForPhone');
+    // What Supabase returns for signInWithOtp on a number that has no account
+    // and shouldCreateUser: false — i.e. "forgot password" for a number that
+    // never signed up.
+    if (message.includes('Signups not allowed for otp')) return t('authErrorNoAccountForPhone');
+    if (message.includes('Phone logins are disabled')) return t('authErrorPhoneAuthDisabled');
+    if (message.includes('Token has expired') || message.includes('Invalid token')) {
+      return t('authErrorInvalidCode');
+    }
+    if (message.includes('For security purposes') || message.includes('rate limit')) {
+      return t('authErrorRateLimit');
+    }
     if (message === 'NO_PROFILE') return t('authErrorNoProfile');
-    if (message === 'CONFIRM_EMAIL_ENABLED') return t('authErrorConfirmEmailEnabled');
     return message || t('authErrorGeneric');
+  };
+
+  const fail = (error) => {
+    console.warn('Auth failed', error);
+    Alert.alert(t('authErrorTitle'), friendlyError(error));
+  };
+
+  const sendResetCode = async () => {
+    await sendPasswordResetCode(withLibyaPrefix(phone));
+    setCooldown(RESEND_COOLDOWN_SECONDS);
   };
 
   const handleSubmit = async () => {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
     try {
-      if (mode === 'signIn') {
+      if (step === STEPS.SIGN_IN) {
         await signIn({ phone: withLibyaPrefix(phone), password });
-      } else {
-        await signUp({
+        resetFields();
+      } else if (step === STEPS.SIGN_UP) {
+        const { verified } = await signUp({
           name: name.trim(),
           phone: withLibyaPrefix(phone),
-          email: email.trim(),
           password,
         });
+        if (verified) {
+          resetFields();
+        } else {
+          setCooldown(RESEND_COOLDOWN_SECONDS);
+          goToStep(STEPS.SIGN_UP_CODE);
+        }
+      } else if (step === STEPS.SIGN_UP_CODE) {
+        await verifySignUpOtp({ phone: withLibyaPrefix(phone), token: code, name: name.trim() });
+        resetFields();
+      } else if (step === STEPS.RESET_PHONE) {
+        await sendResetCode();
+        goToStep(STEPS.RESET_CODE);
+      } else if (step === STEPS.RESET_CODE) {
+        await resetPasswordWithOtp({
+          phone: withLibyaPrefix(phone),
+          token: code,
+          newPassword: password,
+        });
+        resetFields();
       }
-      resetFields();
     } catch (error) {
-      console.warn('Auth failed', error);
-      Alert.alert(t('authErrorTitle'), friendlyError(error));
-      // Clears the instant the error happens, not on a later focus event —
-      // that was the "sometimes works, sometimes doesn't" flakiness, since
-      // it depended on whether/when the field happened to re-gain focus.
-      setPassword('');
+      fail(error);
+      // Cleared the instant the error happens rather than on a later focus
+      // event — that timing was the old "sometimes clears, sometimes doesn't"
+      // flakiness, since it depended on whether the field regained focus.
+      if (step === STEPS.SIGN_IN) setPassword('');
+      if (onCodeStep) setCode('');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleForgotPassword = () => {
-    if (!phone.trim()) {
-      Alert.alert(t('authErrorTitle'), t('authEnterPhoneFirst'));
-      return;
+  const handleResend = async () => {
+    if (cooldown > 0 || submitting) return;
+    setSubmitting(true);
+    try {
+      if (step === STEPS.SIGN_UP_CODE) {
+        // Re-running signUp with the same number and password re-sends the
+        // code for the still-unconfirmed account rather than creating a
+        // second one — Supabase treats it as a resend.
+        await signUp({ name: name.trim(), phone: withLibyaPrefix(phone), password });
+      } else {
+        await sendPasswordResetCode(withLibyaPrefix(phone));
+      }
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+      setCode('');
+    } catch (error) {
+      fail(error);
+    } finally {
+      setSubmitting(false);
     }
-    Alert.alert(t('forgotPasswordTitle'), t('forgotPasswordConfirmMessage'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('continueLabel'),
-        onPress: async () => {
-          try {
-            await sendPasswordReset(withLibyaPrefix(phone));
-            Alert.alert(t('resetEmailSentTitle'), t('resetEmailSentMessage'));
-          } catch (error) {
-            Alert.alert(t('authErrorTitle'), friendlyError(error));
-          }
-        },
-      },
-    ]);
   };
+
+  const titles = {
+    [STEPS.SIGN_IN]: null,
+    [STEPS.SIGN_UP]: null,
+    [STEPS.SIGN_UP_CODE]: t('authVerifyTitle'),
+    [STEPS.RESET_PHONE]: t('forgotPasswordTitle'),
+    [STEPS.RESET_CODE]: t('forgotPasswordTitle'),
+  };
+
+  const submitLabel = {
+    [STEPS.SIGN_IN]: t('authContinue'),
+    [STEPS.SIGN_UP]: t('authSendCode'),
+    [STEPS.SIGN_UP_CODE]: t('authVerifyButton'),
+    [STEPS.RESET_PHONE]: t('authSendCode'),
+    [STEPS.RESET_CODE]: t('authSavePassword'),
+  }[step];
+
+  const showTabs = step === STEPS.SIGN_IN || step === STEPS.SIGN_UP;
 
   return (
     <Modal
@@ -143,84 +249,159 @@ export default function AuthModal() {
               <Ionicons name="close" size={20} color={colors.textMuted} />
             </Pressable>
 
-            <View style={[styles.tabRow, { borderColor: colors.accent }]}>
-              <Tab
-                label={t('signInTab')}
-                active={mode === 'signIn'}
-                colors={colors}
-                onPress={() => setMode('signIn')}
-              />
-              <Tab
-                label={t('signUpTab')}
-                active={mode === 'signUp'}
-                colors={colors}
-                onPress={() => setMode('signUp')}
-              />
-            </View>
-
-            <Text style={[styles.requiredLegend, { color: colors.textMuted }]}>
-              {t('requiredFieldsLegend')}
-            </Text>
-
-            {/* Every field here is required (see canSubmit) — this form has
-                no persistent labels above each input the way the listing
-                form does, just placeholder text, so the "*" rides along on
-                that instead of a separate label element. */}
-            {mode === 'signUp' && (
-              <TextInput
-                style={[
-                  styles.input,
-                  { borderColor: colors.inputBorder, color: colors.text, textAlign: isRTL ? 'right' : 'left' },
-                ]}
-                placeholder={`${t('authNamePlaceholder')} *`}
-                placeholderTextColor={colors.placeholderText}
-                value={name}
-                onChangeText={setName}
-              />
+            {showTabs && (
+              <View style={[styles.tabRow, { borderColor: colors.accent }]}>
+                <Tab
+                  label={t('signInTab')}
+                  active={step === STEPS.SIGN_IN}
+                  colors={colors}
+                  onPress={() => goToStep(STEPS.SIGN_IN)}
+                />
+                <Tab
+                  label={t('signUpTab')}
+                  active={step === STEPS.SIGN_UP}
+                  colors={colors}
+                  onPress={() => goToStep(STEPS.SIGN_UP)}
+                />
+              </View>
             )}
 
-            <PhoneInput
-              value={phone}
-              onChangeText={setPhone}
-              colors={colors}
-              placeholder={`${t('authPhonePlaceholder')} *`}
-            />
-
-            {mode === 'signUp' && (
-              <TextInput
-                style={[styles.input, { borderColor: colors.inputBorder, color: colors.text }]}
-                placeholder={`${t('authEmailPlaceholder')} *`}
-                placeholderTextColor={colors.placeholderText}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
+            {titles[step] && (
+              <Text style={[styles.stepTitle, { color: colors.heading }]}>{titles[step]}</Text>
             )}
 
-            <PasswordInput
-              style={[styles.input, { borderColor: colors.inputBorder }]}
-              colors={colors}
-              placeholder={`${t('authPasswordPlaceholder')} *`}
-              placeholderTextColor={colors.placeholderText}
-              value={password}
-              onChangeText={setPassword}
-            />
+            {/* Step 1 of sign-up, sign-in, and the start of a reset all
+                collect a phone number; only the code steps don't. */}
+            {!onCodeStep && (
+              <>
+                {step === STEPS.SIGN_UP && (
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: colors.inputBorder,
+                        color: colors.text,
+                        textAlign: isRTL ? 'right' : 'left',
+                      },
+                    ]}
+                    placeholder={`${t('authNamePlaceholder')} *`}
+                    placeholderTextColor={colors.placeholderText}
+                    value={name}
+                    onChangeText={setName}
+                  />
+                )}
 
-            {mode === 'signUp' && (
-              <PasswordInput
-                style={[styles.input, { borderColor: colors.inputBorder }]}
-                colors={colors}
-                placeholder={`${t('authConfirmPasswordPlaceholder')} *`}
-                placeholderTextColor={colors.placeholderText}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-              />
+                {step === STEPS.RESET_PHONE && (
+                  <Text style={[styles.hint, { color: colors.textMuted }]}>
+                    {t('authResetHint')}
+                  </Text>
+                )}
+
+                <PhoneInput
+                  value={phone}
+                  onChangeText={setPhone}
+                  colors={colors}
+                  placeholder={`${t('authPhonePlaceholder')} *`}
+                />
+
+                {step !== STEPS.RESET_PHONE && (
+                  <PasswordInput
+                    style={[styles.input, { borderColor: colors.inputBorder }]}
+                    colors={colors}
+                    placeholder={`${t('authPasswordPlaceholder')} *`}
+                    placeholderTextColor={colors.placeholderText}
+                    value={password}
+                    onChangeText={setPassword}
+                  />
+                )}
+
+                {step === STEPS.SIGN_UP && (
+                  <PasswordInput
+                    style={[styles.input, { borderColor: colors.inputBorder }]}
+                    colors={colors}
+                    placeholder={`${t('authConfirmPasswordPlaceholder')} *`}
+                    placeholderTextColor={colors.placeholderText}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                  />
+                )}
+              </>
             )}
 
-            {mode === 'signIn' && (
-              <Pressable onPress={handleForgotPassword} style={styles.forgotRow} hitSlop={8}>
-                <Text style={[styles.forgotText, { color: colors.accent }]}>
+            {onCodeStep && (
+              <>
+                <Text style={[styles.hint, { color: colors.textMuted }]}>
+                  {t(OTP_CHANNEL === 'whatsapp' ? 'authOtpSentWhatsapp' : 'authOtpSentSms').replace(
+                    '{phone}',
+                    withLibyaPrefix(phone)
+                  )}
+                </Text>
+
+                {/* Codes are digits and read left-to-right in both languages,
+                    same as the phone field — hence the explicit ltr rather
+                    than inheriting the app's RTL mirroring. */}
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.codeInput,
+                    { borderColor: colors.inputBorder, color: colors.text },
+                  ]}
+                  placeholder={t('authOtpPlaceholder')}
+                  placeholderTextColor={colors.placeholderText}
+                  keyboardType="number-pad"
+                  maxLength={OTP_LENGTH}
+                  autoComplete="sms-otp"
+                  textContentType="oneTimeCode"
+                  value={code}
+                  onChangeText={(text) =>
+                    setCode(toEnglishDigits(text).replace(/[^0-9]/g, '').slice(0, OTP_LENGTH))
+                  }
+                />
+
+                {step === STEPS.RESET_CODE && (
+                  <>
+                    <PasswordInput
+                      style={[styles.input, { borderColor: colors.inputBorder }]}
+                      colors={colors}
+                      placeholder={`${t('authNewPasswordPlaceholder')} *`}
+                      placeholderTextColor={colors.placeholderText}
+                      value={password}
+                      onChangeText={setPassword}
+                    />
+                    <PasswordInput
+                      style={[styles.input, { borderColor: colors.inputBorder }]}
+                      colors={colors}
+                      placeholder={`${t('authConfirmPasswordPlaceholder')} *`}
+                      placeholderTextColor={colors.placeholderText}
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                    />
+                  </>
+                )}
+
+                <Pressable
+                  onPress={handleResend}
+                  disabled={cooldown > 0 || submitting}
+                  style={styles.resendRow}
+                  hitSlop={8}
+                >
+                  <Text
+                    style={[
+                      styles.linkText,
+                      { color: cooldown > 0 ? colors.textMuted : colors.accent },
+                    ]}
+                  >
+                    {cooldown > 0
+                      ? t('authResendIn').replace('{seconds}', String(cooldown))
+                      : t('authResendCode')}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+
+            {step === STEPS.SIGN_IN && (
+              <Pressable onPress={() => goToStep(STEPS.RESET_PHONE)} style={styles.forgotRow} hitSlop={8}>
+                <Text style={[styles.linkText, { color: colors.accent }]}>
                   {t('forgotPasswordLink')}
                 </Text>
               </Pressable>
@@ -237,14 +418,16 @@ export default function AuthModal() {
               {submitting ? (
                 <ActivityIndicator color={colors.accentText} />
               ) : (
-                <Text style={[styles.submitText, { color: colors.accentText }]}>
-                  {t('authContinue')}
-                </Text>
+                <Text style={[styles.submitText, { color: colors.accentText }]}>{submitLabel}</Text>
               )}
             </Pressable>
 
-            <Pressable onPress={handleClose}>
-              <Text style={[styles.cancelText, { color: colors.danger }]}>{t('authCancel')}</Text>
+            {/* Anything past the first screen gets a way back that doesn't
+                mean "close the modal and lose what I typed". */}
+            <Pressable onPress={() => (showTabs ? handleClose() : goToStep(STEPS.SIGN_IN))}>
+              <Text style={[styles.cancelText, { color: colors.danger }]}>
+                {showTabs ? t('authCancel') : t('authBack')}
+              </Text>
             </Pressable>
           </Pressable>
         </ScrollView>
@@ -315,9 +498,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
-  requiredLegend: {
-    fontSize: 12,
-    marginBottom: 12,
+  stepTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  hint: {
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginBottom: 16,
   },
   input: {
     borderWidth: 1,
@@ -326,6 +517,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
     marginBottom: 12,
+  },
+  codeInput: {
+    textAlign: 'center',
+    writingDirection: 'ltr',
+    fontSize: 22,
+    letterSpacing: 6,
+    fontWeight: '700',
   },
   forgotRow: {
     // flexDirection:row + justifyContent (not alignItems/alignSelf) is the
@@ -336,7 +534,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: -4,
   },
-  forgotText: {
+  resendRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 12,
+    marginTop: -2,
+  },
+  linkText: {
     fontSize: 13,
     fontWeight: '600',
   },

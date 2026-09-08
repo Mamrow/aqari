@@ -1,12 +1,13 @@
 -- Aqari — Supabase schema
 -- Run this once in your project's SQL Editor (Supabase dashboard → SQL Editor → New query → paste → Run).
 --
--- Auth note: real accounts now (phone + password, no SMS cost) — the phone
--- number is registered as a hidden internal email address under the hood
--- (see src/utils/phoneAuth.js), so Supabase Auth treats it as a normal
--- email/password account while the app only ever shows/collects the phone
--- number. auth.uid() is a real, stable per-account identity now, not an
--- anonymous session — RLS below enforces against it.
+-- Auth note: accounts are phone + password on Supabase's native phone
+-- provider. A one-time code (SMS or WhatsApp, delivered through Twilio —
+-- credentials live in the Supabase dashboard, never in the app) proves the
+-- number at sign-up and again for "forgot password"; day-to-day sign-in is
+-- password only, so the per-message cost stays off the common path. No email
+-- address is collected anywhere. auth.uid() is a real, stable per-account
+-- identity — RLS below enforces against it.
 
 create extension if not exists pgcrypto;
 
@@ -49,58 +50,6 @@ $$;
 
 grant execute on function public.am_i_admin() to anon, authenticated;
 
--- Looks up which real recovery email a phone number is registered under,
--- since profiles itself is locked to "own row only" (can't be queried by
--- phone with no session). Only ever called server-side now, by the
--- send-password-reset Edge Function (see supabase/functions) using the
--- service role — not exposed to anon/authenticated (see the revoke below),
--- since the client no longer needs to call it directly.
---
--- No caller identity to throttle against (this runs before anyone's signed
--- in), so private.password_reset_attempts tracks attempts per-phone
--- instead, in a schema PostgREST never exposes.
-create table if not exists private.password_reset_attempts (
-  phone text not null,
-  requested_at timestamptz not null default now()
-);
-
-alter table private.password_reset_attempts enable row level security;
-
-create or replace function public.get_reset_email_for_phone(p_phone text)
-returns text
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  recent_count int;
-  result_email text;
-begin
-  select count(*) into recent_count
-  from private.password_reset_attempts
-  where phone = p_phone and requested_at > now() - interval '15 minutes';
-
-  if recent_count >= 5 then
-    return null;
-  end if;
-
-  insert into private.password_reset_attempts (phone) values (p_phone);
-
-  select email into result_email from profiles where phone = p_phone;
-  return result_email;
-end;
-$$;
-
--- Deliberately NOT granted to anon/authenticated — service role (used by
--- the Edge Function) bypasses grants entirely, and the client has no
--- legitimate reason to call this directly anymore. Must revoke from PUBLIC
--- specifically, not just anon/authenticated — Postgres grants EXECUTE to
--- PUBLIC by default on a new function, and every role (including anon)
--- implicitly inherits whatever's granted to PUBLIC regardless of a
--- role-specific revoke. Confirmed the hard way: revoking from just
--- anon/authenticated first (not PUBLIC) did nothing — a live REST call to
--- the RPC as anon still returned a real email address afterward.
-revoke execute on function public.get_reset_email_for_phone(text) from public;
 
 create table if not exists listings (
   id uuid primary key default gen_random_uuid(),
@@ -169,9 +118,6 @@ create table if not exists profiles (
   phone text primary key,
   name text not null,
   avatar_url text,
-  -- Real email registered with Supabase Auth (phone converted to a hidden
-  -- internal address) — used only for "forgot password" reset emails.
-  email text,
   -- Fixed at signup, not switchable — 'admin' is separate (private.admins
   -- allowlist), not a value stored here.
   role text not null default 'buyer' check (role in ('buyer', 'agent')),
