@@ -106,7 +106,6 @@ const LIBYA_BOUNDS = { minLat: 19.5, maxLat: 33.2, minLon: 9.3, maxLon: 25.2 };
  * been narrowed without reading every line.
  */
 function FilterFacetRow({ label, value, active, colors, filterAccent, isRTL, onPress }) {
-  const textAlign = isRTL ? 'right' : 'left';
   return (
     <Pressable
       onPress={onPress}
@@ -119,12 +118,9 @@ function FilterFacetRow({ label, value, active, colors, filterAccent, isRTL, onP
       ]}
     >
       <View style={styles.facetTextBlock}>
-        <Text style={[styles.facetLabel, { color: colors.text, textAlign }]}>{label}</Text>
+        <Text style={[styles.facetLabel, { color: colors.text }]}>{label}</Text>
         <Text
-          style={[
-            styles.facetValue,
-            { color: active ? filterAccent : colors.textMuted, textAlign },
-          ]}
+          style={[styles.facetValue, { color: active ? filterAccent : colors.textMuted }]}
           numberOfLines={1}
         >
           {value}
@@ -187,7 +183,7 @@ function PriceRangeModal({ visible, onClose, minPrice, maxPrice, onApply, colors
       <Pressable style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]} onPress={onClose}>
         <Pressable style={[styles.pickerModalCard, { backgroundColor: colors.surface }]} onPress={() => {}}>
           <ModalCloseButton onPress={onClose} colors={colors} label={t('close')} isRTL={isRTL} />
-          <Text style={[styles.pickerModalTitle, { color: colors.text, textAlign: isRTL ? 'right' : 'left' }]}>
+          <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
             {t('priceFilterLabel')}
           </Text>
           <View style={styles.priceValueRow}>
@@ -329,7 +325,7 @@ export default function HomeMapScreen({ navigation }) {
     setCityFilter(key);
     setDistrictFilter('all');
     if (key === 'all') {
-      setLocationFilterVisible(false);
+      closePickerToSheet(setLocationFilterVisible);
       return;
     }
     const city = CITIES.find((item) => item.key === key);
@@ -339,12 +335,12 @@ export default function HomeMapScreen({ navigation }) {
     if (hasDistricts) {
       setLocationFilterStep('district');
     } else {
-      setLocationFilterVisible(false);
+      closePickerToSheet(setLocationFilterVisible);
     }
   };
   const handleDistrictFilterChange = (key) => {
     setDistrictFilter(key);
-    setLocationFilterVisible(false);
+    closePickerToSheet(setLocationFilterVisible);
     if (key === 'all') {
       // Back to the whole city rather than staying zoomed into whichever
       // district was showing.
@@ -360,6 +356,26 @@ export default function HomeMapScreen({ navigation }) {
   const [audienceFilter, setAudienceFilter] = useState('all');
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
   const [audiencePickerVisible, setAudiencePickerVisible] = useState(false);
+
+  // Opening a picker from the filter sheet has to CLOSE the sheet first.
+  // Presenting a Modal while another is still mounted leaves an invisible
+  // overlay behind: the picker never appears, and once the sheet is
+  // dismissed that ghost keeps swallowing every touch, so the map, the
+  // Filters button and everything else stop responding while the tab bar
+  // (outside the modal host) still works. The timeout lets the first modal
+  // finish unmounting before the second mounts — same frame is exactly the
+  // case that breaks.
+  const openPickerFromSheet = (setVisible) => {
+    setFilterSheetVisible(false);
+    setTimeout(() => setVisible(true), 0);
+  };
+
+  // ...and closing a picker returns to the sheet, so the menu behaves like a
+  // menu rather than dumping you back on the map after every choice.
+  const closePickerToSheet = (setVisible) => {
+    setVisible(false);
+    setTimeout(() => setFilterSheetVisible(true), 0);
+  };
   const [sortBy, setSortBy] = useState('featured');
   const [sortPickerVisible, setSortPickerVisible] = useState(false);
   // Real measured height of the floating topBar, not a hardcoded guess — the
@@ -723,8 +739,18 @@ export default function HomeMapScreen({ navigation }) {
         </View>
       )}
 
+      {/* Floating pills over the map, but an opaque header over the list —
+          otherwise cards scroll through the gaps between the search bar, the
+          segment and the Filters button, which reads as broken. */}
       <View
-        style={[styles.topBar, { top: insets.top + 12 }]}
+        style={[
+          styles.topBar,
+          { top: insets.top + 12 },
+          viewMode === 'list' && [
+            styles.topBarSolid,
+            { backgroundColor: colors.background, paddingTop: insets.top + 12 },
+          ],
+        ]}
         onLayout={(event) => setTopBarHeight(event.nativeEvent.layout.height)}
       >
         <SearchBar
@@ -800,7 +826,9 @@ export default function HomeMapScreen({ navigation }) {
         <Modal
           visible={filterSheetVisible}
           transparent
-          animationType="slide"
+          // No animation at all: the slide dragged the dimmed backdrop up
+          // with the card, so the whole screen visibly swept into place.
+          animationType="none"
           onRequestClose={() => setFilterSheetVisible(false)}
           statusBarTranslucent
           navigationBarTranslucent
@@ -823,7 +851,7 @@ export default function HomeMapScreen({ navigation }) {
                 style={[
                   styles.pickerModalTitle,
                   styles.filterSheetTitle,
-                  { color: colors.heading, borderBottomColor: colors.border, textAlign: isRTL ? 'right' : 'left' },
+                  { color: colors.heading, borderBottomColor: colors.border },
                 ]}
               >
                 {t('filtersLabel')}
@@ -837,7 +865,7 @@ export default function HomeMapScreen({ navigation }) {
                   colors={colors}
                   filterAccent={filterAccent}
                   isRTL={isRTL}
-                  onPress={() => setPropertyTypePickerVisible(true)}
+                  onPress={() => openPickerFromSheet(setPropertyTypePickerVisible)}
                 />
                 <FilterFacetRow
                   label={t('cityLabel')}
@@ -846,7 +874,10 @@ export default function HomeMapScreen({ navigation }) {
                   colors={colors}
                   filterAccent={filterAccent}
                   isRTL={isRTL}
-                  onPress={openLocationFilter}
+                  onPress={() => {
+                    setLocationFilterStep(cityFilter !== 'all' ? 'district' : 'city');
+                    openPickerFromSheet(setLocationFilterVisible);
+                  }}
                 />
                 <FilterFacetRow
                   label={t('priceFilterLabel')}
@@ -857,7 +888,7 @@ export default function HomeMapScreen({ navigation }) {
                   colors={colors}
                   filterAccent={filterAccent}
                   isRTL={isRTL}
-                  onPress={() => setPriceFilterVisible(true)}
+                  onPress={() => openPickerFromSheet(setPriceFilterVisible)}
                 />
                 {showAudienceFilter && (
                   <FilterFacetRow
@@ -871,7 +902,7 @@ export default function HomeMapScreen({ navigation }) {
                     colors={colors}
                     filterAccent={filterAccent}
                     isRTL={isRTL}
-                    onPress={() => setAudiencePickerVisible(true)}
+                    onPress={() => openPickerFromSheet(setAudiencePickerVisible)}
                   />
                 )}
                 {/* Map pin order isn't meaningful, so sorting is list-only. */}
@@ -883,7 +914,7 @@ export default function HomeMapScreen({ navigation }) {
                     colors={colors}
                     filterAccent={filterAccent}
                     isRTL={isRTL}
-                    onPress={() => setSortPickerVisible(true)}
+                    onPress={() => openPickerFromSheet(setSortPickerVisible)}
                   />
                 )}
               </ScrollView>
@@ -920,25 +951,25 @@ export default function HomeMapScreen({ navigation }) {
           visible={propertyTypePickerVisible}
           transparent
           animationType="fade"
-          onRequestClose={() => setPropertyTypePickerVisible(false)}
+          onRequestClose={() => closePickerToSheet(setPropertyTypePickerVisible)}
           statusBarTranslucent
           navigationBarTranslucent
         >
           <Pressable
             style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
-            onPress={() => setPropertyTypePickerVisible(false)}
+            onPress={() => closePickerToSheet(setPropertyTypePickerVisible)}
           >
             <Pressable
               style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
               onPress={() => {}}
             >
               <ModalCloseButton
-                onPress={() => setPropertyTypePickerVisible(false)}
+                onPress={() => closePickerToSheet(setPropertyTypePickerVisible)}
                 colors={colors}
                 label={t('close')}
                 isRTL={isRTL}
               />
-              <Text style={[styles.pickerModalTitle, { color: colors.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
                 {t('propertyTypeLabel')}
               </Text>
               <ScrollView>
@@ -966,7 +997,7 @@ export default function HomeMapScreen({ navigation }) {
                       <Text
                         style={[
                           styles.pickerOptionText,
-                          { color: active ? filterAccent : colors.text, textAlign: isRTL ? 'right' : 'left' },
+                          { color: active ? filterAccent : colors.text },
                           active && styles.pickerOptionTextActive,
                         ]}
                       >
@@ -979,7 +1010,7 @@ export default function HomeMapScreen({ navigation }) {
               </ScrollView>
               <Pressable
                 style={[styles.modalApplyButton, { backgroundColor: colors.accent }]}
-                onPress={() => setPropertyTypePickerVisible(false)}
+                onPress={() => closePickerToSheet(setPropertyTypePickerVisible)}
               >
                 <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
                   {t('applyFilter')}
@@ -991,7 +1022,7 @@ export default function HomeMapScreen({ navigation }) {
 
         <PriceRangeModal
           visible={priceFilterVisible}
-          onClose={() => setPriceFilterVisible(false)}
+          onClose={() => closePickerToSheet(setPriceFilterVisible)}
           minPrice={minPrice}
           maxPrice={maxPrice}
           onApply={(nextMin, nextMax) => {
@@ -1007,20 +1038,20 @@ export default function HomeMapScreen({ navigation }) {
           visible={locationFilterVisible}
           transparent
           animationType="fade"
-          onRequestClose={() => setLocationFilterVisible(false)}
+          onRequestClose={() => closePickerToSheet(setLocationFilterVisible)}
           statusBarTranslucent
           navigationBarTranslucent
         >
           <Pressable
             style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
-            onPress={() => setLocationFilterVisible(false)}
+            onPress={() => closePickerToSheet(setLocationFilterVisible)}
           >
             <Pressable
               style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
               onPress={() => {}}
             >
               <ModalCloseButton
-                onPress={() => setLocationFilterVisible(false)}
+                onPress={() => closePickerToSheet(setLocationFilterVisible)}
                 colors={colors}
                 label={t('close')}
                 isRTL={isRTL}
@@ -1041,7 +1072,7 @@ export default function HomeMapScreen({ navigation }) {
                     />
                   </Pressable>
                 )}
-                <Text style={[styles.pickerModalTitle, { color: colors.text, textAlign: isRTL ? 'right' : 'left' }]}>
+                <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
                   {locationFilterStep === 'city'
                     ? t('cityLabel')
                     : t(CITIES.find((item) => item.key === cityFilter)?.labelKey)}
@@ -1069,7 +1100,7 @@ export default function HomeMapScreen({ navigation }) {
                           <Text
                             style={[
                               styles.pickerOptionText,
-                              { color: active ? filterAccent : colors.text, textAlign: isRTL ? 'right' : 'left' },
+                              { color: active ? filterAccent : colors.text },
                               active && styles.pickerOptionTextActive,
                             ]}
                           >
@@ -1094,7 +1125,7 @@ export default function HomeMapScreen({ navigation }) {
                           <Text
                             style={[
                               styles.pickerOptionText,
-                              { color: active ? filterAccent : colors.text, textAlign: isRTL ? 'right' : 'left' },
+                              { color: active ? filterAccent : colors.text },
                               active && styles.pickerOptionTextActive,
                             ]}
                           >
@@ -1113,20 +1144,20 @@ export default function HomeMapScreen({ navigation }) {
           visible={audiencePickerVisible}
           transparent
           animationType="fade"
-          onRequestClose={() => setAudiencePickerVisible(false)}
+          onRequestClose={() => closePickerToSheet(setAudiencePickerVisible)}
           statusBarTranslucent
           navigationBarTranslucent
         >
           <Pressable
             style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
-            onPress={() => setAudiencePickerVisible(false)}
+            onPress={() => closePickerToSheet(setAudiencePickerVisible)}
           >
             <Pressable
               style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
               onPress={() => {}}
             >
               <ModalCloseButton
-                onPress={() => setAudiencePickerVisible(false)}
+                onPress={() => closePickerToSheet(setAudiencePickerVisible)}
                 colors={colors}
                 label={t('close')}
                 isRTL={isRTL}
@@ -1134,7 +1165,7 @@ export default function HomeMapScreen({ navigation }) {
               <Text
                 style={[
                   styles.pickerModalTitle,
-                  { color: colors.heading, borderBottomColor: colors.border, textAlign: isRTL ? 'right' : 'left' },
+                  { color: colors.heading, borderBottomColor: colors.border },
                 ]}
               >
                 {t('audienceLabel')}
@@ -1148,14 +1179,14 @@ export default function HomeMapScreen({ navigation }) {
                       key={option}
                       onPress={() => {
                         setAudienceFilter(option);
-                        setAudiencePickerVisible(false);
+                        closePickerToSheet(setAudiencePickerVisible);
                       }}
                       style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
                     >
                       <Text
                         style={[
                           styles.pickerOptionText,
-                          { color: active ? filterAccent : colors.text, textAlign: isRTL ? 'right' : 'left' },
+                          { color: active ? filterAccent : colors.text },
                           active && styles.pickerOptionTextActive,
                         ]}
                       >
@@ -1174,25 +1205,25 @@ export default function HomeMapScreen({ navigation }) {
           visible={sortPickerVisible}
           transparent
           animationType="fade"
-          onRequestClose={() => setSortPickerVisible(false)}
+          onRequestClose={() => closePickerToSheet(setSortPickerVisible)}
           statusBarTranslucent
           navigationBarTranslucent
         >
           <Pressable
             style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
-            onPress={() => setSortPickerVisible(false)}
+            onPress={() => closePickerToSheet(setSortPickerVisible)}
           >
             <Pressable
               style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
               onPress={() => {}}
             >
               <ModalCloseButton
-                onPress={() => setSortPickerVisible(false)}
+                onPress={() => closePickerToSheet(setSortPickerVisible)}
                 colors={colors}
                 label={t('close')}
                 isRTL={isRTL}
               />
-              <Text style={[styles.pickerModalTitle, { color: colors.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
                 {t('sortLabel')}
               </Text>
               <ScrollView>
@@ -1203,14 +1234,14 @@ export default function HomeMapScreen({ navigation }) {
                       key={option}
                       onPress={() => {
                         setSortBy(option);
-                        setSortPickerVisible(false);
+                        closePickerToSheet(setSortPickerVisible);
                       }}
                       style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
                     >
                       <Text
                         style={[
                           styles.pickerOptionText,
-                          { color: active ? filterAccent : colors.text, textAlign: isRTL ? 'right' : 'left' },
+                          { color: active ? filterAccent : colors.text },
                           active && styles.pickerOptionTextActive,
                         ]}
                       >
@@ -1324,6 +1355,10 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 12,
     gap: 10,
+    // Clears the floating map/list toggle (bottom: 30 plus its own height)
+    // and the tab bar under it — without this the last card is unreadable
+    // behind the button.
+    paddingBottom: 120,
   },
   featuredSectionHeader: {
     flexDirection: 'row',
@@ -1366,6 +1401,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     start: 16,
     end: 16,
+  },
+  // List view only: full-bleed and opaque, with its own top inset since it
+  // now starts at the very top of the screen rather than below it.
+  topBarSolid: {
+    start: 0,
+    end: 0,
+    top: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   searchBar: {
     marginBottom: 10,
@@ -1430,6 +1474,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    // Shrinks to its own width and sits at the writing-direction start, so
+    // the heading lands under the same edge as the rows beneath it.
+    alignSelf: 'flex-start',
   },
   filterSheetCard: {
     borderTopLeftRadius: 20,
@@ -1455,9 +1502,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  // See SettingsScreen's rowTextBlock: 'flex-start' is the writing-direction
+  // start and resolves the same on both platforms, where textAlign didn't.
   facetTextBlock: {
     flex: 1,
     gap: 3,
+    alignItems: 'flex-start',
   },
   facetLabel: {
     fontSize: 15,
@@ -1468,6 +1518,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filtersButton: {
+    // The segment row above has no bottom margin of its own, so this is what
+    // keeps the button off it.
+    marginTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',

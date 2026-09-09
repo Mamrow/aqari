@@ -43,13 +43,7 @@ export default function SettingsScreen({ navigation }) {
   const t = useT();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  // Explicit, not textAlign:'auto'. 'auto' is supposed to align from the
-  // text's own direction and does on Android — on iOS it resolves to left for
-  // Arabic, which left every label stranded away from its icon. The ternary is
-  // what the filter modals in HomeMapScreen already use, and those render
-  // correctly on both platforms.
   const isRTL = language === 'ar';
-  const textAlign = isRTL ? 'right' : 'left';
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -235,23 +229,19 @@ export default function SettingsScreen({ navigation }) {
             signed in as, then what you've got, then the settings themselves.
             The old screen opened with a "Settings" title and a large card,
             which pushed the account's own name below the fold. */}
+        {auth.loggedIn && (
         <View style={styles.profileHeader}>
-          <Pressable
-            onPress={auth.loggedIn ? handlePickAvatar : () => requireAuth(() => {})}
-            style={styles.avatarWrapper}
-          >
+          <Pressable onPress={handlePickAvatar} style={styles.avatarWrapper}>
             <Avatar uri={auth.avatarUrl} name={auth.name} size={64} colors={colors} />
-            {auth.loggedIn && (
-              <View
-                style={[styles.editBadge, { backgroundColor: colors.accent, borderColor: colors.background }]}
-              >
-                {avatarUploading ? (
-                  <ActivityIndicator size="small" color={colors.accentText} />
-                ) : (
-                  <Ionicons name="camera" size={12} color={colors.accentText} />
-                )}
-              </View>
-            )}
+            <View
+              style={[styles.editBadge, { backgroundColor: colors.accent, borderColor: colors.background }]}
+            >
+              {avatarUploading ? (
+                <ActivityIndicator size="small" color={colors.accentText} />
+              ) : (
+                <Ionicons name="camera" size={12} color={colors.accentText} />
+              )}
+            </View>
           </Pressable>
 
           <View style={styles.profileText}>
@@ -276,41 +266,52 @@ export default function SettingsScreen({ navigation }) {
                   </View>
                 ) : (
                   <Pressable onPress={startEditingName} style={styles.nameRow} hitSlop={6}>
-                    <Text style={[styles.name, { color: colors.heading, textAlign }]} numberOfLines={1}>
+                    <Text style={[styles.name, { color: colors.heading }]} numberOfLines={1}>
                       {auth.name}
                     </Text>
                     <Ionicons name="pencil" size={13} color={colors.textMuted} />
                   </Pressable>
                 )}
                 {/* Phone numbers read left-to-right in both languages. */}
-                <Text style={[styles.phone, { color: colors.textMuted, textAlign }]}>{auth.phone}</Text>
+                <Text style={[styles.phone, { color: colors.textMuted }]}>{auth.phone}</Text>
                 {isAdmin && (
                   <View style={[styles.roleBadge, { backgroundColor: colors.surface }]}>
                     <Text style={[styles.roleBadgeText, { color: colors.accent }]}>{t('roleAdmin')}</Text>
                   </View>
                 )}
               </>
-            ) : (
-              <>
-                <Text style={[styles.name, { color: colors.heading, textAlign }]}>{t('settingsHeading')}</Text>
-                <Text style={[styles.phone, { color: colors.textMuted, textAlign }]}>{t('signInPrompt')}</Text>
-              </>
-            )}
+            ) : null}
           </View>
         </View>
+        )}
 
+        {/* Signed out, the screen led with an empty avatar and the word
+            "Settings" — an account area with no account in it. A guest gets
+            an invitation instead, which is also the only thing on this screen
+            they can act on. */}
         {!auth.loggedIn && (
-          <Pressable
-            style={({ pressed }) => [
-              styles.signInButton,
-              { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 },
-            ]}
-            onPress={() => requireAuth(() => {})}
-          >
-            <Text style={[styles.signInButtonText, { color: colors.accentText }]}>
-              {t('signInButton')}
+          <View style={[styles.guestCard, { backgroundColor: colors.surface }]}>
+            <View style={[styles.guestArt, { backgroundColor: `${colors.accent}18` }]}>
+              <Ionicons name="home" size={40} color={colors.accent} />
+            </View>
+            <Text style={[styles.guestTitle, { color: colors.heading }]}>
+              {t('guestWelcomeTitle')}
             </Text>
-          </Pressable>
+            <Text style={[styles.guestBody, { color: colors.textMuted }]}>
+              {t('guestWelcomeBody')}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.signInButton,
+                { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 },
+              ]}
+              onPress={() => requireAuth(() => {})}
+            >
+              <Text style={[styles.signInButtonText, { color: colors.accentText }]}>
+                {t('guestWelcomeButton')}
+              </Text>
+            </Pressable>
+          </View>
         )}
 
         {auth.loggedIn && !isAdmin && (
@@ -334,12 +335,11 @@ export default function SettingsScreen({ navigation }) {
           </View>
         )}
 
-        <SectionHeading textAlign={textAlign} label={t('accountSettingsLabel')} colors={colors} />
+        <SectionHeading label={t('accountSettingsLabel')} colors={colors} />
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {auth.loggedIn && (
             <Row
-              textAlign={textAlign}
-              icon="person-circle-outline"
+                icon="person-circle-outline"
               label={t('personalInfoRow')}
               subtitle={t('personalInfoRowSubtitle')}
               colors={colors}
@@ -348,7 +348,6 @@ export default function SettingsScreen({ navigation }) {
           )}
 
           <Row
-            textAlign={textAlign}
             icon="settings-outline"
             label={t('languageDisplayRow')}
             subtitle={displayOpen ? undefined : `${languageOptions.find((o) => o.value === language)?.label}`}
@@ -359,7 +358,7 @@ export default function SettingsScreen({ navigation }) {
           />
           {displayOpen && (
             <View style={styles.expanded}>
-              <Text style={[styles.subLabel, { color: colors.textMuted, textAlign }]}>{t('languageLabel')}</Text>
+              <Text style={[styles.subLabel, { color: colors.textMuted }]}>{t('languageLabel')}</Text>
               <View style={styles.chipRow}>
                 {languageOptions.map((option) => (
                   <Chip
@@ -372,7 +371,7 @@ export default function SettingsScreen({ navigation }) {
                 ))}
               </View>
 
-              <Text style={[styles.subLabel, styles.subLabelSpacing, { color: colors.textMuted, textAlign }]}>
+              <Text style={[styles.subLabel, styles.subLabelSpacing, { color: colors.textMuted }]}>
                 {t('themeLabel')}
               </Text>
               <View style={styles.chipRow}>
@@ -434,8 +433,7 @@ export default function SettingsScreen({ navigation }) {
 
           {auth.loggedIn && !isAdmin && (
             <Row
-              textAlign={textAlign}
-              icon="person-remove-outline"
+                icon="person-remove-outline"
               label={t('blockedSellersRow')}
               subtitle={t('blockedSellersRowSubtitle')}
               colors={colors}
@@ -446,8 +444,7 @@ export default function SettingsScreen({ navigation }) {
 
           {auth.loggedIn && !isAdmin && BOOST_PURCHASES_ENABLED && (
             <Row
-              textAlign={textAlign}
-              icon="card-outline"
+                icon="card-outline"
               label={t('paymentHistoryRow')}
               subtitle={t('paymentHistoryRowSubtitle')}
               colors={colors}
@@ -457,17 +454,15 @@ export default function SettingsScreen({ navigation }) {
           )}
         </View>
 
-        <SectionHeading textAlign={textAlign} label={t('aboutAqariLabel')} colors={colors} />
+        <SectionHeading label={t('aboutAqariLabel')} colors={colors} />
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Row
-            textAlign={textAlign}
             icon="create-outline"
             label={t('feedbackRow')}
             colors={colors}
             onPress={() => navigation.navigate('Support')}
           />
           <Row
-            textAlign={textAlign}
             icon="reader-outline"
             label={t('termsOfServiceRow')}
             colors={colors}
@@ -475,7 +470,6 @@ export default function SettingsScreen({ navigation }) {
             onPress={() => navigation.navigate('TermsOfService')}
           />
           <Row
-            textAlign={textAlign}
             icon="document-text-outline"
             label={t('privacyPolicyRow')}
             colors={colors}
@@ -483,7 +477,6 @@ export default function SettingsScreen({ navigation }) {
             onPress={() => navigation.navigate('PrivacyPolicy')}
           />
           <Row
-            textAlign={textAlign}
             icon="sparkles-outline"
             label={t('howItWorksRow')}
             colors={colors}
@@ -491,7 +484,6 @@ export default function SettingsScreen({ navigation }) {
             onPress={replayOnboarding}
           />
           <Row
-            textAlign={textAlign}
             icon="information-circle-outline"
             label={t('aboutAppRow')}
             colors={colors}
@@ -500,7 +492,6 @@ export default function SettingsScreen({ navigation }) {
             chevron={null}
           />
           <Row
-            textAlign={textAlign}
             icon="star-outline"
             label={t('rateUsRow')}
             colors={colors}
@@ -537,12 +528,10 @@ export default function SettingsScreen({ navigation }) {
  * One settings row: icon, label, optional subtitle, and either a value or a
  * chevron on the trailing side.
  *
- * textAlign:'auto' throughout rather than a physical left/right — the label
- * then follows the direction of its own text, which is the one behaviour both
- * platforms agree on. Hardcoding 'left' left Arabic labels stranded away from
- * their icon on iOS.
+ * No textAlign anywhere: the label shrinks to its content and the row's
+ * layout puts it at the writing-direction start. See rowTextBlock.
  */
-function Row({ icon, label, subtitle, value, colors, textAlign, onPress, divider, chevron = 'chevron-forward' }) {
+function Row({ icon, label, subtitle, value, colors, onPress, divider, chevron = 'chevron-forward' }) {
   return (
     <Pressable
       onPress={onPress}
@@ -559,9 +548,9 @@ function Row({ icon, label, subtitle, value, colors, textAlign, onPress, divider
         <Ionicons name={icon} size={18} color={colors.accent} />
       </View>
       <View style={styles.rowTextBlock}>
-        <Text style={[styles.rowLabel, { color: colors.text, textAlign }]}>{label}</Text>
+        <Text style={[styles.rowLabel, { color: colors.text }]}>{label}</Text>
         {subtitle ? (
-          <Text style={[styles.rowSubtitle, { color: colors.textMuted, textAlign }]}>{subtitle}</Text>
+          <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>{subtitle}</Text>
         ) : null}
       </View>
       {value ? <Text style={[styles.rowValue, { color: colors.textMuted }]}>{value}</Text> : null}
@@ -594,8 +583,8 @@ function StatTile({ icon, tint, count, label, colors, onPress }) {
   );
 }
 
-function SectionHeading({ label, colors, textAlign }) {
-  return <Text style={[styles.sectionLabel, { color: colors.heading, textAlign }]}>{label}</Text>;
+function SectionHeading({ label, colors }) {
+  return <Text style={[styles.sectionLabel, { color: colors.heading }]}>{label}</Text>;
 }
 
 function Chip({ label, active, colors, onPress }) {
@@ -654,6 +643,7 @@ const styles = StyleSheet.create({
   profileText: {
     flex: 1,
     gap: 2,
+    alignItems: 'flex-start',
   },
   nameRow: {
     flexDirection: 'row',
@@ -693,10 +683,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   signInButton: {
+    alignSelf: 'stretch',
     borderRadius: 12,
     paddingVertical: 13,
     alignItems: 'center',
-    marginBottom: 20,
+  },
+  guestCard: {
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 26,
+  },
+  guestArt: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  guestTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  guestBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginBottom: 8,
   },
   signInButtonText: {
     fontWeight: '700',
@@ -741,6 +757,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     marginBottom: 10,
+    alignSelf: 'flex-start',
   },
   card: {
     borderRadius: 16,
@@ -768,9 +785,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // 'flex-start' is the *writing-direction* start in Yoga, resolved once and
+  // identically on both platforms — which textAlign is not. Explicit
+  // textAlign:'right' came out left on iOS here, and textAlign:'auto' came
+  // out left too; letting the label shrink to its content and sit at the
+  // start of the row sidesteps the whole question.
   rowTextBlock: {
     flex: 1,
     gap: 2,
+    alignItems: 'flex-start',
   },
   rowLabel: {
     fontSize: 15,
