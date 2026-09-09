@@ -105,6 +105,30 @@ const LIBYA_BOUNDS = { minLat: 19.5, maxLat: 33.2, minLon: 9.3, maxLon: 25.2 };
  * choice rather than the default, so a glance down the sheet shows what's
  * been narrowed without reading every line.
  */
+/** A single selectable option — property type, city, district, sort, audience. */
+function OptionRow({ label, active, colors, filterAccent, onPress }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
+    >
+      <Text
+        style={[
+          styles.pickerOptionText,
+          { color: active ? filterAccent : colors.text },
+          active && styles.pickerOptionTextActive,
+        ]}
+      >
+        {label}
+      </Text>
+      {active && <Ionicons name="checkmark" size={18} color={filterAccent} />}
+    </Pressable>
+  );
+}
+
 function FilterFacetRow({ label, value, active, colors, filterAccent, isRTL, onPress }) {
   return (
     <Pressable
@@ -158,96 +182,84 @@ function ModalCloseButton({ onPress, colors, label, isRTL }) {
 // component's own state means dragging never touches HomeMapScreen at all;
 // the real minPrice/maxPrice only updates once, via onApply, when the user
 // actually confirms.
-function PriceRangeModal({ visible, onClose, minPrice, maxPrice, onApply, colors, t, isRTL }) {
+/**
+ * Price range as a section of the filter sheet rather than its own modal.
+ * Keeps a draft while you drag, so the map isn't re-filtering on every
+ * intermediate value, and commits when Apply is pressed.
+ */
+function PriceRangeSection({ minPrice, maxPrice, onApply, colors, t }) {
   const [draftMin, setDraftMin] = useState(minPrice);
   const [draftMax, setDraftMax] = useState(maxPrice);
 
-  // Re-sync the draft to the committed values on every open — covers both a
-  // fresh open and a Clear that happened while this modal stayed mounted.
+  // Re-sync when the committed values change under us — a Clear from the menu
+  // page happens while this section is still mounted.
   useEffect(() => {
-    if (visible) {
-      setDraftMin(minPrice);
-      setDraftMax(maxPrice);
-    }
-  }, [visible, minPrice, maxPrice]);
+    setDraftMin(minPrice);
+    setDraftMax(maxPrice);
+  }, [minPrice, maxPrice]);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-      statusBarTranslucent
-      navigationBarTranslucent
-    >
-      <Pressable style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]} onPress={onClose}>
-        <Pressable style={[styles.pickerModalCard, { backgroundColor: colors.surface }]} onPress={() => {}}>
-          <ModalCloseButton onPress={onClose} colors={colors} label={t('close')} isRTL={isRTL} />
-          <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
-            {t('priceFilterLabel')}
+    <View>
+        <View style={styles.priceValueRow}>
+          <Text style={[styles.priceValueText, { color: colors.text }]}>
+            {draftMin.toLocaleString('en-US')}
           </Text>
-          <View style={styles.priceValueRow}>
-            <Text style={[styles.priceValueText, { color: colors.text }]}>
-              {draftMin.toLocaleString('en-US')}
+          <Text style={[styles.priceInputSeparator, { color: colors.textMuted }]}>—</Text>
+          <Text style={[styles.priceValueText, { color: colors.text }]}>
+            {draftMax >= PRICE_MAX ? `${PRICE_MAX.toLocaleString('en-US')}+` : draftMax.toLocaleString('en-US')}
+          </Text>
+        </View>
+        <View style={styles.priceSliderWrap}>
+          <MultiSlider
+            values={[draftMin, draftMax]}
+            min={PRICE_MIN}
+            max={PRICE_MAX}
+            step={PRICE_STEP}
+            sliderLength={SLIDER_WIDTH}
+            onValuesChange={([nextMin, nextMax]) => {
+              setDraftMin(nextMin);
+              setDraftMax(nextMax);
+            }}
+            allowOverlap={false}
+            snapped
+            selectedStyle={{ backgroundColor: colors.accent }}
+            unselectedStyle={{ backgroundColor: colors.inputBorder }}
+            markerStyle={{
+              backgroundColor: colors.accent,
+              borderWidth: 0,
+              height: 22,
+              width: 22,
+            }}
+            pressedMarkerStyle={{ height: 26, width: 26 }}
+            containerStyle={styles.priceSliderContainer}
+            trackStyle={styles.priceSliderTrack}
+          />
+        </View>
+        <View style={styles.priceButtonRow}>
+          <Pressable
+            style={[styles.priceClearButton, { borderColor: colors.inputBorder }]}
+            onPress={() => {
+              setDraftMin(PRICE_MIN);
+              setDraftMax(PRICE_MAX);
+            }}
+          >
+            <Text style={[styles.priceClearButtonText, { color: colors.textMuted }]}>
+              {t('clearFilter')}
             </Text>
-            <Text style={[styles.priceInputSeparator, { color: colors.textMuted }]}>—</Text>
-            <Text style={[styles.priceValueText, { color: colors.text }]}>
-              {draftMax >= PRICE_MAX ? `${PRICE_MAX.toLocaleString('en-US')}+` : draftMax.toLocaleString('en-US')}
+          </Pressable>
+          <Pressable
+            style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
+            onPress={() => {
+              onApply(draftMin, draftMax);
+              onClose();
+            }}
+          >
+            <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
+              {t('applyFilter')}
             </Text>
-          </View>
-          <View style={styles.priceSliderWrap}>
-            <MultiSlider
-              values={[draftMin, draftMax]}
-              min={PRICE_MIN}
-              max={PRICE_MAX}
-              step={PRICE_STEP}
-              sliderLength={SLIDER_WIDTH}
-              onValuesChange={([nextMin, nextMax]) => {
-                setDraftMin(nextMin);
-                setDraftMax(nextMax);
-              }}
-              allowOverlap={false}
-              snapped
-              selectedStyle={{ backgroundColor: colors.accent }}
-              unselectedStyle={{ backgroundColor: colors.inputBorder }}
-              markerStyle={{
-                backgroundColor: colors.accent,
-                borderWidth: 0,
-                height: 22,
-                width: 22,
-              }}
-              pressedMarkerStyle={{ height: 26, width: 26 }}
-              containerStyle={styles.priceSliderContainer}
-              trackStyle={styles.priceSliderTrack}
-            />
-          </View>
-          <View style={styles.priceButtonRow}>
-            <Pressable
-              style={[styles.priceClearButton, { borderColor: colors.inputBorder }]}
-              onPress={() => {
-                setDraftMin(PRICE_MIN);
-                setDraftMax(PRICE_MAX);
-              }}
-            >
-              <Text style={[styles.priceClearButtonText, { color: colors.textMuted }]}>
-                {t('clearFilter')}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
-              onPress={() => {
-                onApply(draftMin, draftMax);
-                onClose();
-              }}
-            >
-              <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
-                {t('applyFilter')}
-              </Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+          </Pressable>
+        </View>
+    </View>
   );
 }
 
@@ -287,21 +299,18 @@ export default function HomeMapScreen({ navigation }) {
   const [selectedId, setSelectedId] = useState(null);
   const [listingType, setListingType] = useState('sale');
   const [selectedPropertyTypes, setSelectedPropertyTypes] = useState([]);
-  const [propertyTypePickerVisible, setPropertyTypePickerVisible] = useState(false);
   // Numeric, not string state — the price filter is a drag-only slider now,
   // there's no typed digit input to normalize with toEnglishDigits anymore.
   // PRICE_MIN/PRICE_MAX at the ends of the range mean "no bound", same as
   // the old empty-string min/max did.
   const [minPrice, setMinPrice] = useState(PRICE_MIN);
   const [maxPrice, setMaxPrice] = useState(PRICE_MAX);
-  const [priceFilterVisible, setPriceFilterVisible] = useState(false);
   const [cityFilter, setCityFilter] = useState('all');
   const [districtFilter, setDistrictFilter] = useState('all');
   // One combined modal instead of two separate popups: picking a city moves
   // to the district step in the same modal (rather than closing it), so
   // choosing a location reads as one continuous menu — "all of this city"
   // is just the first option of that second step, not a whole separate pill.
-  const [locationFilterVisible, setLocationFilterVisible] = useState(false);
   const [locationFilterStep, setLocationFilterStep] = useState('city'); // 'city' | 'district'
   // Reopening with a city already picked lands back on that city's
   // district step, not the top-level city list — changing your mind about
@@ -325,7 +334,7 @@ export default function HomeMapScreen({ navigation }) {
     setCityFilter(key);
     setDistrictFilter('all');
     if (key === 'all') {
-      closePickerToSheet(setLocationFilterVisible);
+      setSheetPage('menu');
       return;
     }
     const city = CITIES.find((item) => item.key === key);
@@ -335,12 +344,12 @@ export default function HomeMapScreen({ navigation }) {
     if (hasDistricts) {
       setLocationFilterStep('district');
     } else {
-      closePickerToSheet(setLocationFilterVisible);
+      setSheetPage('menu');
     }
   };
   const handleDistrictFilterChange = (key) => {
     setDistrictFilter(key);
-    closePickerToSheet(setLocationFilterVisible);
+    setSheetPage('menu');
     if (key === 'all') {
       // Back to the whole city rather than staying zoomed into whichever
       // district was showing.
@@ -355,29 +364,28 @@ export default function HomeMapScreen({ navigation }) {
   };
   const [audienceFilter, setAudienceFilter] = useState('all');
   const [filterSheetVisible, setFilterSheetVisible] = useState(false);
-  const [audiencePickerVisible, setAudiencePickerVisible] = useState(false);
+  // Which page of the sheet is showing. One modal, several pages — see the
+  // sheet's own comment for why it isn't one modal per facet.
+  const [sheetPage, setSheetPage] = useState('menu');
 
-  // Opening a picker from the filter sheet has to CLOSE the sheet first.
-  // Presenting a Modal while another is still mounted leaves an invisible
-  // overlay behind: the picker never appears, and once the sheet is
-  // dismissed that ghost keeps swallowing every touch, so the map, the
-  // Filters button and everything else stop responding while the tab bar
-  // (outside the modal host) still works. The timeout lets the first modal
-  // finish unmounting before the second mounts — same frame is exactly the
-  // case that breaks.
-  const openPickerFromSheet = (setVisible) => {
+  const closeFilterSheet = () => {
     setFilterSheetVisible(false);
-    setTimeout(() => setVisible(true), 0);
+    // Reset on the way out, not on the way in: reopening should land on the
+    // menu, but resetting on open would fight the page you just navigated to.
+    setSheetPage('menu');
   };
 
-  // ...and closing a picker returns to the sheet, so the menu behaves like a
-  // menu rather than dumping you back on the map after every choice.
-  const closePickerToSheet = (setVisible) => {
-    setVisible(false);
-    setTimeout(() => setFilterSheetVisible(true), 0);
+  // Back goes city-list-ward first when you're deep in the location drill,
+  // then to the menu — the same shape as a nav stack.
+  const goBackInSheet = () => {
+    if (sheetPage === 'location' && locationFilterStep === 'district') {
+      setLocationFilterStep('city');
+      return;
+    }
+    setSheetPage('menu');
   };
+
   const [sortBy, setSortBy] = useState('featured');
-  const [sortPickerVisible, setSortPickerVisible] = useState(false);
   // Real measured height of the floating topBar, not a hardcoded guess — the
   // filter pill row's actual height varies (wraps to a second line once a
   // long-enough label like "Price: Low to High" no longer fits, vs. staying
@@ -388,6 +396,10 @@ export default function HomeMapScreen({ navigation }) {
   // "brief flash while it settles" tradeoff already accepted elsewhere on
   // this screen (e.g. the captured price-pin images).
   const [topBarHeight, setTopBarHeight] = useState(0);
+  // Measured separately from the whole bar: in list view the opaque header
+  // stops after the segment, and the list starts right under it, with the
+  // Filters button floating over the cards.
+  const [listHeaderHeight, setListHeaderHeight] = useState(0);
   const districtsForCityFilter =
     cityFilter === 'all' ? [] : [...DISTRICTS.filter((item) => item.city === cityFilter)].sort(localeSort);
   const [searchQuery, setSearchQuery] = useState('');
@@ -453,6 +465,18 @@ export default function HomeMapScreen({ navigation }) {
     (minPrice > PRICE_MIN || maxPrice < PRICE_MAX ? 1 : 0) +
     (showAudienceFilter && audienceFilter !== 'all' ? 1 : 0) +
     (viewMode === 'list' && sortBy !== 'featured' ? 1 : 0);
+
+  const sheetTitle = {
+    menu: t('filtersLabel'),
+    propertyType: t('propertyTypeLabel'),
+    location:
+      locationFilterStep === 'district'
+        ? t(CITIES.find((item) => item.key === cityFilter)?.labelKey ?? 'cityLabel')
+        : t('cityLabel'),
+    price: t('priceFilterLabel'),
+    audience: t('audienceLabel'),
+    sort: t('sortLabel'),
+  }[sheetPage];
 
   const clearAllFilters = () => {
     setSelectedPropertyTypes([]);
@@ -661,6 +685,11 @@ export default function HomeMapScreen({ navigation }) {
   // magic number tuned for whatever the filter row happened to look like at
   // the time.
   const contentTopOffset = insets.top + 12 + topBarHeight + 16;
+  // The list's own offset stops at the bottom of the opaque header — its
+  // measured height already includes the top inset, since in list view the
+  // header starts at the very top of the screen. Anything more leaves a band
+  // of empty background between the header and the first card.
+  const listTopOffset = listHeaderHeight + 8;
 
   if (dataLoading) {
     return <LoadingView />;
@@ -690,7 +719,7 @@ export default function HomeMapScreen({ navigation }) {
           colors={colors}
         />
       ) : filteredListings.length === 0 ? (
-        <View style={[styles.listEmptyContainer, { paddingTop: contentTopOffset }]}>
+        <View style={[styles.listEmptyContainer, { paddingTop: listTopOffset }]}>
           <PlaceholderScreen
             icon="search-outline"
             title={t('homeEmptyTitle')}
@@ -703,7 +732,7 @@ export default function HomeMapScreen({ navigation }) {
           keyExtractor={(item) => item.id}
           contentContainerStyle={[
             styles.listContent,
-            { paddingTop: contentTopOffset },
+            { paddingTop: listTopOffset },
           ]}
           // filteredListings is already sorted featured-first — this just
           // labels that leading run, right under the filter row above.
@@ -739,20 +768,24 @@ export default function HomeMapScreen({ navigation }) {
         </View>
       )}
 
-      {/* Floating pills over the map, but an opaque header over the list —
-          otherwise cards scroll through the gaps between the search bar, the
-          segment and the Filters button, which reads as broken. */}
+      {/* Floating pills over the map. Over the list, the search bar and the
+          For Sale/For Rent segment become an opaque header — otherwise cards
+          scroll through the gaps between them — but only those two: the
+          Filters button below stays transparent and the cards pass under it,
+          the same as on the map. */}
       <View
-        style={[
-          styles.topBar,
-          { top: insets.top + 12 },
-          viewMode === 'list' && [
-            styles.topBarSolid,
-            { backgroundColor: colors.background, paddingTop: insets.top + 12 },
-          ],
-        ]}
+        style={[styles.topBar, { top: viewMode === 'list' ? 0 : insets.top + 12 }]}
         onLayout={(event) => setTopBarHeight(event.nativeEvent.layout.height)}
       >
+        <View
+          style={
+            viewMode === 'list' && [
+              styles.listHeaderSolid,
+              { backgroundColor: colors.background, paddingTop: insets.top + 12 },
+            ]
+          }
+          onLayout={(event) => setListHeaderHeight(event.nativeEvent.layout.height)}
+        >
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -786,6 +819,7 @@ export default function HomeMapScreen({ navigation }) {
             );
           })}
         </View>
+        </View>
 
         {/* One button instead of a row of pills. The pills scrolled
             horizontally, which hid whichever filters didn't fit — worst in
@@ -818,440 +852,286 @@ export default function HomeMapScreen({ navigation }) {
         </Pressable>
 
 
-        {/* The menu itself: one row per facet, each showing what it's
-            currently set to and opening the existing picker on top. Rows
-            rather than everything inline, so the sheet stays scannable as
-            filters get added — and so the audience filter, which only exists
-            for chalet rentals, can appear without reflowing a chip row. */}
+        {/* One modal, several pages. Each facet used to be its own Modal
+            opened from this one, so a facet tap had to close the sheet and
+            open another modal — visibly: sheet out, map for a beat, picker
+            in. Swapping this sheet's own content instead makes that a page
+            change with nothing to unmount, so it lands instantly, and it
+            makes stacking two modals structurally impossible rather than
+            merely avoided. */}
         <Modal
           visible={filterSheetVisible}
           transparent
           // No animation at all: the slide dragged the dimmed backdrop up
           // with the card, so the whole screen visibly swept into place.
           animationType="none"
-          onRequestClose={() => setFilterSheetVisible(false)}
+          onRequestClose={closeFilterSheet}
           statusBarTranslucent
           navigationBarTranslucent
         >
           <Pressable
             style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
-            onPress={() => setFilterSheetVisible(false)}
+            onPress={closeFilterSheet}
           >
             <Pressable
               style={[styles.filterSheetCard, { backgroundColor: colors.surface }]}
               onPress={() => {}}
             >
               <ModalCloseButton
-                onPress={() => setFilterSheetVisible(false)}
+                onPress={closeFilterSheet}
                 colors={colors}
                 label={t('close')}
                 isRTL={isRTL}
               />
-              <Text
-                style={[
-                  styles.pickerModalTitle,
-                  styles.filterSheetTitle,
-                  { color: colors.heading, borderBottomColor: colors.border },
-                ]}
-              >
-                {t('filtersLabel')}
-              </Text>
 
-              <ScrollView>
-                <FilterFacetRow
-                  label={t('propertyTypeLabel')}
-                  value={selectedPropertyTypes.length > 0 ? propertyTypeSummary : t('allFilter')}
-                  active={selectedPropertyTypes.length > 0}
-                  colors={colors}
-                  filterAccent={filterAccent}
-                  isRTL={isRTL}
-                  onPress={() => openPickerFromSheet(setPropertyTypePickerVisible)}
-                />
-                <FilterFacetRow
-                  label={t('cityLabel')}
-                  value={cityFilter === 'all' ? t('allCitiesFilter') : locationSummary}
-                  active={cityFilter !== 'all'}
-                  colors={colors}
-                  filterAccent={filterAccent}
-                  isRTL={isRTL}
-                  onPress={() => {
-                    setLocationFilterStep(cityFilter !== 'all' ? 'district' : 'city');
-                    openPickerFromSheet(setLocationFilterVisible);
-                  }}
-                />
-                <FilterFacetRow
-                  label={t('priceFilterLabel')}
-                  value={
-                    minPrice > PRICE_MIN || maxPrice < PRICE_MAX ? priceSummary : t('allFilter')
-                  }
-                  active={minPrice > PRICE_MIN || maxPrice < PRICE_MAX}
-                  colors={colors}
-                  filterAccent={filterAccent}
-                  isRTL={isRTL}
-                  onPress={() => openPickerFromSheet(setPriceFilterVisible)}
-                />
-                {showAudienceFilter && (
-                  <FilterFacetRow
-                    label={t('audienceLabel')}
-                    value={
-                      audienceFilter === 'all'
-                        ? t('allFilter')
-                        : t(AUDIENCE_LABEL_KEYS[audienceFilter])
-                    }
-                    active={audienceFilter !== 'all'}
-                    colors={colors}
-                    filterAccent={filterAccent}
-                    isRTL={isRTL}
-                    onPress={() => openPickerFromSheet(setAudiencePickerVisible)}
-                  />
-                )}
-                {/* Map pin order isn't meaningful, so sorting is list-only. */}
-                {viewMode === 'list' && (
-                  <FilterFacetRow
-                    label={t('sortLabel')}
-                    value={sortSummary}
-                    active={sortBy !== 'featured'}
-                    colors={colors}
-                    filterAccent={filterAccent}
-                    isRTL={isRTL}
-                    onPress={() => openPickerFromSheet(setSortPickerVisible)}
-                  />
-                )}
-              </ScrollView>
-
-              <View style={styles.filterSheetFooter}>
-                <Pressable
-                  style={[styles.priceClearButton, { borderColor: colors.inputBorder }]}
-                  onPress={clearAllFilters}
-                  disabled={activeFilterCount === 0}
-                >
-                  <Text
-                    style={[
-                      styles.priceClearButtonText,
-                      { color: activeFilterCount === 0 ? colors.disabled : colors.textMuted },
-                    ]}
-                  >
-                    {t('clearFilter')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
-                  onPress={() => setFilterSheetVisible(false)}
-                >
-                  <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
-                    {t('showResults')}
-                  </Text>
-                </Pressable>
-              </View>
-            </Pressable>
-          </Pressable>
-        </Modal>
-
-        <Modal
-          visible={propertyTypePickerVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => closePickerToSheet(setPropertyTypePickerVisible)}
-          statusBarTranslucent
-          navigationBarTranslucent
-        >
-          <Pressable
-            style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
-            onPress={() => closePickerToSheet(setPropertyTypePickerVisible)}
-          >
-            <Pressable
-              style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
-              onPress={() => {}}
-            >
-              <ModalCloseButton
-                onPress={() => closePickerToSheet(setPropertyTypePickerVisible)}
-                colors={colors}
-                label={t('close')}
-                isRTL={isRTL}
-              />
-              <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
-                {t('propertyTypeLabel')}
-              </Text>
-              <ScrollView>
-                {['all', ...PROPERTY_TYPES].map((type) => {
-                  const active = type === 'all'
-                    ? selectedPropertyTypes.length === 0
-                    : selectedPropertyTypes.includes(type);
-                  const label = type === 'all' ? t('allFilter') : t(PROPERTY_TYPE_LABEL_KEYS[type]);
-                  return (
-                    <Pressable
-                      key={type}
-                      onPress={() => {
-                        if (type === 'all') {
-                          setSelectedPropertyTypes([]);
-                          return;
-                        }
-                        setSelectedPropertyTypes((previous) =>
-                          previous.includes(type)
-                            ? previous.filter((value) => value !== type)
-                            : [...previous, type]
-                        );
-                      }}
-                      style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
-                    >
-                      <Text
-                        style={[
-                          styles.pickerOptionText,
-                          { color: active ? filterAccent : colors.text },
-                          active && styles.pickerOptionTextActive,
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                      {active && <Ionicons name="checkmark" size={18} color={filterAccent} />}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-              <Pressable
-                style={[styles.modalApplyButton, { backgroundColor: colors.accent }]}
-                onPress={() => closePickerToSheet(setPropertyTypePickerVisible)}
-              >
-                <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
-                  {t('applyFilter')}
-                </Text>
-              </Pressable>
-            </Pressable>
-          </Pressable>
-        </Modal>
-
-        <PriceRangeModal
-          visible={priceFilterVisible}
-          onClose={() => closePickerToSheet(setPriceFilterVisible)}
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          onApply={(nextMin, nextMax) => {
-            setMinPrice(nextMin);
-            setMaxPrice(nextMax);
-          }}
-          colors={colors}
-          t={t}
-          isRTL={isRTL}
-        />
-
-        <Modal
-          visible={locationFilterVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => closePickerToSheet(setLocationFilterVisible)}
-          statusBarTranslucent
-          navigationBarTranslucent
-        >
-          <Pressable
-            style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
-            onPress={() => closePickerToSheet(setLocationFilterVisible)}
-          >
-            <Pressable
-              style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
-              onPress={() => {}}
-            >
-              <ModalCloseButton
-                onPress={() => closePickerToSheet(setLocationFilterVisible)}
-                colors={colors}
-                label={t('close')}
-                isRTL={isRTL}
-              />
-              <View
-                style={[styles.pickerModalHeaderRow, { justifyContent: isRTL ? 'flex-end' : 'flex-start' }]}
-              >
-                {locationFilterStep === 'district' && (
+              <View style={styles.sheetHeaderRow}>
+                {sheetPage !== 'menu' && (
                   <Pressable
-                    onPress={() => setLocationFilterStep('city')}
+                    onPress={goBackInSheet}
                     hitSlop={10}
                     style={styles.pickerModalBackButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('back')}
                   >
                     <Ionicons
-                      name={language === 'ar' ? 'chevron-forward' : 'chevron-back'}
+                      name={isRTL ? 'chevron-forward' : 'chevron-back'}
                       size={20}
                       color={filterAccent}
                     />
                   </Pressable>
                 )}
-                <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
-                  {locationFilterStep === 'city'
-                    ? t('cityLabel')
-                    : t(CITIES.find((item) => item.key === cityFilter)?.labelKey)}
+                <Text
+                  style={[
+                    styles.pickerModalTitle,
+                    styles.filterSheetTitle,
+                    { color: colors.heading, borderBottomColor: colors.border },
+                  ]}
+                >
+                  {sheetTitle}
                 </Text>
               </View>
-              <ScrollView>
-                {locationFilterStep === 'city'
-                  ? ['all', ...sortedCities.map((item) => item.key)].map((key) => {
-                      // "All cities" (clearing the city filter) never renders
-                      // as pre-checked — it's the default absence of a
-                      // choice, not something the user actively picked, so
-                      // showing it as already-active read as if a choice had
-                      // been made for them.
-                      const active = key !== 'all' && cityFilter === key;
-                      const label =
-                        key === 'all'
-                          ? t('allCitiesFilter')
-                          : t(CITIES.find((item) => item.key === key).labelKey);
-                      return (
-                        <Pressable
-                          key={key}
-                          onPress={() => handleCityFilterChange(key)}
-                          style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
-                        >
-                          <Text
-                            style={[
-                              styles.pickerOptionText,
-                              { color: active ? filterAccent : colors.text },
-                              active && styles.pickerOptionTextActive,
-                            ]}
-                          >
-                            {label}
-                          </Text>
-                          {active && <Ionicons name="checkmark" size={18} color={filterAccent} />}
-                        </Pressable>
-                      );
-                    })
-                  : ['all', ...districtsForCityFilter.map((item) => item.key)].map((key) => {
-                      const active = districtFilter === key;
-                      const label =
-                        key === 'all'
-                          ? t('allFilter')
-                          : t(DISTRICTS.find((item) => item.key === key).labelKey);
-                      return (
-                        <Pressable
-                          key={key}
-                          onPress={() => handleDistrictFilterChange(key)}
-                          style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
-                        >
-                          <Text
-                            style={[
-                              styles.pickerOptionText,
-                              { color: active ? filterAccent : colors.text },
-                              active && styles.pickerOptionTextActive,
-                            ]}
-                          >
-                            {label}
-                          </Text>
-                          {active && <Ionicons name="checkmark" size={18} color={filterAccent} />}
-                        </Pressable>
-                      );
-                    })}
-              </ScrollView>
-            </Pressable>
-          </Pressable>
-        </Modal>
 
-        <Modal
-          visible={audiencePickerVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => closePickerToSheet(setAudiencePickerVisible)}
-          statusBarTranslucent
-          navigationBarTranslucent
-        >
-          <Pressable
-            style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
-            onPress={() => closePickerToSheet(setAudiencePickerVisible)}
-          >
-            <Pressable
-              style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
-              onPress={() => {}}
-            >
-              <ModalCloseButton
-                onPress={() => closePickerToSheet(setAudiencePickerVisible)}
-                colors={colors}
-                label={t('close')}
-                isRTL={isRTL}
-              />
-              <Text
-                style={[
-                  styles.pickerModalTitle,
-                  { color: colors.heading, borderBottomColor: colors.border },
-                ]}
-              >
-                {t('audienceLabel')}
-              </Text>
               <ScrollView>
-                {['all', ...AUDIENCE_OPTIONS].map((option) => {
-                  const active = audienceFilter === option;
-                  const label = option === 'all' ? t('allFilter') : t(AUDIENCE_LABEL_KEYS[option]);
-                  return (
-                    <Pressable
+                {sheetPage === 'menu' && (
+                  <>
+                    <FilterFacetRow
+                      label={t('propertyTypeLabel')}
+                      value={selectedPropertyTypes.length > 0 ? propertyTypeSummary : t('allFilter')}
+                      active={selectedPropertyTypes.length > 0}
+                      colors={colors}
+                      filterAccent={filterAccent}
+                      isRTL={isRTL}
+                      onPress={() => setSheetPage('propertyType')}
+                    />
+                    <FilterFacetRow
+                      label={t('cityLabel')}
+                      value={cityFilter === 'all' ? t('allCitiesFilter') : locationSummary}
+                      active={cityFilter !== 'all'}
+                      colors={colors}
+                      filterAccent={filterAccent}
+                      isRTL={isRTL}
+                      onPress={() => {
+                        setLocationFilterStep(cityFilter !== 'all' ? 'district' : 'city');
+                        setSheetPage('location');
+                      }}
+                    />
+                    <FilterFacetRow
+                      label={t('priceFilterLabel')}
+                      value={
+                        minPrice > PRICE_MIN || maxPrice < PRICE_MAX ? priceSummary : t('allFilter')
+                      }
+                      active={minPrice > PRICE_MIN || maxPrice < PRICE_MAX}
+                      colors={colors}
+                      filterAccent={filterAccent}
+                      isRTL={isRTL}
+                      onPress={() => setSheetPage('price')}
+                    />
+                    {showAudienceFilter && (
+                      <FilterFacetRow
+                        label={t('audienceLabel')}
+                        value={
+                          audienceFilter === 'all'
+                            ? t('allFilter')
+                            : t(AUDIENCE_LABEL_KEYS[audienceFilter])
+                        }
+                        active={audienceFilter !== 'all'}
+                        colors={colors}
+                        filterAccent={filterAccent}
+                        isRTL={isRTL}
+                        onPress={() => setSheetPage('audience')}
+                      />
+                    )}
+                    {/* Map pin order isn't meaningful, so sorting is list-only. */}
+                    {viewMode === 'list' && (
+                      <FilterFacetRow
+                        label={t('sortLabel')}
+                        value={sortSummary}
+                        active={sortBy !== 'featured'}
+                        colors={colors}
+                        filterAccent={filterAccent}
+                        isRTL={isRTL}
+                        onPress={() => setSheetPage('sort')}
+                      />
+                    )}
+                  </>
+                )}
+
+                {sheetPage === 'propertyType' &&
+                  ['all', ...PROPERTY_TYPES].map((type) => {
+                    const active =
+                      type === 'all'
+                        ? selectedPropertyTypes.length === 0
+                        : selectedPropertyTypes.includes(type);
+                    const label =
+                      type === 'all' ? t('allFilter') : t(PROPERTY_TYPE_LABEL_KEYS[type]);
+                    return (
+                      <OptionRow
+                        key={type}
+                        label={label}
+                        active={active}
+                        colors={colors}
+                        filterAccent={filterAccent}
+                        onPress={() => {
+                          if (type === 'all') {
+                            setSelectedPropertyTypes([]);
+                            return;
+                          }
+                          setSelectedPropertyTypes((previous) =>
+                            previous.includes(type)
+                              ? previous.filter((value) => value !== type)
+                              : [...previous, type]
+                          );
+                        }}
+                      />
+                    );
+                  })}
+
+                {sheetPage === 'location' &&
+                  (locationFilterStep === 'city'
+                    ? ['all', ...sortedCities.map((item) => item.key)].map((key) => {
+                        // "All cities" never renders as pre-checked — it's the
+                        // default absence of a choice, not something the user
+                        // actively picked.
+                        const active = key !== 'all' && cityFilter === key;
+                        const label =
+                          key === 'all'
+                            ? t('allCitiesFilter')
+                            : t(CITIES.find((item) => item.key === key).labelKey);
+                        return (
+                          <OptionRow
+                            key={key}
+                            label={label}
+                            active={active}
+                            colors={colors}
+                            filterAccent={filterAccent}
+                            onPress={() => handleCityFilterChange(key)}
+                          />
+                        );
+                      })
+                    : ['all', ...districtsForCityFilter.map((item) => item.key)].map((key) => {
+                        const active = districtFilter === key;
+                        const label =
+                          key === 'all'
+                            ? t('allFilter')
+                            : t(DISTRICTS.find((item) => item.key === key).labelKey);
+                        return (
+                          <OptionRow
+                            key={key}
+                            label={label}
+                            active={active}
+                            colors={colors}
+                            filterAccent={filterAccent}
+                            onPress={() => handleDistrictFilterChange(key)}
+                          />
+                        );
+                      }))}
+
+                {sheetPage === 'price' && (
+                  <PriceRangeSection
+                    minPrice={minPrice}
+                    maxPrice={maxPrice}
+                    onApply={(nextMin, nextMax) => {
+                      setMinPrice(nextMin);
+                      setMaxPrice(nextMax);
+                      setSheetPage('menu');
+                    }}
+                    colors={colors}
+                    t={t}
+                  />
+                )}
+
+                {sheetPage === 'audience' &&
+                  ['all', ...AUDIENCE_OPTIONS].map((option) => (
+                    <OptionRow
                       key={option}
+                      label={option === 'all' ? t('allFilter') : t(AUDIENCE_LABEL_KEYS[option])}
+                      active={audienceFilter === option}
+                      colors={colors}
+                      filterAccent={filterAccent}
                       onPress={() => {
                         setAudienceFilter(option);
-                        closePickerToSheet(setAudiencePickerVisible);
+                        setSheetPage('menu');
                       }}
-                      style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
-                    >
-                      <Text
-                        style={[
-                          styles.pickerOptionText,
-                          { color: active ? filterAccent : colors.text },
-                          active && styles.pickerOptionTextActive,
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                      {active && <Ionicons name="checkmark" size={18} color={filterAccent} />}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </Pressable>
-          </Pressable>
-        </Modal>
+                    />
+                  ))}
 
-        <Modal
-          visible={sortPickerVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => closePickerToSheet(setSortPickerVisible)}
-          statusBarTranslucent
-          navigationBarTranslucent
-        >
-          <Pressable
-            style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
-            onPress={() => closePickerToSheet(setSortPickerVisible)}
-          >
-            <Pressable
-              style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
-              onPress={() => {}}
-            >
-              <ModalCloseButton
-                onPress={() => closePickerToSheet(setSortPickerVisible)}
-                colors={colors}
-                label={t('close')}
-                isRTL={isRTL}
-              />
-              <Text style={[styles.pickerModalTitle, { color: colors.text }]}>
-                {t('sortLabel')}
-              </Text>
-              <ScrollView>
-                {SORT_OPTIONS.map((option) => {
-                  const active = sortBy === option;
-                  return (
-                    <Pressable
+                {sheetPage === 'sort' &&
+                  SORT_OPTIONS.map((option) => (
+                    <OptionRow
                       key={option}
+                      label={t(SORT_LABEL_KEYS[option])}
+                      active={sortBy === option}
+                      colors={colors}
+                      filterAccent={filterAccent}
                       onPress={() => {
                         setSortBy(option);
-                        closePickerToSheet(setSortPickerVisible);
+                        setSheetPage('menu');
                       }}
-                      style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
-                    >
-                      <Text
-                        style={[
-                          styles.pickerOptionText,
-                          { color: active ? filterAccent : colors.text },
-                          active && styles.pickerOptionTextActive,
-                        ]}
-                      >
-                        {t(SORT_LABEL_KEYS[option])}
-                      </Text>
-                      {active && <Ionicons name="checkmark" size={18} color={filterAccent} />}
-                    </Pressable>
-                  );
-                })}
+                    />
+                  ))}
               </ScrollView>
+
+              {sheetPage === 'menu' ? (
+                <View style={styles.filterSheetFooter}>
+                  <Pressable
+                    style={[styles.priceClearButton, { borderColor: colors.inputBorder }]}
+                    onPress={clearAllFilters}
+                    disabled={activeFilterCount === 0}
+                  >
+                    <Text
+                      style={[
+                        styles.priceClearButtonText,
+                        { color: activeFilterCount === 0 ? colors.disabled : colors.textMuted },
+                      ]}
+                    >
+                      {t('clearFilter')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
+                    onPress={closeFilterSheet}
+                  >
+                    <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
+                      {t('showResults')}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : (
+                // Price commits from its own button (it has a draft to hold);
+                // every other page commits on tap, so this is just "done".
+                sheetPage !== 'price' && (
+                  <View style={styles.filterSheetFooter}>
+                    <Pressable
+                      style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
+                      onPress={() => setSheetPage('menu')}
+                    >
+                      <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
+                        {t('applyFilter')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                )
+              )}
             </Pressable>
           </Pressable>
         </Modal>
@@ -1402,14 +1282,13 @@ const styles = StyleSheet.create({
     start: 16,
     end: 16,
   },
-  // List view only: full-bleed and opaque, with its own top inset since it
-  // now starts at the very top of the screen rather than below it.
-  topBarSolid: {
-    start: 0,
-    end: 0,
-    top: 0,
+  // List view only: the search + segment block goes full-bleed and opaque.
+  // Negative side margins cancel topBar's own inset so the fill reaches the
+  // screen edges while the controls stay inset.
+  listHeaderSolid: {
+    marginHorizontal: -16,
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   searchBar: {
     marginBottom: 10,
@@ -1488,6 +1367,11 @@ const styles = StyleSheet.create({
   },
   filterSheetTitle: {
     marginBottom: 4,
+  },
+  sheetHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   filterSheetFooter: {
     flexDirection: 'row',
