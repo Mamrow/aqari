@@ -847,7 +847,7 @@ export default function HomeMapScreen({ navigation }) {
                 })}
               </ScrollView>
               <Pressable
-                style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
+                style={[styles.modalApplyButton, { backgroundColor: colors.accent }]}
                 onPress={() => setPropertyTypePickerVisible(false)}
               >
                 <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
@@ -1404,11 +1404,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  // Row variant: shares a line with the Clear button, hence flex:1.
   priceApplyButton: {
     flex: 1,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
+  },
+  // Column variant, for a modal where the button is the only thing under a
+  // scrolling list. The row variant's flex:1 collapses to a few pixels here —
+  // in a column it means "share the leftover height with the ScrollView", and
+  // the ScrollView takes all of it. That rendered as a thin blue bar with the
+  // label clipped out of existence.
+  modalApplyButton: {
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 12,
   },
   priceApplyButtonText: {
     fontWeight: '700',

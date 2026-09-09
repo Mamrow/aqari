@@ -200,7 +200,7 @@ export const translations = {
     onboardBrowseBody: 'استكشف الشقق والفلل والأراضي في ليبيا.',
     onboardSaveTitle: 'احفظ ما يعجبك',
     onboardSaveBody: 'احفظ العقارات بلمسة واحدة.',
-    onboardContactTitle: 'تواصل مع الملاك',
+    onboardContactTitle: 'تواصل مع أصحاب العقار',
     onboardContactBody: 'اتصل أو راسل المالك مباشرة.',
     helpLabel: 'المساعدة',
     howItWorksRow: 'كيف يعمل التطبيق',

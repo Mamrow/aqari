@@ -164,23 +164,28 @@ export default function OnboardingScreen({ onDone }) {
             here is deliberate, not an oversight. */}
         {isRTL ? (
           // Arabic: absolute left:0/right:0 (both true screen edges —
-          // unambiguous, nothing to mirror on that part) but alignItems and
-          // textAlign are a different story — verified live on-device
-          // (RN 0.81, Fabric/new-arch) that with I18nManager.isRTL true,
-          // Yoga/Fabric DOES auto-mirror alignItems:'flex-start'/'flex-end'
-          // on this column's cross axis, and Text's own textAlign:'left'/
-          // 'right' gets mirrored the same way — both are logical, not
-          // physical, under RTL here, despite writingDirection/direction
-          // being pinned to 'rtl' alongside them. So copyBlockBandRTL uses
-          // alignItems:'flex-start' and titleRTL/bodyRTL use
-          // textAlign:'left' — both of which *render* as visually-right
-          // under isRTL:true, which is what they're named for. Don't
-          // "simplify" these back to flex-end/right without re-verifying on
-          // a real RTL device/emulator — that reads as obviously correct
-          // and renders backwards. The inner copyBlockInner (width:76%) is
-          // what actually constrains title/body to the same box — both use
-          // width:'100%' of it, so they start at the same edge as each
-          // other by construction, not by coincidence.
+          // unambiguous, nothing to mirror on that part), and everything
+          // inside stated in direction-relative terms only.
+          //
+          // An earlier version leaned on RTL auto-mirroring —
+          // alignItems:'flex-start' and textAlign:'left', which really do
+          // render visually-right on Android under Fabric. They don't do the
+          // same thing on iOS, where the copy came out drifting toward the
+          // middle instead of hugging the right edge. Mirroring behaviour is
+          // the part that differs between the platforms, so the fix is to
+          // stop depending on it at all:
+          //
+          //   * paddingStart/paddingEnd are resolved once from the writing
+          //     direction, identically on both platforms — no mirroring step
+          //     to disagree about. paddingEnd carries the design's gap to the
+          //     far edge; paddingStart is the 20pt margin the text hugs.
+          //   * textAlign:'auto' aligns from the text's own direction, so
+          //     Arabic lands right and English lands left without either
+          //     platform having to flip a physical value.
+          //
+          // Don't reintroduce 'left'/'right'/'flex-start' here. They can look
+          // correct on whichever platform you happen to test on and be
+          // backwards on the other one.
           <View style={[styles.copyBlockBandRTL]}>
             <View style={[styles.copyBlockInner, { direction: 'rtl', writingDirection: 'rtl' }]}>
               <Text style={[styles.title, styles.titleRTL, { writingDirection: 'rtl', direction: 'rtl' }]}>
@@ -327,24 +332,24 @@ const styles = StyleSheet.create({
   copyBlockLTR: {
     left: 20,
   },
-  // Arabic-only band: both edges pinned (left:0/right:0) so there's nothing
-  // for RTL mirroring to act on there, but alignItems itself IS mirrored —
-  // 'flex-start' here is what actually renders visually-right under
-  // I18nManager.isRTL:true. See the comment where this is applied.
+  // Arabic-only band: both edges pinned (left:0/right:0), with the inset from
+  // each side expressed as start/end rather than left/right so it resolves the
+  // same way on both platforms. paddingEnd is the design's gap to the far
+  // edge — what the old width:'76%' column used to provide, minus the
+  // dependency on alignItems mirroring to place it.
   copyBlockBandRTL: {
     position: 'absolute',
     top: '72%',
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
-    alignItems: 'flex-start',
+    paddingStart: 20,
+    paddingEnd: '24%',
     zIndex: 6,
   },
-  // The actual content column inside that band — 76% of it, so title and
-  // body (both width:'100%' of this) start at the exact same right edge as
-  // each other, and there's still a visible gap to the opposite edge.
+  // Full width of what the band leaves, so title and body share one edge by
+  // construction rather than by coincidence.
   copyBlockInner: {
-    width: '76%',
+    width: '100%',
   },
   title: {
     color: ONBOARDING_NAVY,
@@ -364,7 +369,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     marginBottom: 10,
     writingDirection: 'rtl',
-    textAlign: 'left', // mirrored under RTL — renders visually-right, see copyBlockBandRTL
+    // 'auto' aligns from the text's own direction — right for Arabic — on
+    // both platforms. See the comment where copyBlockBandRTL is applied.
+    textAlign: 'auto',
   },
   body: {
     color: ONBOARDING_BODY,
@@ -379,7 +386,7 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     fontWeight: '400',
     writingDirection: 'rtl',
-    textAlign: 'left', // mirrored under RTL — renders visually-right, see copyBlockBandRTL
+    textAlign: 'auto',
   },
   footer: {
     position: 'absolute',
