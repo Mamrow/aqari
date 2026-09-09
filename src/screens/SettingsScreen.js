@@ -52,6 +52,10 @@ export default function SettingsScreen({ navigation }) {
   const [settingPassword, setSettingPassword] = useState(false);
   const [passwordDraft, setPasswordDraft] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+  // Language and theme used to sit permanently open, which pushed everything
+  // below them off the first screen. They're one row that opens now, so the
+  // list reads as a list.
+  const [displayOpen, setDisplayOpen] = useState(false);
 
   const languageOptions = [
     { value: 'ar', label: t('languageArabic') },
@@ -134,6 +138,24 @@ export default function SettingsScreen({ navigation }) {
     ]);
   };
 
+  // The in-app rating prompt rather than a link to a store page: the app
+  // isn't published yet, so any store URL would 404 today, and Apple prefers
+  // the native prompt anyway. Required lazily and guarded because it's a
+  // native module — a client built before it was added would otherwise throw
+  // at import time and take the whole screen down.
+  const handleRateUs = async () => {
+    try {
+      const StoreReview = require('expo-store-review');
+      if (await StoreReview.hasAction()) {
+        await StoreReview.requestReview();
+        return;
+      }
+    } catch (error) {
+      console.warn('Store review unavailable', error);
+    }
+    Alert.alert(t('rateUsRow'), t('rateUsUnavailable'));
+  };
+
   // A quick, real snapshot of the account's own activity — not shown for
   // admin, whose "listings" would just be everyone's, not a personal stat.
   const myListingsCount = !isAdmin
@@ -202,168 +224,165 @@ export default function SettingsScreen({ navigation }) {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(40, insets.bottom + 104) }]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.heading, { color: colors.heading }]}>{t('settingsHeading')}</Text>
-
-        <View style={[styles.card, styles.profileCard, { backgroundColor: colors.surface }]}>
-          {auth.loggedIn ? (
-            <>
-              <Pressable onPress={handlePickAvatar} style={styles.avatarWrapper}>
-                <Avatar uri={auth.avatarUrl} name={auth.name} size={88} colors={colors} />
-                <View style={[styles.editBadge, { backgroundColor: colors.accent, borderColor: colors.surface }]}>
-                  {avatarUploading ? (
-                    <ActivityIndicator size="small" color={colors.accentText} />
-                  ) : (
-                    <Ionicons name="camera" size={14} color={colors.accentText} />
-                  )}
-                </View>
-              </Pressable>
-
-              {editingName ? (
-                <View style={styles.nameEditRow}>
-                  <TextInput
-                    style={[styles.nameInput, { borderColor: colors.inputBorder, color: colors.text }]}
-                    value={nameDraft}
-                    onChangeText={setNameDraft}
-                    autoFocus
-                    placeholder={t('authNamePlaceholder')}
-                    placeholderTextColor={colors.placeholderText}
-                  />
-                  <Pressable onPress={handleSaveName} hitSlop={8}>
-                    <Ionicons name="checkmark-circle" size={26} color={colors.accent} />
-                  </Pressable>
-                  <Pressable onPress={() => setEditingName(false)} hitSlop={8}>
-                    <Ionicons name="close-circle" size={26} color={colors.danger} />
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable onPress={startEditingName} style={styles.nameRow}>
-                  <Text style={[styles.name, { color: colors.heading }]}>{auth.name}</Text>
-                  <Ionicons name="pencil" size={14} color={colors.textMuted} />
-                </Pressable>
-              )}
-
-              <Text style={[styles.phone, { color: colors.textMuted }]}>{auth.phone}</Text>
-              {isAdmin && (
-                <View style={[styles.roleBadge, { backgroundColor: colors.background }]}>
-                  <Text style={[styles.roleBadgeText, { color: colors.accent }]}>{t('roleAdmin')}</Text>
-                </View>
-              )}
-              {!isAdmin && (
-                <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
-                  <View style={styles.statItem}>
-                    <Ionicons name="business" size={16} color={colors.accent} />
-                    <Text style={[styles.statValue, { color: colors.text }]}>{myListingsCount}</Text>
-                    <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-                      {t('statListingsLabel')}
-                    </Text>
-                  </View>
-                  <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-                  <View style={styles.statItem}>
-                    <Ionicons name="heart" size={16} color={colors.danger} />
-                    <Text style={[styles.statValue, { color: colors.text }]}>{savedCount}</Text>
-                    <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-                      {t('statSavedLabel')}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </>
-          ) : (
-            <>
-              <Avatar size={72} colors={colors} />
-              <Text style={[styles.signInPrompt, { color: colors.textMuted }]}>
-                {t('signInPrompt')}
-              </Text>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.signInButton,
-                  { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 },
-                ]}
-                onPress={() => requireAuth(() => {})}
+        {/* Identity first, the way a profile tab reads elsewhere: who you're
+            signed in as, then what you've got, then the settings themselves.
+            The old screen opened with a "Settings" title and a large card,
+            which pushed the account's own name below the fold. */}
+        <View style={styles.profileHeader}>
+          <Pressable
+            onPress={auth.loggedIn ? handlePickAvatar : () => requireAuth(() => {})}
+            style={styles.avatarWrapper}
+          >
+            <Avatar uri={auth.avatarUrl} name={auth.name} size={64} colors={colors} />
+            {auth.loggedIn && (
+              <View
+                style={[styles.editBadge, { backgroundColor: colors.accent, borderColor: colors.background }]}
               >
-                <Text style={[styles.signInButtonText, { color: colors.accentText }]}>
-                  {t('signInButton')}
-                </Text>
-              </Pressable>
-            </>
-          )}
+                {avatarUploading ? (
+                  <ActivityIndicator size="small" color={colors.accentText} />
+                ) : (
+                  <Ionicons name="camera" size={12} color={colors.accentText} />
+                )}
+              </View>
+            )}
+          </Pressable>
+
+          <View style={styles.profileText}>
+            {auth.loggedIn ? (
+              <>
+                {editingName ? (
+                  <View style={styles.nameEditRow}>
+                    <TextInput
+                      style={[styles.nameInput, { borderColor: colors.inputBorder, color: colors.text }]}
+                      value={nameDraft}
+                      onChangeText={setNameDraft}
+                      autoFocus
+                      placeholder={t('authNamePlaceholder')}
+                      placeholderTextColor={colors.placeholderText}
+                    />
+                    <Pressable onPress={handleSaveName} hitSlop={8}>
+                      <Ionicons name="checkmark-circle" size={26} color={colors.accent} />
+                    </Pressable>
+                    <Pressable onPress={() => setEditingName(false)} hitSlop={8}>
+                      <Ionicons name="close-circle" size={26} color={colors.danger} />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable onPress={startEditingName} style={styles.nameRow} hitSlop={6}>
+                    <Text style={[styles.name, { color: colors.heading }]} numberOfLines={1}>
+                      {auth.name}
+                    </Text>
+                    <Ionicons name="pencil" size={13} color={colors.textMuted} />
+                  </Pressable>
+                )}
+                {/* Phone numbers read left-to-right in both languages. */}
+                <Text style={[styles.phone, { color: colors.textMuted }]}>{auth.phone}</Text>
+                {isAdmin && (
+                  <View style={[styles.roleBadge, { backgroundColor: colors.surface }]}>
+                    <Text style={[styles.roleBadgeText, { color: colors.accent }]}>{t('roleAdmin')}</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={[styles.name, { color: colors.heading }]}>{t('settingsHeading')}</Text>
+                <Text style={[styles.phone, { color: colors.textMuted }]}>{t('signInPrompt')}</Text>
+              </>
+            )}
+          </View>
         </View>
 
-        {auth.loggedIn && !isAdmin && BOOST_PURCHASES_ENABLED && (
-          <>
-            <SectionHeading icon="receipt-outline" label={t('paymentsLabel')} colors={colors} />
-            <View style={[styles.card, { backgroundColor: colors.surface }]}>
-              <Pressable
-                onPress={() => navigation.navigate('PaymentHistory')}
-                style={({ pressed }) => [styles.iconRow, pressed && styles.iconRowPressed]}
-              >
-                <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
-                  <Ionicons name="card-outline" size={18} color={colors.accent} />
-                </View>
-                <View style={styles.rowTextBlock}>
-                  <Text style={[styles.subLabel, { color: colors.text }]}>
-                    {t('paymentHistoryRow')}
-                  </Text>
-                  <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
-                    {t('paymentHistoryRowSubtitle')}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-              </Pressable>
-            </View>
-          </>
+        {!auth.loggedIn && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.signInButton,
+              { backgroundColor: colors.accent, opacity: pressed ? 0.8 : 1 },
+            ]}
+            onPress={() => requireAuth(() => {})}
+          >
+            <Text style={[styles.signInButtonText, { color: colors.accentText }]}>
+              {t('signInButton')}
+            </Text>
+          </Pressable>
         )}
 
-        <SectionHeading icon="options-outline" label={t('preferencesLabel')} colors={colors} />
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <View style={styles.subLabelRow}>
-            <Ionicons name="globe-outline" size={15} color={colors.textMuted} />
-            <Text style={[styles.subLabel, { color: colors.textMuted }]}>{t('languageLabel')}</Text>
-          </View>
-          <View style={styles.chipRow}>
-            {languageOptions.map((option) => (
-              <Chip
-                key={option.value}
-                label={option.label}
-                active={language === option.value}
-                colors={colors}
-                onPress={() => handleLanguageChange(option.value)}
-              />
-            ))}
-          </View>
-
-          <View style={[styles.subLabelRow, styles.subLabelSpacing]}>
-            <Ionicons
-              name={
-                themePreference === 'system'
-                  ? 'contrast-outline'
-                  : themePreference === 'dark'
-                    ? 'moon-outline'
-                    : 'sunny-outline'
-              }
-              size={15}
-              color={colors.textMuted}
+        {auth.loggedIn && !isAdmin && (
+          <View style={styles.tileRow}>
+            <StatTile
+              icon="heart"
+              tint={colors.danger}
+              count={savedCount}
+              label={t('statSavedLabel')}
+              colors={colors}
+              onPress={() => navigation.navigate('Favorites')}
             />
-            <Text style={[styles.subLabel, { color: colors.textMuted }]}>{t('themeLabel')}</Text>
+            <StatTile
+              icon="business"
+              tint={colors.accent}
+              count={myListingsCount}
+              label={t('statListingsLabel')}
+              colors={colors}
+              onPress={() => navigation.navigate('MyListings')}
+            />
           </View>
-          <View style={styles.chipRow}>
-            {themeOptions.map((option) => (
-              <Chip
-                key={option.value}
-                label={option.label}
-                active={themePreference === option.value}
-                colors={colors}
-                onPress={() => setTheme(option.value)}
-              />
-            ))}
-          </View>
-        </View>
+        )}
 
-        {auth.loggedIn && (
-          <>
-            <SectionHeading icon="lock-closed-outline" label={t('securityLabel')} colors={colors} />
-            <View style={[styles.card, { backgroundColor: colors.surface }]}>
-              {settingPassword ? (
+        <SectionHeading label={t('accountSettingsLabel')} colors={colors} />
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {auth.loggedIn && (
+            <Row
+              icon="person-circle-outline"
+              label={t('personalInfoRow')}
+              subtitle={t('personalInfoRowSubtitle')}
+              colors={colors}
+              onPress={startEditingName}
+            />
+          )}
+
+          <Row
+            icon="settings-outline"
+            label={t('languageDisplayRow')}
+            subtitle={displayOpen ? undefined : `${languageOptions.find((o) => o.value === language)?.label}`}
+            colors={colors}
+            divider={auth.loggedIn}
+            chevron={displayOpen ? 'chevron-up' : 'chevron-down'}
+            onPress={() => setDisplayOpen((open) => !open)}
+          />
+          {displayOpen && (
+            <View style={styles.expanded}>
+              <Text style={[styles.subLabel, { color: colors.textMuted }]}>{t('languageLabel')}</Text>
+              <View style={styles.chipRow}>
+                {languageOptions.map((option) => (
+                  <Chip
+                    key={option.value}
+                    label={option.label}
+                    active={language === option.value}
+                    colors={colors}
+                    onPress={() => handleLanguageChange(option.value)}
+                  />
+                ))}
+              </View>
+
+              <Text style={[styles.subLabel, styles.subLabelSpacing, { color: colors.textMuted }]}>
+                {t('themeLabel')}
+              </Text>
+              <View style={styles.chipRow}>
+                {themeOptions.map((option) => (
+                  <Chip
+                    key={option.value}
+                    label={option.label}
+                    active={themePreference === option.value}
+                    colors={colors}
+                    onPress={() => setTheme(option.value)}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {auth.loggedIn &&
+            (settingPassword ? (
+              <View style={[styles.expanded, styles.rowDivider, { borderTopColor: colors.border }]}>
                 <View style={styles.nameEditRow}>
                   <PasswordInput
                     style={[styles.nameInput, { borderColor: colors.inputBorder }]}
@@ -392,167 +411,93 @@ export default function SettingsScreen({ navigation }) {
                     <Ionicons name="close-circle" size={26} color={colors.danger} />
                   </Pressable>
                 </View>
-              ) : (
-                <Pressable
-                  onPress={() => setSettingPassword(true)}
-                  style={({ pressed }) => [styles.iconRow, pressed && styles.iconRowPressed]}
-                >
-                  <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
-                    <Ionicons name="key-outline" size={18} color={colors.accent} />
-                  </View>
-                  <View style={styles.rowTextBlock}>
-                    <Text style={[styles.subLabel, { color: colors.text }]}>
-                      {t('setPasswordRow')}
-                    </Text>
-                    <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
-                      {t('setPasswordRowSubtitle')}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                </Pressable>
-              )}
-            </View>
-          </>
-        )}
+              </View>
+            ) : (
+              <Row
+                icon="key-outline"
+                label={t('setPasswordRow')}
+                subtitle={t('setPasswordRowSubtitle')}
+                colors={colors}
+                divider
+                onPress={() => setSettingPassword(true)}
+              />
+            ))}
 
-        {auth.loggedIn && !isAdmin && (
-          <>
-            <SectionHeading icon="shield-outline" label={t('safetyLabel')} colors={colors} />
-            <View style={[styles.card, { backgroundColor: colors.surface }]}>
-              <Pressable
-                onPress={() => navigation.navigate('BlockedSellers')}
-                style={({ pressed }) => [styles.iconRow, pressed && styles.iconRowPressed]}
-              >
-                <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
-                  <Ionicons name="person-remove-outline" size={18} color={colors.accent} />
-                </View>
-                <View style={styles.rowTextBlock}>
-                  <Text style={[styles.subLabel, { color: colors.text }]}>
-                    {t('blockedSellersRow')}
-                  </Text>
-                  <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
-                    {t('blockedSellersRowSubtitle')}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-              </Pressable>
-            </View>
-          </>
-        )}
+          {auth.loggedIn && !isAdmin && (
+            <Row
+              icon="person-remove-outline"
+              label={t('blockedSellersRow')}
+              subtitle={t('blockedSellersRowSubtitle')}
+              colors={colors}
+              divider
+              onPress={() => navigation.navigate('BlockedSellers')}
+            />
+          )}
 
-        <SectionHeading icon="help-circle-outline" label={t('helpLabel')} colors={colors} />
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <Pressable
-            onPress={replayOnboarding}
-            style={({ pressed }) => [styles.iconRow, pressed && styles.iconRowPressed]}
-          >
-            <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
-              <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
-            </View>
-            <View style={styles.rowTextBlock}>
-              <Text style={[styles.subLabel, { color: colors.text }]}>{t('howItWorksRow')}</Text>
-              <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
-                {t('howItWorksRowSubtitle')}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </Pressable>
+          {auth.loggedIn && !isAdmin && BOOST_PURCHASES_ENABLED && (
+            <Row
+              icon="card-outline"
+              label={t('paymentHistoryRow')}
+              subtitle={t('paymentHistoryRowSubtitle')}
+              colors={colors}
+              divider
+              onPress={() => navigation.navigate('PaymentHistory')}
+            />
+          )}
         </View>
 
-        <SectionHeading icon="shield-checkmark-outline" label={t('legalSupportLabel')} colors={colors} />
-        <View style={[styles.card, { backgroundColor: colors.surface }]}>
-          <Pressable
-            onPress={() => navigation.navigate('PrivacyPolicy')}
-            style={({ pressed }) => [styles.iconRow, pressed && styles.iconRowPressed]}
-            accessibilityRole="button"
-            accessibilityLabel={t('privacyPolicyRow')}
-          >
-            <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
-              <Ionicons name="document-text-outline" size={18} color={colors.accent} />
-            </View>
-            <View style={styles.rowTextBlock}>
-              <Text style={[styles.subLabel, { color: colors.text }]}>
-                {t('privacyPolicyRow')}
-              </Text>
-              <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
-                {t('privacyPolicyRowSubtitle')}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </Pressable>
-          <Pressable
-            onPress={() => navigation.navigate('TermsOfService')}
-            style={({ pressed }) => [
-              styles.iconRow,
-              styles.rowDivider,
-              { borderTopColor: colors.border },
-              pressed && styles.iconRowPressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={t('termsOfServiceRow')}
-          >
-            <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
-              <Ionicons name="reader-outline" size={18} color={colors.accent} />
-            </View>
-            <View style={styles.rowTextBlock}>
-              <Text style={[styles.subLabel, { color: colors.text }]}>
-                {t('termsOfServiceRow')}
-              </Text>
-              <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
-                {t('termsOfServiceRowSubtitle')}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </Pressable>
-          <Pressable
+        <SectionHeading label={t('aboutAqariLabel')} colors={colors} />
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Row
+            icon="create-outline"
+            label={t('feedbackRow')}
+            colors={colors}
             onPress={() => navigation.navigate('Support')}
-            style={({ pressed }) => [
-              styles.iconRow,
-              styles.rowDivider,
-              { borderTopColor: colors.border },
-              pressed && styles.iconRowPressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={t('supportRow')}
-          >
-            <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
-              <Ionicons name="help-circle-outline" size={18} color={colors.accent} />
-            </View>
-            <View style={styles.rowTextBlock}>
-              <Text style={[styles.subLabel, { color: colors.text }]}>
-                {t('supportRow')}
-              </Text>
-              <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
-                {t('supportRowSubtitle')}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </Pressable>
-        </View>
-
-        <SectionHeading icon="information-circle-outline" label={t('aboutLabel')} colors={colors} />
-        <View style={[styles.card, styles.aboutRow, { backgroundColor: colors.surface }]}>
-          <View style={styles.iconRow}>
-            <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
-              <Ionicons name="home" size={18} color={colors.accent} />
-            </View>
-            <Text style={[styles.aboutText, { color: colors.text }]}>Aqari</Text>
-          </View>
-          <Text style={[styles.aboutText, { color: colors.textMuted }]}>
-            {t('appVersionLabel')} {appConfig.expo.version}
-          </Text>
+          />
+          <Row
+            icon="reader-outline"
+            label={t('termsOfServiceRow')}
+            colors={colors}
+            divider
+            onPress={() => navigation.navigate('TermsOfService')}
+          />
+          <Row
+            icon="document-text-outline"
+            label={t('privacyPolicyRow')}
+            colors={colors}
+            divider
+            onPress={() => navigation.navigate('PrivacyPolicy')}
+          />
+          <Row
+            icon="sparkles-outline"
+            label={t('howItWorksRow')}
+            colors={colors}
+            divider
+            onPress={replayOnboarding}
+          />
+          <Row
+            icon="information-circle-outline"
+            label={t('aboutAppRow')}
+            colors={colors}
+            divider
+            value={`${t('appVersionLabel')} ${appConfig.expo.version}`}
+            chevron={null}
+          />
+          <Row
+            icon="star-outline"
+            label={t('rateUsRow')}
+            colors={colors}
+            divider
+            onPress={handleRateUs}
+          />
         </View>
 
         {auth.loggedIn && (
           <Pressable
-            style={({ pressed }) => [
-              styles.card,
-              styles.logoutRow,
-              { backgroundColor: colors.surface, opacity: pressed ? 0.6 : 1 },
-            ]}
+            style={({ pressed }) => [styles.logoutRow, pressed && { opacity: 0.6 }]}
             onPress={handleLogout}
           >
-            <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+            <Ionicons name="log-out-outline" size={20} color={colors.danger} />
             <Text style={[styles.logoutText, { color: colors.danger }]}>{t('logout')}</Text>
           </Pressable>
         )}
@@ -571,13 +516,69 @@ export default function SettingsScreen({ navigation }) {
   );
 }
 
-function SectionHeading({ icon, label, colors }) {
+/**
+ * One settings row: icon, label, optional subtitle, and either a value or a
+ * chevron on the trailing side.
+ *
+ * textAlign:'auto' throughout rather than a physical left/right — the label
+ * then follows the direction of its own text, which is the one behaviour both
+ * platforms agree on. Hardcoding 'left' left Arabic labels stranded away from
+ * their icon on iOS.
+ */
+function Row({ icon, label, subtitle, value, colors, onPress, divider, chevron = 'chevron-forward' }) {
   return (
-    <View style={[styles.sectionHeadingRow, styles.sectionSpacing]}>
-      <Ionicons name={icon} size={14} color={colors.textMuted} />
-      <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>{label}</Text>
-    </View>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={label}
+      style={({ pressed }) => [
+        styles.iconRow,
+        divider && [styles.rowDivider, { borderTopColor: colors.border }],
+        pressed && onPress && styles.iconRowPressed,
+      ]}
+    >
+      <View style={[styles.rowIconCircle, { backgroundColor: `${colors.accent}18` }]}>
+        <Ionicons name={icon} size={18} color={colors.accent} />
+      </View>
+      <View style={styles.rowTextBlock}>
+        <Text style={[styles.rowLabel, { color: colors.text }]}>{label}</Text>
+        {subtitle ? (
+          <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>{subtitle}</Text>
+        ) : null}
+      </View>
+      {value ? <Text style={[styles.rowValue, { color: colors.textMuted }]}>{value}</Text> : null}
+      {chevron ? <Ionicons name={chevron} size={16} color={colors.textMuted} /> : null}
+    </Pressable>
   );
+}
+
+/** Count tile — a number worth glancing at, and a shortcut to the tab it counts. */
+function StatTile({ icon, tint, count, label, colors, onPress }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${count}`}
+      style={({ pressed }) => [
+        styles.tile,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+        pressed && { opacity: 0.7 },
+      ]}
+    >
+      <View style={[styles.tileIconCircle, { backgroundColor: `${tint}1F` }]}>
+        <Ionicons name={icon} size={20} color={tint} />
+      </View>
+      <Text style={[styles.tileCount, { color: colors.heading }]}>{count}</Text>
+      <Text style={[styles.tileLabel, { color: colors.textMuted }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function SectionHeading({ label, colors }) {
+  return <Text style={[styles.sectionLabel, { color: colors.heading }]}>{label}</Text>;
 }
 
 function Chip({ label, active, colors, onPress }) {
@@ -611,18 +612,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 20,
   },
-  card: {
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  profileCard: {
+
+  // ---- profile header ----
+  profileHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 24,
+    gap: 14,
+    marginBottom: 20,
   },
   avatarWrapper: {
     position: 'relative',
@@ -630,30 +626,48 @@ const styles = StyleSheet.create({
   editBadge: {
     position: 'absolute',
     bottom: 0,
-    end: 0,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  profileText: {
+    flex: 1,
+    gap: 2,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 14,
   },
   name: {
-    fontSize: 17,
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'auto',
+  },
+  phone: {
+    fontSize: 14,
+    writingDirection: 'ltr',
+    textAlign: 'auto',
+  },
+  roleBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  roleBadgeText: {
+    fontSize: 11,
     fontWeight: '700',
   },
   nameEditRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 14,
-    width: '100%',
   },
   nameInput: {
     flex: 1,
@@ -662,102 +676,82 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 15,
-  },
-  phone: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  roleBadge: {
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginTop: 8,
-  },
-  roleBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    justifyContent: 'center',
-    borderTopWidth: 1,
-    marginTop: 18,
-    paddingTop: 16,
-    gap: 20,
-  },
-  statItem: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
-  },
-  signInPrompt: {
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 14,
-    marginBottom: 14,
+    textAlign: 'auto',
   },
   signInButton: {
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginBottom: 20,
   },
   signInButtonText: {
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 15,
   },
-  sectionHeadingRow: {
+
+  // ---- count tiles ----
+  tileRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginStart: 4,
+    gap: 12,
+    marginBottom: 24,
   },
+  tile: {
+    flex: 1,
+    borderRadius: 16,
+    // In light theme `surface` and `background` are both white, so without an
+    // edge these read as loose text on the page rather than as tiles.
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  tileIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  tileCount: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  tileLabel: {
+    fontSize: 13,
+  },
+
+  // ---- sections and rows ----
   sectionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 10,
+    textAlign: 'auto',
   },
-  sectionSpacing: {
-    marginTop: 20,
-  },
-  subLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  subLabel: {
-    fontSize: 13,
-    marginBottom: 8,
-  },
-  subLabelSpacing: {
-    marginTop: 16,
+  card: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 24,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   iconRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 4,
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
   },
   iconRowPressed: {
-    opacity: 0.55,
+    opacity: 0.6,
+  },
+  rowDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   rowIconCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -765,71 +759,92 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  rowLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'auto',
+  },
   rowSubtitle: {
-    fontSize: 11,
+    fontSize: 12.5,
+    textAlign: 'auto',
+  },
+  rowValue: {
+    fontSize: 13,
+    textAlign: 'auto',
+  },
+
+  // ---- expanded language/theme block ----
+  expanded: {
+    paddingHorizontal: 14,
+    paddingBottom: 16,
+  },
+  subLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'auto',
+  },
+  subLabelSpacing: {
+    marginTop: 16,
   },
   chipRow: {
     flexDirection: 'row',
-    gap: 8,
     flexWrap: 'wrap',
+    gap: 8,
   },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
     borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
   },
   chipText: {
-    fontWeight: '600',
-  },
-  aboutRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  aboutText: {
+    fontWeight: '700',
     fontSize: 13,
   },
-  rowDivider: {
-    borderTopWidth: 1,
-    marginTop: 2,
-    paddingTop: 7,
-  },
+
+  // ---- destructive actions ----
   logoutRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 20,
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
   },
   logoutText: {
-    fontWeight: '600',
-    fontSize: 15,
+    fontWeight: '700',
+    fontSize: 16,
   },
   deleteLinkRow: {
-    alignItems: 'center',
-    marginTop: 24,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
   },
   deleteLinkText: {
     fontSize: 13,
     textDecorationLine: 'underline',
+    textAlign: 'auto',
   },
+
+  // ---- delete-account confirmation screen ----
   backRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   backText: {
     fontSize: 15,
+    fontWeight: '600',
   },
   deleteWarning: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
     marginBottom: 24,
+    textAlign: 'auto',
   },
   deleteConfirmButton: {
     alignItems: 'center',
+    paddingVertical: 14,
   },
   deleteConfirmText: {
     color: '#fff',
