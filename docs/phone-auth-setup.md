@@ -12,10 +12,21 @@ email address anywhere in the app any more.
   change that account's password, so this needs no admin API and no emailed
   link.
 
-**The app contains no Twilio code and no Twilio credentials.** Supabase's own
-phone provider does the sending; your Twilio keys live in the Supabase
-dashboard, server-side. That's deliberate — anything shipped in the app bundle
-is readable by anyone who downloads it.
+**No delivery credentials live in the app.** Whichever route you pick, the
+sending happens server-side — Twilio keys in the Supabase dashboard, or Meta
+keys as Edge Function secrets. That's deliberate: anything shipped in the app
+bundle is readable by anyone who downloads it.
+
+There are two routes, and they're alternatives, not steps:
+
+- **Twilio** (sections 1–3) — least setup, but nothing sends to Libya until
+  the account is upgraded: geo permissions and the trial's verified-numbers
+  rule are both behind the paywall.
+- **WhatsApp via Meta's Cloud API** — no paid account needed to start, since
+  Meta issues a free test number that messages up to five nominated
+  recipients immediately. More setup, and Meta business verification is
+  required before real users. Better delivery to Libya, because it rides on
+  data rather than international SMS routing.
 
 ## 1. Twilio
 
@@ -70,9 +81,12 @@ removes and tells you to run the SELECT alone first. Do that.
 export const OTP_CHANNEL = 'sms';
 ```
 
-Every call site reads it — nothing hardcodes a channel string — so `'whatsapp'`
-switches the whole app over in one edit. Leave it on `'sms'` for now, because
-WhatsApp needs more than a config change (below).
+`channel` tells Supabase which of *its own* SMS providers to use. If you take
+the Send SMS Hook route below, Supabase never reaches a provider at all — the
+hook decides delivery — so this constant stays on `'sms'` even when codes are
+going out over WhatsApp. That looks contradictory and isn't: it only has to
+remain a value the API accepts. Change it to `'whatsapp'` only if you're
+using Twilio *and* have a WhatsApp sender attached there.
 
 ## What the free trial can and can't do
 
@@ -102,24 +116,99 @@ error code. The four worth recognising:
 A message logged as *delivered* that never arrived is a carrier problem, not a
 configuration one. An *undelivered* with a code above usually isn't.
 
-## WhatsApp
+## WhatsApp via Meta's Cloud API (no Twilio)
 
-`OTP_CHANNEL = 'whatsapp'` needs a real WhatsApp sender, which is a Meta
-process, not a Twilio setting:
+This is the route that doesn't need a paid Twilio account. Supabase's **Send
+SMS Hook** lets you replace the SMS provider with your own function, so
+`supabase/functions/send-whatsapp-otp` receives the code Supabase generated
+and delivers it through Meta directly. Supabase still generates, stores,
+expires and verifies the code — only delivery changes.
 
-1. A Twilio Messaging Service with a **WhatsApp sender** attached.
-2. A **WhatsApp Business Account**, verified by Meta. This takes days to
-   weeks and needs business details.
-3. An **approved message template** for the code. WhatsApp does not allow
-   free-form business-initiated messages — Twilio provides an authentication
-   template for exactly this, but it still has to be approved on your account.
+The reason to prefer it here isn't just cost: WhatsApp reaches Libyan phones
+over data rather than the international A2P SMS routes that make delivery
+unreliable in the first place.
 
-The **WhatsApp Sandbox** on a trial is not a substitute: every recipient has
-to first send a join code to Twilio's sandbox number from their own WhatsApp,
-which is not something you can ask real users to do. Fine for testing the
-plumbing, unusable for launch.
+### 1. Meta app and test number
 
-So: launch on SMS, flip the constant once WhatsApp clears Meta review.
+1. **business.facebook.com** — create a Meta Business account.
+2. **developers.facebook.com** → My Apps → **Create App** → type **Business**.
+3. **Add product → WhatsApp → Set up.** This creates a WhatsApp Business
+   Account and a **free test phone number**.
+4. On the **API Setup** page, note the **Phone number ID** (a number, not the
+   phone number itself) and add your own number under "To" — you'll get a
+   WhatsApp code to confirm it. Up to five recipients, no business
+   verification needed, which is what makes testing possible today.
+5. Use the **Send message** button there. If it arrives, the path works.
+
+### 2. A permanent token
+
+The token on the API Setup page expires in 24 hours. For anything beyond a
+first test:
+
+**Business Settings → Users → System Users** → add one → **Generate token** →
+select your app → scopes `whatsapp_business_messaging` and
+`whatsapp_business_management`. That token doesn't expire.
+
+### 3. The template
+
+WhatsApp forbids free-form business-initiated messages, so the code has to go
+out as an approved template.
+
+**WhatsApp Manager → Message Templates → Create template** → category
+**Authentication** → the one-time-passcode layout with the copy-code button.
+Authentication templates are usually approved in minutes rather than the days
+a marketing template takes. Note the **name** and **language code**.
+
+Create it in Arabic (`ar`) — it's what most users will see. Meta treats each
+language as its own approval, so an English version is a second submission.
+
+### 4. Deploy the function
+
+```bash
+supabase functions deploy send-whatsapp-otp --no-verify-jwt
+```
+
+`--no-verify-jwt` is required: Supabase Auth calls this hook *before* anyone
+has a session, so there's no JWT to verify. The function isn't left open —
+it verifies the hook's own signature instead, which is what stops it being a
+free WhatsApp relay for anyone who finds the URL.
+
+Then set its secrets:
+
+```bash
+supabase secrets set   WHATSAPP_TOKEN=...   WHATSAPP_PHONE_NUMBER_ID=...   WHATSAPP_TEMPLATE_NAME=...   WHATSAPP_TEMPLATE_LANG=ar
+```
+
+### 5. Point Supabase at it
+
+Dashboard → **Authentication → Hooks** → **Send SMS hook** → enable, choose
+the `send-whatsapp-otp` function. Supabase shows a signing secret that looks
+like `v1,whsec_…` — copy it and set it as one more function secret:
+
+```bash
+supabase secrets set SEND_SMS_HOOK_SECRET='v1,whsec_...'
+```
+
+Every request the function accepts is checked against that secret.
+
+### 6. Turn confirmation back on
+
+Authentication → Sign In / Providers → Phone → **Confirm phone ON**. If you
+switched it off to keep working while delivery was unavailable, this is the
+step that closes that hole — while it's off, nothing proves a number belongs
+to the person signing up.
+
+### Going live later
+
+The test number only messages five nominated recipients. Real users need a
+production sender: a phone number **not already registered on WhatsApp**,
+attached to your WhatsApp Business Account, plus Meta **business
+verification**. Start that early — it's the long pole, and it's the one part
+of this nobody can speed up.
+
+Two things worth checking before you build a launch plan on this route:
+whether Meta accepts business verification with Libyan business details, and
+Meta's current per-message price for authentication messages to Libya.
 
 ## SMS delivery to Libya
 
