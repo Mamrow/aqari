@@ -16,7 +16,7 @@ import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { toEnglishDigits } from '../utils/digits';
 import { OTP_CHANNEL } from '../utils/otp';
-import PhoneInput, { withLibyaPrefix, isValidLibyanMobile } from './PhoneInput';
+import PhoneInput, { DEFAULT_COUNTRY, isValidPhone, toE164 } from './PhoneInput';
 import PasswordInput from './PasswordInput';
 
 // Codes are 6 digits everywhere Supabase's phone provider is concerned.
@@ -54,6 +54,7 @@ export default function AuthModal() {
   const [step, setStep] = useState(STEPS.SIGN_IN);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [code, setCode] = useState('');
@@ -75,6 +76,7 @@ export default function AuthModal() {
   const resetFields = () => {
     setName('');
     setPhone('');
+    setCountry(DEFAULT_COUNTRY);
     setPassword('');
     setConfirmPassword('');
     setCode('');
@@ -92,10 +94,10 @@ export default function AuthModal() {
     setStep(next);
   };
 
-  // Libyan mobile numbers are exactly 9 digits after +218 — PhoneInput caps
-  // typing at 9, this is the matching submit-time floor: a real Libyan mobile
-  // shape, not just "9 digits of something."
-  const phoneOk = isValidLibyanMobile(phone.trim());
+  // Real numbering-plan validation for whichever country is selected, not a
+  // digit count — see isValidPhone. Libya is the default, but someone whose
+  // WhatsApp is on a foreign number has to be able to sign up too.
+  const phoneOk = isValidPhone(country, phone.trim());
   const passwordOk = password.length >= 6 && confirmPassword === password;
   const codeOk = code.length === OTP_LENGTH;
 
@@ -137,7 +139,7 @@ export default function AuthModal() {
   };
 
   const sendResetCode = async () => {
-    await sendPasswordResetCode(withLibyaPrefix(phone));
+    await sendPasswordResetCode(toE164(country, phone));
     setCooldown(RESEND_COOLDOWN_SECONDS);
   };
 
@@ -146,12 +148,12 @@ export default function AuthModal() {
     setSubmitting(true);
     try {
       if (step === STEPS.SIGN_IN) {
-        await signIn({ phone: withLibyaPrefix(phone), password });
+        await signIn({ phone: toE164(country, phone), password });
         resetFields();
       } else if (step === STEPS.SIGN_UP) {
         const { verified } = await signUp({
           name: name.trim(),
-          phone: withLibyaPrefix(phone),
+          phone: toE164(country, phone),
           password,
         });
         if (verified) {
@@ -161,14 +163,14 @@ export default function AuthModal() {
           goToStep(STEPS.SIGN_UP_CODE);
         }
       } else if (step === STEPS.SIGN_UP_CODE) {
-        await verifySignUpOtp({ phone: withLibyaPrefix(phone), token: code, name: name.trim() });
+        await verifySignUpOtp({ phone: toE164(country, phone), token: code, name: name.trim() });
         resetFields();
       } else if (step === STEPS.RESET_PHONE) {
         await sendResetCode();
         goToStep(STEPS.RESET_CODE);
       } else if (step === STEPS.RESET_CODE) {
         await resetPasswordWithOtp({
-          phone: withLibyaPrefix(phone),
+          phone: toE164(country, phone),
           token: code,
           newPassword: password,
         });
@@ -194,9 +196,9 @@ export default function AuthModal() {
         // Re-running signUp with the same number and password re-sends the
         // code for the still-unconfirmed account rather than creating a
         // second one — Supabase treats it as a resend.
-        await signUp({ name: name.trim(), phone: withLibyaPrefix(phone), password });
+        await signUp({ name: name.trim(), phone: toE164(country, phone), password });
       } else {
-        await sendPasswordResetCode(withLibyaPrefix(phone));
+        await sendPasswordResetCode(toE164(country, phone));
       }
       setCooldown(RESEND_COOLDOWN_SECONDS);
       setCode('');
@@ -300,6 +302,8 @@ export default function AuthModal() {
                 <PhoneInput
                   value={phone}
                   onChangeText={setPhone}
+                  country={country}
+                  onChangeCountry={setCountry}
                   colors={colors}
                   placeholder={`${t('authPhonePlaceholder')} *`}
                 />
@@ -333,7 +337,7 @@ export default function AuthModal() {
                 <Text style={[styles.hint, { color: colors.textMuted }]}>
                   {t(OTP_CHANNEL === 'whatsapp' ? 'authOtpSentWhatsapp' : 'authOtpSentSms').replace(
                     '{phone}',
-                    withLibyaPrefix(phone)
+                    toE164(country, phone)
                   )}
                 </Text>
 

@@ -38,11 +38,7 @@ import {
 } from '../data/propertyTypes';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
-import PhoneInput, {
-  stripLibyaPrefix,
-  withLibyaPrefix,
-  isValidLibyanMobile,
-} from '../components/PhoneInput';
+import PhoneInput, { fromE164, isValidPhone, toE164 } from '../components/PhoneInput';
 import { isRemoteMediaUrl, uploadListingImage, uploadListingVideo } from '../utils/uploadImage';
 import { toEnglishDigits } from '../utils/digits';
 import { isVideoUrl } from '../utils/media';
@@ -96,9 +92,13 @@ export default function AddListingScreen({ navigation, route }) {
   const [title, setTitle] = useState(existing?.title ?? '');
   const [price, setPrice] = useState(existing ? String(existing.price) : '');
   const [area, setArea] = useState(existing ? String(existing.area) : '');
-  const [agentPhone, setAgentPhone] = useState(
-    stripLibyaPrefix(existing?.agentPhone ?? auth.phone ?? '')
-  );
+  // Seeded from whatever's on file — the listing being edited, else the
+  // signed-in account's own number — and split back into country + national
+  // digits so the picker opens on the right country rather than defaulting to
+  // Libya for someone whose account is on a foreign number.
+  const seededPhone = fromE164(existing?.agentPhone ?? auth.phone ?? '');
+  const [agentPhone, setAgentPhone] = useState(seededPhone.national);
+  const [agentCountry, setAgentCountry] = useState(seededPhone.country);
   const [description, setDescription] = useState(existing?.description ?? '');
   const [images, setImages] = useState(existing?.images ?? []);
   const [listingType, setListingType] = useState(existing?.listingType ?? 'sale');
@@ -183,7 +183,7 @@ export default function AddListingScreen({ navigation, route }) {
     title.trim().length > 0 &&
     Number(price) > 0 &&
     Number(area) > 0 &&
-    isValidLibyanMobile(agentPhone.trim()) &&
+    isValidPhone(agentCountry, agentPhone.trim()) &&
     description.trim().length >= MIN_DESCRIPTION_LENGTH &&
     images.length >= MIN_PHOTOS &&
     images.length <= MAX_PHOTOS &&
@@ -263,7 +263,7 @@ export default function AddListingScreen({ navigation, route }) {
         title: title.trim(),
         price: Number(price),
         area: Number(area),
-        agentPhone: withLibyaPrefix(agentPhone),
+        agentPhone: toE164(agentCountry, agentPhone),
         description: description.trim(),
         images: uploadedImages,
         listingType,
@@ -408,6 +408,8 @@ export default function AddListingScreen({ navigation, route }) {
       <PhoneInput
         value={agentPhone}
         onChangeText={setAgentPhone}
+        country={agentCountry}
+        onChangeCountry={setAgentCountry}
         colors={colors}
         placeholder={t('authPhonePlaceholder')}
       />
