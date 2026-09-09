@@ -53,7 +53,21 @@ const ListingsMap = forwardRef(function ListingsMap(
         duration: 600,
       });
     },
-  }));
+    /**
+     * Move to somewhere without yanking the zoom in. `maxZoom` is a ceiling,
+     * not a target: already looking at the whole country? stay there, just
+     * shift across. Already zoomed past it? come out to the ceiling so the
+     * area is actually legible. Picking a city should feel like the map
+     * slides over, not like it dives.
+     */
+    moveTo(latitude, longitude, maxZoom) {
+      cameraRef.current?.flyTo({
+        center: [longitude, latitude],
+        zoom: Math.min(mapZoom + MAPLIBRE_ZOOM_OFFSET, maxZoom) - MAPLIBRE_ZOOM_OFFSET,
+        duration: 700,
+      });
+    },
+  }), [mapZoom]);
 
   // MapLibre hands back bounds already in supercluster's own
   // [west, south, east, north] order, so no conversion is needed here — the

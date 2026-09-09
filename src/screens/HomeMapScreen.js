@@ -99,6 +99,46 @@ const LIBYA_BOUNDS = { minLat: 19.5, maxLat: 33.2, minLon: 9.3, maxLon: 25.2 };
 // on the app-wide native RTL auto-mirror. A Modal mounts its content into a
 // separate native root, which doesn't reliably inherit either of those, so
 // this is the one spot on the screen that has to pick its own side.
+/**
+ * One row of the filter menu: what the facet is, what it's currently set to,
+ * and a chevron into its picker. The value is coloured when it's an actual
+ * choice rather than the default, so a glance down the sheet shows what's
+ * been narrowed without reading every line.
+ */
+function FilterFacetRow({ label, value, active, colors, filterAccent, isRTL, onPress }) {
+  const textAlign = isRTL ? 'right' : 'left';
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+      style={({ pressed }) => [
+        styles.facetRow,
+        { borderBottomColor: colors.border },
+        pressed && { opacity: 0.6 },
+      ]}
+    >
+      <View style={styles.facetTextBlock}>
+        <Text style={[styles.facetLabel, { color: colors.text, textAlign }]}>{label}</Text>
+        <Text
+          style={[
+            styles.facetValue,
+            { color: active ? filterAccent : colors.textMuted, textAlign },
+          ]}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+      </View>
+      <Ionicons
+        name={isRTL ? 'chevron-back' : 'chevron-forward'}
+        size={18}
+        color={colors.textMuted}
+      />
+    </Pressable>
+  );
+}
+
 function ModalCloseButton({ onPress, colors, label, isRTL }) {
   return (
     <Pressable
@@ -279,10 +319,11 @@ export default function HomeMapScreen({ navigation }) {
   // emptied the screen — the listings matched the filter, they were just
   // 600km outside the viewport, which reads as "the filter broke".
   //
-  // Zooms are on the standard 256px-tile scale (see MAPLIBRE_ZOOM_OFFSET):
-  // a city fits in roughly z12, a single district is much tighter.
-  const CITY_ZOOM = 12;
-  const DISTRICT_ZOOM = 14.5;
+  // Ceilings, not targets — moveTo only zooms out to them, never in, so
+  // picking a place slides the map across rather than diving into it.
+  // Standard 256px-tile scale (see MAPLIBRE_ZOOM_OFFSET).
+  const CITY_ZOOM = 11.5;
+  const DISTRICT_ZOOM = 13;
 
   const handleCityFilterChange = (key) => {
     setCityFilter(key);
@@ -292,7 +333,7 @@ export default function HomeMapScreen({ navigation }) {
       return;
     }
     const city = CITIES.find((item) => item.key === key);
-    if (city) mapRef.current?.centerOn(city.latitude, city.longitude, CITY_ZOOM);
+    if (city) mapRef.current?.moveTo(city.latitude, city.longitude, CITY_ZOOM);
 
     const hasDistricts = DISTRICTS.some((item) => item.city === key);
     if (hasDistricts) {
@@ -308,15 +349,17 @@ export default function HomeMapScreen({ navigation }) {
       // Back to the whole city rather than staying zoomed into whichever
       // district was showing.
       const city = CITIES.find((item) => item.key === cityFilter);
-      if (city) mapRef.current?.centerOn(city.latitude, city.longitude, CITY_ZOOM);
+      if (city) mapRef.current?.moveTo(city.latitude, city.longitude, CITY_ZOOM);
       return;
     }
     const district = DISTRICTS.find((item) => item.key === key);
     if (district) {
-      mapRef.current?.centerOn(district.latitude, district.longitude, DISTRICT_ZOOM);
+      mapRef.current?.moveTo(district.latitude, district.longitude, DISTRICT_ZOOM);
     }
   };
   const [audienceFilter, setAudienceFilter] = useState('all');
+  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+  const [audiencePickerVisible, setAudiencePickerVisible] = useState(false);
   const [sortBy, setSortBy] = useState('featured');
   const [sortPickerVisible, setSortPickerVisible] = useState(false);
   // Real measured height of the floating topBar, not a hardcoded guess — the
@@ -384,6 +427,26 @@ export default function HomeMapScreen({ navigation }) {
     t('sortLabel'),
     sortBy === 'featured' ? [] : [t(SORT_LABEL_KEYS[sortBy])]
   );
+
+  // What the badge on the Filters button counts: only choices the user
+  // actively made, so the default state shows no badge at all. Sort only
+  // counts in list view, where it's the only place it has any effect.
+  const activeFilterCount =
+    (selectedPropertyTypes.length > 0 ? 1 : 0) +
+    (cityFilter !== 'all' ? 1 : 0) +
+    (minPrice > PRICE_MIN || maxPrice < PRICE_MAX ? 1 : 0) +
+    (showAudienceFilter && audienceFilter !== 'all' ? 1 : 0) +
+    (viewMode === 'list' && sortBy !== 'featured' ? 1 : 0);
+
+  const clearAllFilters = () => {
+    setSelectedPropertyTypes([]);
+    setCityFilter('all');
+    setDistrictFilter('all');
+    setMinPrice(PRICE_MIN);
+    setMaxPrice(PRICE_MAX);
+    setAudienceFilter('all');
+    setSortBy('featured');
+  };
 
   // Buyer-facing map/list only ever shows admin-approved listings, filtered by
   // purpose + type — featured ones are pinned to the top of that same list
@@ -698,116 +761,160 @@ export default function HomeMapScreen({ navigation }) {
           })}
         </View>
 
-        <ScrollView
-          key={`filter-row-${language}`}
-          horizontal
-          style={[styles.filterScroll, { direction: isRTL ? 'rtl' : 'ltr' }]}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.filterPillRow,
-            styles.audienceRow,
-            { flexDirection: 'row', direction: isRTL ? 'rtl' : 'ltr' },
+        {/* One button instead of a row of pills. The pills scrolled
+            horizontally, which hid whichever filters didn't fit — worst in
+            Arabic, where the row starts at the right and the overflow falls
+            off the left edge — and they took a third of the map with them.
+            Everything now lives behind this, the way a marketplace app's
+            filter button works. */}
+        <Pressable
+          onPress={() => setFilterSheetVisible(true)}
+          style={({ pressed }) => [
+            styles.filtersButton,
+            { backgroundColor: colors.surface, borderColor: filterAccent },
+            pressed && { opacity: 0.6 },
           ]}
-          scrollEventThrottle={16}
+          accessibilityRole="button"
+          accessibilityLabel={t('filtersLabel')}
+          testID="filters-button"
+        >
+          <Ionicons name="options-outline" size={16} color={filterAccent} />
+          <Text style={[styles.filtersButtonText, { color: filterAccent }]}>
+            {t('filtersLabel')}
+          </Text>
+          {activeFilterCount > 0 && (
+            <View style={[styles.filterCountBadge, { backgroundColor: colors.accent }]}>
+              <Text style={[styles.filterCountText, { color: colors.accentText }]}>
+                {activeFilterCount}
+              </Text>
+            </View>
+          )}
+        </Pressable>
+
+
+        {/* The menu itself: one row per facet, each showing what it's
+            currently set to and opening the existing picker on top. Rows
+            rather than everything inline, so the sheet stays scannable as
+            filters get added — and so the audience filter, which only exists
+            for chalet rentals, can appear without reflowing a chip row. */}
+        <Modal
+          visible={filterSheetVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setFilterSheetVisible(false)}
+          statusBarTranslucent
+          navigationBarTranslucent
         >
           <Pressable
-            onPress={() => setPropertyTypePickerVisible(true)}
-            style={({ pressed }) => [
-              styles.pickerDropdown,
-              isRTL && styles.pickerDropdownRTL,
-              { backgroundColor: colors.surface, borderColor: filterAccent },
-              pressed && { opacity: 0.6 },
-            ]}
-            accessibilityRole="button"
+            style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
+            onPress={() => setFilterSheetVisible(false)}
           >
-            <Text
-              style={[
-                styles.filterChipText,
-                isRTL && styles.filterChipTextRTL,
-                { color: filterAccent },
-              ]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {propertyTypeSummary}
-            </Text>
-            <Ionicons name="chevron-down" size={16} color={filterAccent} />
-          </Pressable>
-
-          <Pressable
-            onPress={() => setPriceFilterVisible(true)}
-            style={({ pressed }) => [
-              styles.pickerDropdown,
-              isRTL && styles.pickerDropdownRTL,
-              { backgroundColor: colors.surface, borderColor: filterAccent },
-              pressed && { opacity: 0.6 },
-            ]}
-            accessibilityRole="button"
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                isRTL && styles.filterChipTextRTL,
-                { color: filterAccent },
-              ]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {priceSummary}
-            </Text>
-            <Ionicons name="chevron-down" size={16} color={filterAccent} />
-          </Pressable>
-
-          <Pressable
-            onPress={openLocationFilter}
-            style={({ pressed }) => [
-              styles.pickerDropdown,
-              isRTL && styles.pickerDropdownRTL,
-              { backgroundColor: colors.surface, borderColor: filterAccent },
-              pressed && { opacity: 0.6 },
-            ]}
-            accessibilityRole="button"
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                isRTL && styles.filterChipTextRTL,
-                { color: filterAccent },
-              ]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {locationSummary}
-            </Text>
-            <Ionicons name="chevron-down" size={16} color={filterAccent} />
-          </Pressable>
-
-          {/* List-view only — map pin order isn't meaningful to sort. */}
-          {viewMode === 'list' && (
             <Pressable
-              onPress={() => setSortPickerVisible(true)}
-              style={({ pressed }) => [
-                styles.pickerDropdown,
-                isRTL && styles.pickerDropdownRTL,
-                { backgroundColor: colors.surface, borderColor: filterAccent },
-                pressed && { opacity: 0.6 },
-              ]}
+              style={[styles.filterSheetCard, { backgroundColor: colors.surface }]}
+              onPress={() => {}}
             >
+              <ModalCloseButton
+                onPress={() => setFilterSheetVisible(false)}
+                colors={colors}
+                label={t('close')}
+                isRTL={isRTL}
+              />
               <Text
                 style={[
-                  styles.filterChipText,
-                  isRTL && styles.filterChipTextRTL,
-                  { color: filterAccent },
+                  styles.pickerModalTitle,
+                  styles.filterSheetTitle,
+                  { color: colors.heading, borderBottomColor: colors.border, textAlign: isRTL ? 'right' : 'left' },
                 ]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
               >
-                {sortSummary}
+                {t('filtersLabel')}
               </Text>
-              <Ionicons name="chevron-down" size={16} color={filterAccent} />
+
+              <ScrollView>
+                <FilterFacetRow
+                  label={t('propertyTypeLabel')}
+                  value={selectedPropertyTypes.length > 0 ? propertyTypeSummary : t('allFilter')}
+                  active={selectedPropertyTypes.length > 0}
+                  colors={colors}
+                  filterAccent={filterAccent}
+                  isRTL={isRTL}
+                  onPress={() => setPropertyTypePickerVisible(true)}
+                />
+                <FilterFacetRow
+                  label={t('cityLabel')}
+                  value={cityFilter === 'all' ? t('allCitiesFilter') : locationSummary}
+                  active={cityFilter !== 'all'}
+                  colors={colors}
+                  filterAccent={filterAccent}
+                  isRTL={isRTL}
+                  onPress={openLocationFilter}
+                />
+                <FilterFacetRow
+                  label={t('priceFilterLabel')}
+                  value={
+                    minPrice > PRICE_MIN || maxPrice < PRICE_MAX ? priceSummary : t('allFilter')
+                  }
+                  active={minPrice > PRICE_MIN || maxPrice < PRICE_MAX}
+                  colors={colors}
+                  filterAccent={filterAccent}
+                  isRTL={isRTL}
+                  onPress={() => setPriceFilterVisible(true)}
+                />
+                {showAudienceFilter && (
+                  <FilterFacetRow
+                    label={t('audienceLabel')}
+                    value={
+                      audienceFilter === 'all'
+                        ? t('allFilter')
+                        : t(AUDIENCE_LABEL_KEYS[audienceFilter])
+                    }
+                    active={audienceFilter !== 'all'}
+                    colors={colors}
+                    filterAccent={filterAccent}
+                    isRTL={isRTL}
+                    onPress={() => setAudiencePickerVisible(true)}
+                  />
+                )}
+                {/* Map pin order isn't meaningful, so sorting is list-only. */}
+                {viewMode === 'list' && (
+                  <FilterFacetRow
+                    label={t('sortLabel')}
+                    value={sortSummary}
+                    active={sortBy !== 'featured'}
+                    colors={colors}
+                    filterAccent={filterAccent}
+                    isRTL={isRTL}
+                    onPress={() => setSortPickerVisible(true)}
+                  />
+                )}
+              </ScrollView>
+
+              <View style={styles.filterSheetFooter}>
+                <Pressable
+                  style={[styles.priceClearButton, { borderColor: colors.inputBorder }]}
+                  onPress={clearAllFilters}
+                  disabled={activeFilterCount === 0}
+                >
+                  <Text
+                    style={[
+                      styles.priceClearButtonText,
+                      { color: activeFilterCount === 0 ? colors.disabled : colors.textMuted },
+                    ]}
+                  >
+                    {t('clearFilter')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
+                  onPress={() => setFilterSheetVisible(false)}
+                >
+                  <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
+                    {t('showResults')}
+                  </Text>
+                </Pressable>
+              </View>
             </Pressable>
-          )}
-        </ScrollView>
+          </Pressable>
+        </Modal>
 
         <Modal
           visible={propertyTypePickerVisible}
@@ -1003,6 +1110,67 @@ export default function HomeMapScreen({ navigation }) {
         </Modal>
 
         <Modal
+          visible={audiencePickerVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setAudiencePickerVisible(false)}
+          statusBarTranslucent
+          navigationBarTranslucent
+        >
+          <Pressable
+            style={[styles.pickerModalBackdrop, { backgroundColor: colors.backdrop }]}
+            onPress={() => setAudiencePickerVisible(false)}
+          >
+            <Pressable
+              style={[styles.pickerModalCard, { backgroundColor: colors.surface }]}
+              onPress={() => {}}
+            >
+              <ModalCloseButton
+                onPress={() => setAudiencePickerVisible(false)}
+                colors={colors}
+                label={t('close')}
+                isRTL={isRTL}
+              />
+              <Text
+                style={[
+                  styles.pickerModalTitle,
+                  { color: colors.heading, borderBottomColor: colors.border, textAlign: isRTL ? 'right' : 'left' },
+                ]}
+              >
+                {t('audienceLabel')}
+              </Text>
+              <ScrollView>
+                {['all', ...AUDIENCE_OPTIONS].map((option) => {
+                  const active = audienceFilter === option;
+                  const label = option === 'all' ? t('allFilter') : t(AUDIENCE_LABEL_KEYS[option]);
+                  return (
+                    <Pressable
+                      key={option}
+                      onPress={() => {
+                        setAudienceFilter(option);
+                        setAudiencePickerVisible(false);
+                      }}
+                      style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
+                    >
+                      <Text
+                        style={[
+                          styles.pickerOptionText,
+                          { color: active ? filterAccent : colors.text, textAlign: isRTL ? 'right' : 'left' },
+                          active && styles.pickerOptionTextActive,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                      {active && <Ionicons name="checkmark" size={18} color={filterAccent} />}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        <Modal
           visible={sortPickerVisible}
           transparent
           animationType="fade"
@@ -1057,41 +1225,6 @@ export default function HomeMapScreen({ navigation }) {
           </Pressable>
         </Modal>
 
-        {showAudienceFilter && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[styles.filterRow, styles.audienceRow]}
-          >
-            {['all', ...AUDIENCE_OPTIONS].map((option) => {
-              const active = audienceFilter === option;
-              const label = option === 'all' ? t('allFilter') : t(AUDIENCE_LABEL_KEYS[option]);
-              return (
-                <Pressable
-                  key={option}
-                  onPress={() => setAudienceFilter(option)}
-                  accessibilityRole="button"
-                  accessibilityLabel={label}
-                  accessibilityState={{ selected: active }}
-                  style={[
-                    styles.filterChip,
-                    { backgroundColor: colors.surface, borderColor: filterAccent },
-                    active && { backgroundColor: colors.accent },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      { color: active ? colors.accentText : colors.accent },
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        )}
       </View>
 
       {viewMode === 'map' && selectedListing && (
@@ -1262,67 +1395,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
-  filterRow: {
-    gap: 8,
-    marginTop: 10,
-    paddingEnd: 4,
-  },
-  filterScroll: {
-    width: '100%',
-    flexGrow: 0,
-  },
-  audienceRow: {
-    marginTop: 8,
-  },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 18,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
-  },
-  filterChipText: {
-    flexShrink: 1,
-    maxWidth: 160,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  filterChipTextRTL: {
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  pickerDropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    maxWidth: 196,
-    flexShrink: 0,
-    justifyContent: 'space-between',
-    alignSelf: 'flex-start',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 18,
-    borderWidth: 1,
-    // Belt-and-suspenders against a long label pushing the pill past the
-    // screen edge — numberOfLines/ellipsizeMode truncation on the inner
-    // Text is unreliable for RTL (Arabic) content on Android, so this
-    // container-level clip is what actually guarantees the pill never
-    // grows past maxWidth regardless of whether the ellipsis kicked in.
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
-  },
-  pickerDropdownRTL: {
-    flexDirection: 'row',
-    direction: 'rtl',
-  },
   pickerModalBackdrop: {
     flex: 1,
     justifyContent: 'center',
@@ -1349,11 +1421,77 @@ const styles = StyleSheet.create({
   pickerModalCloseButtonRTL: {
     left: 12,
   },
+  // Bigger and underlined, so the sheet's title reads as a heading rather
+  // than as another option in the list below it.
   pickerModalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 8,
+    fontSize: 19,
+    fontWeight: '800',
+    marginBottom: 10,
     paddingHorizontal: 8,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  filterSheetCard: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+    paddingTop: 40,
+    maxHeight: '80%',
+    marginTop: 'auto',
+  },
+  filterSheetTitle: {
+    marginBottom: 4,
+  },
+  filterSheetFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  facetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  facetTextBlock: {
+    flex: 1,
+    gap: 3,
+  },
+  facetLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  facetValue: {
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  filtersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 7,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  filtersButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  filterCountBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterCountText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
   pickerModalHeaderRow: {
     flexDirection: 'row',
@@ -1377,14 +1515,6 @@ const styles = StyleSheet.create({
   },
   pickerOptionTextActive: {
     fontWeight: '700',
-  },
-  filterPillRow: {
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    alignItems: 'center',
-    gap: 8,
-    paddingStart: 4,
-    paddingEnd: 8,
   },
   priceValueRow: {
     flexDirection: 'row',

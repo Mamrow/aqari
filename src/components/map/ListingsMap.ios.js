@@ -53,11 +53,24 @@ const ListingsMap = forwardRef(function ListingsMap(
   const clusterIndex = useListingClusters(listings);
   const listingsById = useListingsById(listings);
 
-  useImperativeHandle(ref, () => ({
-    centerOn(latitude, longitude, zoom = USER_LOCATION_ZOOM) {
-      mapRef.current?.animateToRegion(regionForZoom(latitude, longitude, zoom), 400);
-    },
-  }));
+  useImperativeHandle(
+    ref,
+    () => ({
+      centerOn(latitude, longitude, zoom = USER_LOCATION_ZOOM) {
+        mapRef.current?.animateToRegion(regionForZoom(latitude, longitude, zoom), 400);
+      },
+      /**
+       * Move without yanking the zoom in — `maxZoom` is a ceiling, not a
+       * target. See the Android twin for the reasoning.
+       */
+      moveTo(latitude, longitude, maxZoom) {
+        const current = zoomFromLongitudeDelta(region.longitudeDelta, VIEWPORT_WIDTH);
+        const zoom = Math.min(current, maxZoom);
+        mapRef.current?.animateToRegion(regionForZoom(latitude, longitude, zoom), 500);
+      },
+    }),
+    [region]
+  );
 
   const bbox = useMemo(
     () => [

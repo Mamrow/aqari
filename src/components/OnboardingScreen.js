@@ -179,22 +179,24 @@ export default function OnboardingScreen({ onDone }) {
           //     direction, identically on both platforms — no mirroring step
           //     to disagree about. paddingEnd carries the design's gap to the
           //     far edge; paddingStart is the 20pt margin the text hugs.
-          //   * textAlign:'auto' aligns from the text's own direction, so
-          //     Arabic lands right and English lands left without either
-          //     platform having to flip a physical value.
+          //   * textAlign is stated as 'right' for Arabic, and the inline
+          //     `direction: 'rtl'` that used to sit alongside it is gone.
+          //     That prop created a nested RTL context which mirrored
+          //     left/right underneath — the reason 'left' once rendered
+          //     visually-right here while the rest of the app used 'right'
+          //     for the same effect. Without it, 'right' means right, the way
+          //     it already does in HomeMapScreen's filter modals on both
+          //     platforms.
           //
-          // Don't reintroduce 'left'/'right'/'flex-start' here. They can look
-          // correct on whichever platform you happen to test on and be
-          // backwards on the other one.
+          // textAlign:'auto' looks like the principled answer and isn't: it
+          // resolves from the text's own direction on Android but falls back
+          // to left on iOS, which stranded the Arabic copy mid-screen.
           <View style={[styles.copyBlockBandRTL]}>
-            <View style={[styles.copyBlockInner, { direction: 'rtl', writingDirection: 'rtl' }]}>
-              <Text style={[styles.title, styles.titleRTL, { writingDirection: 'rtl', direction: 'rtl' }]}>
+            <View style={[styles.copyBlockInner, { writingDirection: 'rtl' }]}>
+              <Text style={[styles.title, styles.titleRTL]}>
                 {displayCopy(slide.titleKey)}
               </Text>
-              <Text
-                numberOfLines={3}
-                style={[styles.body, styles.bodyRTL, { writingDirection: 'rtl', direction: 'rtl' }]}
-              >
+              <Text numberOfLines={3} style={[styles.body, styles.bodyRTL]}>
                 {displayCopy(slide.bodyKey)}
               </Text>
             </View>
@@ -373,9 +375,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
     marginBottom: 10,
     writingDirection: 'rtl',
-    // 'auto' aligns from the text's own direction — right for Arabic — on
-    // both platforms. See the comment where copyBlockBandRTL is applied.
-    textAlign: 'auto',
+    textAlign: 'right',
   },
   body: {
     color: ONBOARDING_BODY,
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     fontWeight: '400',
     writingDirection: 'rtl',
-    textAlign: 'auto',
+    textAlign: 'right',
   },
   footer: {
     position: 'absolute',

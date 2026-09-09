@@ -43,6 +43,13 @@ export default function SettingsScreen({ navigation }) {
   const t = useT();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
+  // Explicit, not textAlign:'auto'. 'auto' is supposed to align from the
+  // text's own direction and does on Android — on iOS it resolves to left for
+  // Arabic, which left every label stranded away from its icon. The ternary is
+  // what the filter modals in HomeMapScreen already use, and those render
+  // correctly on both platforms.
+  const isRTL = language === 'ar';
+  const textAlign = isRTL ? 'right' : 'left';
 
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -269,14 +276,14 @@ export default function SettingsScreen({ navigation }) {
                   </View>
                 ) : (
                   <Pressable onPress={startEditingName} style={styles.nameRow} hitSlop={6}>
-                    <Text style={[styles.name, { color: colors.heading }]} numberOfLines={1}>
+                    <Text style={[styles.name, { color: colors.heading, textAlign }]} numberOfLines={1}>
                       {auth.name}
                     </Text>
                     <Ionicons name="pencil" size={13} color={colors.textMuted} />
                   </Pressable>
                 )}
                 {/* Phone numbers read left-to-right in both languages. */}
-                <Text style={[styles.phone, { color: colors.textMuted }]}>{auth.phone}</Text>
+                <Text style={[styles.phone, { color: colors.textMuted, textAlign }]}>{auth.phone}</Text>
                 {isAdmin && (
                   <View style={[styles.roleBadge, { backgroundColor: colors.surface }]}>
                     <Text style={[styles.roleBadgeText, { color: colors.accent }]}>{t('roleAdmin')}</Text>
@@ -285,8 +292,8 @@ export default function SettingsScreen({ navigation }) {
               </>
             ) : (
               <>
-                <Text style={[styles.name, { color: colors.heading }]}>{t('settingsHeading')}</Text>
-                <Text style={[styles.phone, { color: colors.textMuted }]}>{t('signInPrompt')}</Text>
+                <Text style={[styles.name, { color: colors.heading, textAlign }]}>{t('settingsHeading')}</Text>
+                <Text style={[styles.phone, { color: colors.textMuted, textAlign }]}>{t('signInPrompt')}</Text>
               </>
             )}
           </View>
@@ -327,10 +334,11 @@ export default function SettingsScreen({ navigation }) {
           </View>
         )}
 
-        <SectionHeading label={t('accountSettingsLabel')} colors={colors} />
+        <SectionHeading textAlign={textAlign} label={t('accountSettingsLabel')} colors={colors} />
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {auth.loggedIn && (
             <Row
+              textAlign={textAlign}
               icon="person-circle-outline"
               label={t('personalInfoRow')}
               subtitle={t('personalInfoRowSubtitle')}
@@ -340,6 +348,7 @@ export default function SettingsScreen({ navigation }) {
           )}
 
           <Row
+            textAlign={textAlign}
             icon="settings-outline"
             label={t('languageDisplayRow')}
             subtitle={displayOpen ? undefined : `${languageOptions.find((o) => o.value === language)?.label}`}
@@ -350,7 +359,7 @@ export default function SettingsScreen({ navigation }) {
           />
           {displayOpen && (
             <View style={styles.expanded}>
-              <Text style={[styles.subLabel, { color: colors.textMuted }]}>{t('languageLabel')}</Text>
+              <Text style={[styles.subLabel, { color: colors.textMuted, textAlign }]}>{t('languageLabel')}</Text>
               <View style={styles.chipRow}>
                 {languageOptions.map((option) => (
                   <Chip
@@ -363,7 +372,7 @@ export default function SettingsScreen({ navigation }) {
                 ))}
               </View>
 
-              <Text style={[styles.subLabel, styles.subLabelSpacing, { color: colors.textMuted }]}>
+              <Text style={[styles.subLabel, styles.subLabelSpacing, { color: colors.textMuted, textAlign }]}>
                 {t('themeLabel')}
               </Text>
               <View style={styles.chipRow}>
@@ -425,6 +434,7 @@ export default function SettingsScreen({ navigation }) {
 
           {auth.loggedIn && !isAdmin && (
             <Row
+              textAlign={textAlign}
               icon="person-remove-outline"
               label={t('blockedSellersRow')}
               subtitle={t('blockedSellersRowSubtitle')}
@@ -436,6 +446,7 @@ export default function SettingsScreen({ navigation }) {
 
           {auth.loggedIn && !isAdmin && BOOST_PURCHASES_ENABLED && (
             <Row
+              textAlign={textAlign}
               icon="card-outline"
               label={t('paymentHistoryRow')}
               subtitle={t('paymentHistoryRowSubtitle')}
@@ -446,15 +457,17 @@ export default function SettingsScreen({ navigation }) {
           )}
         </View>
 
-        <SectionHeading label={t('aboutAqariLabel')} colors={colors} />
+        <SectionHeading textAlign={textAlign} label={t('aboutAqariLabel')} colors={colors} />
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Row
+            textAlign={textAlign}
             icon="create-outline"
             label={t('feedbackRow')}
             colors={colors}
             onPress={() => navigation.navigate('Support')}
           />
           <Row
+            textAlign={textAlign}
             icon="reader-outline"
             label={t('termsOfServiceRow')}
             colors={colors}
@@ -462,6 +475,7 @@ export default function SettingsScreen({ navigation }) {
             onPress={() => navigation.navigate('TermsOfService')}
           />
           <Row
+            textAlign={textAlign}
             icon="document-text-outline"
             label={t('privacyPolicyRow')}
             colors={colors}
@@ -469,6 +483,7 @@ export default function SettingsScreen({ navigation }) {
             onPress={() => navigation.navigate('PrivacyPolicy')}
           />
           <Row
+            textAlign={textAlign}
             icon="sparkles-outline"
             label={t('howItWorksRow')}
             colors={colors}
@@ -476,6 +491,7 @@ export default function SettingsScreen({ navigation }) {
             onPress={replayOnboarding}
           />
           <Row
+            textAlign={textAlign}
             icon="information-circle-outline"
             label={t('aboutAppRow')}
             colors={colors}
@@ -484,6 +500,7 @@ export default function SettingsScreen({ navigation }) {
             chevron={null}
           />
           <Row
+            textAlign={textAlign}
             icon="star-outline"
             label={t('rateUsRow')}
             colors={colors}
@@ -525,7 +542,7 @@ export default function SettingsScreen({ navigation }) {
  * platforms agree on. Hardcoding 'left' left Arabic labels stranded away from
  * their icon on iOS.
  */
-function Row({ icon, label, subtitle, value, colors, onPress, divider, chevron = 'chevron-forward' }) {
+function Row({ icon, label, subtitle, value, colors, textAlign, onPress, divider, chevron = 'chevron-forward' }) {
   return (
     <Pressable
       onPress={onPress}
@@ -542,9 +559,9 @@ function Row({ icon, label, subtitle, value, colors, onPress, divider, chevron =
         <Ionicons name={icon} size={18} color={colors.accent} />
       </View>
       <View style={styles.rowTextBlock}>
-        <Text style={[styles.rowLabel, { color: colors.text }]}>{label}</Text>
+        <Text style={[styles.rowLabel, { color: colors.text, textAlign }]}>{label}</Text>
         {subtitle ? (
-          <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>{subtitle}</Text>
+          <Text style={[styles.rowSubtitle, { color: colors.textMuted, textAlign }]}>{subtitle}</Text>
         ) : null}
       </View>
       {value ? <Text style={[styles.rowValue, { color: colors.textMuted }]}>{value}</Text> : null}
@@ -577,8 +594,8 @@ function StatTile({ icon, tint, count, label, colors, onPress }) {
   );
 }
 
-function SectionHeading({ label, colors }) {
-  return <Text style={[styles.sectionLabel, { color: colors.heading }]}>{label}</Text>;
+function SectionHeading({ label, colors, textAlign }) {
+  return <Text style={[styles.sectionLabel, { color: colors.heading, textAlign }]}>{label}</Text>;
 }
 
 function Chip({ label, active, colors, onPress }) {
@@ -646,12 +663,10 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     fontWeight: '700',
-    textAlign: 'auto',
   },
   phone: {
     fontSize: 14,
     writingDirection: 'ltr',
-    textAlign: 'auto',
   },
   roleBadge: {
     alignSelf: 'flex-start',
@@ -676,7 +691,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 15,
-    textAlign: 'auto',
   },
   signInButton: {
     borderRadius: 12,
@@ -727,7 +741,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     marginBottom: 10,
-    textAlign: 'auto',
   },
   card: {
     borderRadius: 16,
@@ -762,15 +775,12 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 15,
     fontWeight: '600',
-    textAlign: 'auto',
   },
   rowSubtitle: {
     fontSize: 12.5,
-    textAlign: 'auto',
   },
   rowValue: {
     fontSize: 13,
-    textAlign: 'auto',
   },
 
   // ---- expanded language/theme block ----
@@ -782,7 +792,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
-    textAlign: 'auto',
   },
   subLabelSpacing: {
     marginTop: 16,
@@ -822,7 +831,6 @@ const styles = StyleSheet.create({
   deleteLinkText: {
     fontSize: 13,
     textDecorationLine: 'underline',
-    textAlign: 'auto',
   },
 
   // ---- delete-account confirmation screen ----
@@ -840,7 +848,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     marginBottom: 24,
-    textAlign: 'auto',
   },
   deleteConfirmButton: {
     alignItems: 'center',
