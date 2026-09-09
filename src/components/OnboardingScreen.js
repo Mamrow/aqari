@@ -321,11 +321,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '400',
   },
-  // English's original, untouched box — see the comment where this is
-  // applied for why English and Arabic are on separate style paths now.
+  // Anchored to the bottom rather than 72% down the screen. A percentage
+  // from the top assumes the copy is always about one title line tall, which
+  // holds in Arabic and doesn't in English — "Browse properties" wraps to two
+  // lines on a phone, pushing the body text underneath the Next button.
+  // Measuring up from the footer instead means the gap above the buttons is
+  // the same whatever the copy does.
   copyBlock: {
     position: 'absolute',
-    top: '72%',
+    bottom: 104,
     width: '76%',
     zIndex: 6,
   },
@@ -339,7 +343,7 @@ const styles = StyleSheet.create({
   // dependency on alignItems mirroring to place it.
   copyBlockBandRTL: {
     position: 'absolute',
-    top: '72%',
+    bottom: 104,
     left: 0,
     right: 0,
     paddingStart: 20,

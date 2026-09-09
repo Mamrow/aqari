@@ -87,13 +87,28 @@ export function useListingClusters(listings) {
  * @param bbox [west, south, east, north]
  * @param zoom standard 256px-tile zoom (see MAPLIBRE_ZOOM_OFFSET)
  */
+// Grow the viewport box by this fraction of its own width/height before
+// deciding what's visible. Without it a pin sitting a hair outside the edge
+// pops out the instant the camera moves, and the bounds a map reports lag a
+// frame or two behind what's drawn — so pins near the edge flickered in and
+// out while zooming. Rendering a few extra markers just off-screen is far
+// cheaper than that.
+const VIEWPORT_PADDING = 0.15;
+
+function padBbox([west, south, east, north]) {
+  const padX = (east - west) * VIEWPORT_PADDING;
+  const padY = (north - south) * VIEWPORT_PADDING;
+  return [west - padX, south - padY, east + padX, north + padY];
+}
+
 export function useMapFeatures(listings, bbox, zoom) {
   const clusterIndex = useListingClusters(listings);
   return useMemo(() => {
+    const padded = padBbox(bbox);
     if (CLUSTERING_ENABLED) {
-      return clusterIndex.getClusters(bbox, Math.round(zoom));
+      return clusterIndex.getClusters(padded, Math.round(zoom));
     }
-    const [west, south, east, north] = bbox;
+    const [west, south, east, north] = padded;
     return listings
       .filter(
         (listing) =>

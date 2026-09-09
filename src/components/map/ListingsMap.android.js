@@ -16,7 +16,7 @@ const DEFAULT_CENTER_LNGLAT = [TRIPOLI_MAP_DEFAULT.longitude, TRIPOLI_MAP_DEFAUL
 // TRIPOLI_MAP_DEFAULT.zoom, like every zoom outside this file, is on the
 // standard 256px-tile scale; MapLibre wants its own 512px-tile scale.
 const DEFAULT_ZOOM = TRIPOLI_MAP_DEFAULT.zoom - MAPLIBRE_ZOOM_OFFSET;
-const USER_LOCATION_ZOOM = 15 - MAPLIBRE_ZOOM_OFFSET;
+const USER_LOCATION_ZOOM = 15;
 
 // Seeded with a bbox roughly matching DEFAULT_ZOOM around DEFAULT_CENTER so
 // the very first render has something to cluster against, before the Map's
@@ -43,8 +43,15 @@ const ListingsMap = forwardRef(function ListingsMap(
   const features = useMapFeatures(listings, mapBounds, mapZoom + MAPLIBRE_ZOOM_OFFSET);
 
   useImperativeHandle(ref, () => ({
+    // `zoom` is on the standard 256px-tile scale, same as everywhere else
+    // outside this file — converted here rather than at the call sites, so
+    // callers never have to know which map library is underneath.
     centerOn(latitude, longitude, zoom = USER_LOCATION_ZOOM) {
-      cameraRef.current?.flyTo({ center: [longitude, latitude], zoom, duration: 400 });
+      cameraRef.current?.flyTo({
+        center: [longitude, latitude],
+        zoom: zoom - MAPLIBRE_ZOOM_OFFSET,
+        duration: 600,
+      });
     },
   }));
 
@@ -53,8 +60,16 @@ const ListingsMap = forwardRef(function ListingsMap(
   // iOS side has to derive both bbox and zoom from lat/lng deltas instead.
   const handleRegionDidChange = useCallback((event) => {
     const { bounds, zoom } = event.nativeEvent;
+    // Mid-gesture and mid-animation events can arrive without usable bounds.
+    // Writing those into state emptied the viewport filter and every pin
+    // vanished until the next good event — which read as listings randomly
+    // disappearing while zooming. Keeping the last known good bounds is
+    // always better than believing a broken one.
+    if (!Array.isArray(bounds) || bounds.length !== 4 || bounds.some((n) => !Number.isFinite(n))) {
+      return;
+    }
     setMapBounds(bounds);
-    setMapZoom(zoom);
+    if (Number.isFinite(zoom)) setMapZoom(zoom);
   }, []);
 
   const handleClusterPress = useCallback(

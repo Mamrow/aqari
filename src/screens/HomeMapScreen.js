@@ -274,6 +274,16 @@ export default function HomeMapScreen({ navigation }) {
     setLocationFilterStep(cityFilter !== 'all' ? 'district' : 'city');
     setLocationFilterVisible(true);
   };
+  // Picking a place moves the map to it. Filtering alone used to leave the
+  // camera wherever it was, so choosing Benghazi from a map of Tripoli
+  // emptied the screen — the listings matched the filter, they were just
+  // 600km outside the viewport, which reads as "the filter broke".
+  //
+  // Zooms are on the standard 256px-tile scale (see MAPLIBRE_ZOOM_OFFSET):
+  // a city fits in roughly z12, a single district is much tighter.
+  const CITY_ZOOM = 12;
+  const DISTRICT_ZOOM = 14.5;
+
   const handleCityFilterChange = (key) => {
     setCityFilter(key);
     setDistrictFilter('all');
@@ -281,6 +291,9 @@ export default function HomeMapScreen({ navigation }) {
       setLocationFilterVisible(false);
       return;
     }
+    const city = CITIES.find((item) => item.key === key);
+    if (city) mapRef.current?.centerOn(city.latitude, city.longitude, CITY_ZOOM);
+
     const hasDistricts = DISTRICTS.some((item) => item.city === key);
     if (hasDistricts) {
       setLocationFilterStep('district');
@@ -291,6 +304,17 @@ export default function HomeMapScreen({ navigation }) {
   const handleDistrictFilterChange = (key) => {
     setDistrictFilter(key);
     setLocationFilterVisible(false);
+    if (key === 'all') {
+      // Back to the whole city rather than staying zoomed into whichever
+      // district was showing.
+      const city = CITIES.find((item) => item.key === cityFilter);
+      if (city) mapRef.current?.centerOn(city.latitude, city.longitude, CITY_ZOOM);
+      return;
+    }
+    const district = DISTRICTS.find((item) => item.key === key);
+    if (district) {
+      mapRef.current?.centerOn(district.latitude, district.longitude, DISTRICT_ZOOM);
+    }
   };
   const [audienceFilter, setAudienceFilter] = useState('all');
   const [sortBy, setSortBy] = useState('featured');

@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { DevSettings, I18nManager, useColorScheme } from 'react-native';
+import { Alert, DevSettings, I18nManager, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LANGUAGE_STORAGE_KEY, ONBOARDING_SEEN_KEY } from '../i18n/constants';
 import { supabase } from '../lib/supabase';
@@ -285,14 +285,52 @@ export function AppProvider({ children }) {
     fetchBlockedSellers(authUid);
   }, [authUid, fetchBlockedSellers]);
 
-  // Changing language flips RTL/LTR, which React Native only applies after a
-  // full reload — DevSettings.reload() is a no-op outside dev/Expo Go.
-  const setLanguage = useCallback((lang) => {
-    AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
-    I18nManager.forceRTL(lang === 'ar');
-    setLanguageState(lang);
-    DevSettings.reload();
-  }, []);
+  // Changing language flips RTL/LTR, and React Native only applies a
+  // direction change when the app restarts — forceRTL on its own updates a
+  // flag that nothing re-reads until the native root is rebuilt. Until this
+  // used Updates.reloadAsync, that restart never happened in a release build:
+  // DevSettings.reload() is a no-op outside dev, so switching to English on
+  // TestFlight swapped the strings while leaving the whole app laid out
+  // right-to-left — reversed tab bar, headings against the wrong edge,
+  // English text in an Arabic layout.
+  //
+  // Three tiers, because no single one covers every build: reloadAsync works
+  // in release builds, DevSettings.reload in dev, and if somehow neither
+  // does, say so rather than leaving someone staring at a half-flipped app
+  // wondering whether the button worked.
+  const setLanguage = useCallback(
+    async (lang) => {
+      await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+      I18nManager.forceRTL(lang === 'ar');
+      setLanguageState(lang);
+
+      try {
+        // Required lazily, inside the try, on purpose: expo-updates is a
+        // native module, so a client built before it was added throws
+        // "Cannot find native module 'ExpoUpdates'" the moment this module
+        // is imported. At the top of the file that error is uncatchable and
+        // takes the whole app down; here it's just a failed tier.
+        const Updates = require('expo-updates');
+        await Updates.reloadAsync();
+        return;
+      } catch (error) {
+        console.warn('Updates.reloadAsync unavailable, falling back', error);
+      }
+
+      if (DevSettings?.reload) {
+        DevSettings.reload();
+        return;
+      }
+
+      Alert.alert(
+        lang === 'ar' ? 'إعادة تشغيل مطلوبة' : 'Restart needed',
+        lang === 'ar'
+          ? 'أغلق التطبيق وافتحه مرة أخرى لتطبيق تغيير اللغة.'
+          : 'Close and reopen the app to apply the language change.'
+      );
+    },
+    []
+  );
 
   // Gate: runs `action` immediately if signed in, otherwise opens the
   // sign-in/sign-up modal and replays `action` once auth completes.
