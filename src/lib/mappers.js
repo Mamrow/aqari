@@ -74,6 +74,12 @@ export function profileFromRow(row) {
     name: row.name,
     avatarUrl: row.avatar_url ?? null,
     role: row.role,
+    // New-listing alerts. Defaulted here rather than assumed present, so a
+    // client running against a database that hasn't had
+    // migration_new_listing_alerts.sql applied yet reads as "opted out"
+    // instead of undefined.
+    notifyNewListings: row.notify_new_listings ?? false,
+    notifyCities: row.notify_cities ?? [],
   };
 }
 

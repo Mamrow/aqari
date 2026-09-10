@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Switch,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { CITIES } from '../data/districts';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
@@ -33,6 +35,7 @@ export default function SettingsScreen({ navigation }) {
     setTheme,
     requireAuth,
     updateProfile,
+    updateNotificationPrefs,
     updateAccountPassword,
     isAdmin,
     listings,
@@ -57,6 +60,7 @@ export default function SettingsScreen({ navigation }) {
   // below them off the first screen. They're one row that opens now, so the
   // list reads as a list.
   const [displayOpen, setDisplayOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
 
   const languageOptions = [
     { value: 'ar', label: t('languageArabic') },
@@ -130,6 +134,21 @@ export default function SettingsScreen({ navigation }) {
     } finally {
       setSavingPassword(false);
     }
+  };
+
+  // What the row says without opening it: off, everywhere, or a count.
+  const alertCities = auth.notifyCities ?? [];
+  const alertsSummary = !auth.notifyNewListings
+    ? t('newListingAlertsSubtitleOff')
+    : alertCities.length === 0
+      ? t('newListingAlertsSubtitleAll')
+      : t('newListingAlertsSubtitleCities').replace('{count}', String(alertCities.length));
+
+  const toggleAlertCity = (key) => {
+    const next = alertCities.includes(key)
+      ? alertCities.filter((city) => city !== key)
+      : [...alertCities, key];
+    updateNotificationPrefs({ notifyCities: next });
   };
 
   const handleLogout = () => {
@@ -385,6 +404,66 @@ export default function SettingsScreen({ navigation }) {
                   />
                 ))}
               </View>
+            </View>
+          )}
+
+          {/* Opt-in, and off by default: a push about someone else's new
+              listing is promotional, which both stores require be a choice
+              rather than a default. */}
+          {auth.loggedIn && (
+            <Row
+              icon="notifications-outline"
+              label={t('newListingAlertsRow')}
+              subtitle={alertsOpen ? undefined : alertsSummary}
+              colors={colors}
+              divider
+              chevron={alertsOpen ? 'chevron-up' : 'chevron-down'}
+              onPress={() => setAlertsOpen((open) => !open)}
+            />
+          )}
+          {auth.loggedIn && alertsOpen && (
+            <View style={styles.expanded}>
+              <Pressable
+                style={styles.switchRow}
+                onPress={() =>
+                  updateNotificationPrefs({ notifyNewListings: !auth.notifyNewListings })
+                }
+                accessibilityRole="switch"
+                accessibilityState={{ checked: auth.notifyNewListings }}
+              >
+                <Text style={[styles.switchLabel, { color: colors.text }]}>
+                  {t('newListingAlertsToggle')}
+                </Text>
+                <Switch
+                  value={auth.notifyNewListings}
+                  onValueChange={(value) =>
+                    updateNotificationPrefs({ notifyNewListings: value })
+                  }
+                  trackColor={{ true: colors.accent, false: colors.inputBorder }}
+                />
+              </Pressable>
+
+              {auth.notifyNewListings && (
+                <>
+                  <Text style={[styles.subLabel, styles.subLabelSpacing, { color: colors.textMuted }]}>
+                    {t('newListingAlertsCitiesLabel')}
+                  </Text>
+                  <Text style={[styles.alertsHint, { color: colors.textMuted }]}>
+                    {t('newListingAlertsCitiesHint')}
+                  </Text>
+                  <View style={styles.chipRow}>
+                    {CITIES.map((city) => (
+                      <Chip
+                        key={city.key}
+                        label={t(city.labelKey)}
+                        active={alertCities.includes(city.key)}
+                        colors={colors}
+                        onPress={() => toggleAlertCity(city.key)}
+                      />
+                    ))}
+                  </View>
+                </>
+              )}
             </View>
           )}
 
@@ -818,6 +897,22 @@ const styles = StyleSheet.create({
   },
   subLabelSpacing: {
     marginTop: 16,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  switchLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  alertsHint: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginBottom: 10,
   },
   chipRow: {
     flexDirection: 'row',

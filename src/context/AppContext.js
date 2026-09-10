@@ -24,7 +24,7 @@ import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
 const STORAGE_KEY = '@aqari/app_state';
 
 const initialState = {
-  auth: { loggedIn: false, name: null, phone: null, avatarUrl: null },
+  auth: { loggedIn: false, name: null, phone: null, avatarUrl: null, notifyNewListings: false, notifyCities: [] },
   theme: 'light',
 };
 
@@ -78,7 +78,14 @@ export function AppProvider({ children }) {
   // single place that translates "a profile row" into what the UI reads.
   const applyProfile = useCallback((row) => {
     const profile = profileFromRow(row);
-    setAuth({ loggedIn: true, name: profile.name, phone: profile.phone, avatarUrl: profile.avatarUrl });
+    setAuth({
+      loggedIn: true,
+      name: profile.name,
+      phone: profile.phone,
+      avatarUrl: profile.avatarUrl,
+      notifyNewListings: profile.notifyNewListings,
+      notifyCities: profile.notifyCities,
+    });
   }, []);
 
   // Restores a real session left over from a previous launch (persistSession
@@ -487,6 +494,29 @@ export function AppProvider({ children }) {
     const { error } = await supabase.auth.updateUser({ password });
     if (error) throw error;
   }, []);
+
+  /**
+   * New-listing alert preferences. Its own updater rather than a branch of
+   * updateProfile: that one is keyed on `auth.phone` and writes name/avatar,
+   * and folding an array column into it would mean every avatar change
+   * rewriting the city list too.
+   */
+  const updateNotificationPrefs = useCallback(
+    async ({ notifyNewListings, notifyCities }) => {
+      if (!auth.phone) return;
+      setAuth((prev) => ({
+        ...prev,
+        ...(notifyNewListings !== undefined ? { notifyNewListings } : {}),
+        ...(notifyCities !== undefined ? { notifyCities } : {}),
+      }));
+      const row = { phone: auth.phone };
+      if (notifyNewListings !== undefined) row.notify_new_listings = notifyNewListings;
+      if (notifyCities !== undefined) row.notify_cities = notifyCities;
+      const { error } = await supabase.from('profiles').upsert(row);
+      if (error) console.warn('updateNotificationPrefs error', error);
+    },
+    [auth.phone]
+  );
 
   const updateProfile = useCallback(
     async ({ name, avatarUrl }) => {
@@ -960,6 +990,7 @@ export function AppProvider({ children }) {
     completeOnboarding,
     replayOnboarding,
     updateProfile,
+    updateNotificationPrefs,
     logout,
     deleteAccount,
     submitListing,
