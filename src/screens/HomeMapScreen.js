@@ -261,10 +261,11 @@ function PriceRangeSection({ minPrice, maxPrice, onApply, onDragStart, onDragEnd
           </Pressable>
           <Pressable
             style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
-            onPress={() => {
-              onApply(draftMin, draftMax);
-              onClose();
-            }}
+            // onApply is what closes this page — there is no onClose here.
+            // The modal this section was extracted from had one, and the
+            // leftover call to it was a ReferenceError: undefined identifier,
+            // thrown the moment Apply was pressed.
+            onPress={() => onApply(draftMin, draftMax)}
           >
             <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
               {t('applyFilter')}
