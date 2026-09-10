@@ -338,24 +338,30 @@ const styles = StyleSheet.create({
   copyBlockLTR: {
     left: 20,
   },
-  // Arabic-only band: both edges pinned (left:0/right:0), with the inset from
-  // each side expressed as start/end rather than left/right so it resolves the
-  // same way on both platforms. paddingEnd is the design's gap to the far
-  // edge — what the old width:'76%' column used to provide, minus the
-  // dependency on alignItems mirroring to place it.
+  // Arabic-only band. `direction: 'ltr'` is the load-bearing line: it pins
+  // this subtree to a left-to-right *layout* context, which stops RTL
+  // auto-mirroring from touching anything inside it. Every left/right below
+  // then means the physical side it says, on both platforms, every time —
+  // which is why the copy stopped drifting between builds. The Arabic text
+  // still reads right-to-left inside the box; `direction` is about layout,
+  // `writingDirection` is about the text, and only the first one mirrors.
+  //
+  // Same trick as PhoneInput's +218 row, for the same reason.
   copyBlockBandRTL: {
     position: 'absolute',
     bottom: 104,
     left: 0,
     right: 0,
-    paddingStart: 20,
-    paddingEnd: '24%',
+    direction: 'ltr',
+    alignItems: 'flex-end',
+    paddingRight: 20,
+    paddingLeft: '24%',
     zIndex: 6,
   },
-  // Full width of what the band leaves, so title and body share one edge by
-  // construction rather than by coincidence.
+  // Shrinks to its content and sits at the band's right edge; title and body
+  // share that edge by construction rather than by coincidence.
   copyBlockInner: {
-    width: '100%',
+    alignItems: 'flex-end',
   },
   title: {
     color: ONBOARDING_NAVY,
