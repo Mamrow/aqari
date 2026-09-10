@@ -182,12 +182,17 @@ function ModalCloseButton({ onPress, colors, label, isRTL }) {
 // component's own state means dragging never touches HomeMapScreen at all;
 // the real minPrice/maxPrice only updates once, via onApply, when the user
 // actually confirms.
+// Formatting a number that turned out not to be one is the difference
+// between a wrong label and a dead app: `undefined.toLocaleString()` throws,
+// and in a release build an uncaught throw closes the app outright.
+const formatPrice = (value) => (Number.isFinite(value) ? value.toLocaleString('en-US') : '0');
+
 /**
  * Price range as a section of the filter sheet rather than its own modal.
  * Keeps a draft while you drag, so the map isn't re-filtering on every
  * intermediate value, and commits when Apply is pressed.
  */
-function PriceRangeSection({ minPrice, maxPrice, onApply, colors, t }) {
+function PriceRangeSection({ minPrice, maxPrice, onApply, onDragStart, onDragEnd, colors, t }) {
   const [draftMin, setDraftMin] = useState(minPrice);
   const [draftMax, setDraftMax] = useState(maxPrice);
 
@@ -202,11 +207,11 @@ function PriceRangeSection({ minPrice, maxPrice, onApply, colors, t }) {
     <View>
         <View style={styles.priceValueRow}>
           <Text style={[styles.priceValueText, { color: colors.text }]}>
-            {draftMin.toLocaleString('en-US')}
+            {formatPrice(draftMin)}
           </Text>
           <Text style={[styles.priceInputSeparator, { color: colors.textMuted }]}>—</Text>
           <Text style={[styles.priceValueText, { color: colors.text }]}>
-            {draftMax >= PRICE_MAX ? `${PRICE_MAX.toLocaleString('en-US')}+` : draftMax.toLocaleString('en-US')}
+            {draftMax >= PRICE_MAX ? `${formatPrice(PRICE_MAX)}+` : formatPrice(draftMax)}
           </Text>
         </View>
         <View style={styles.priceSliderWrap}>
@@ -216,9 +221,16 @@ function PriceRangeSection({ minPrice, maxPrice, onApply, colors, t }) {
             max={PRICE_MAX}
             step={PRICE_STEP}
             sliderLength={SLIDER_WIDTH}
-            onValuesChange={([nextMin, nextMax]) => {
-              setDraftMin(nextMin);
-              setDraftMax(nextMax);
+            onValuesChangeStart={onDragStart}
+            onValuesChangeFinish={onDragEnd}
+            onValuesChange={(values) => {
+              // Defensive on purpose: this fires continuously during a drag,
+              // and anything non-numeric getting into state surfaces one
+              // render later as `undefined.toLocaleString()` — a crash in the
+              // middle of dragging, nowhere near the cause.
+              const [nextMin, nextMax] = Array.isArray(values) ? values : [];
+              if (Number.isFinite(nextMin)) setDraftMin(nextMin);
+              if (Number.isFinite(nextMax)) setDraftMax(nextMax);
             }}
             allowOverlap={false}
             snapped
@@ -367,6 +379,10 @@ export default function HomeMapScreen({ navigation }) {
   // Which page of the sheet is showing. One modal, several pages — see the
   // sheet's own comment for why it isn't one modal per facet.
   const [sheetPage, setSheetPage] = useState('menu');
+  // The price slider is a horizontal drag living inside the sheet's vertical
+  // ScrollView; both want the same gesture. Locking the scroll while a marker
+  // is held gives the slider undisputed ownership of the drag.
+  const [sheetScrollEnabled, setSheetScrollEnabled] = useState(true);
 
   const closeFilterSheet = () => {
     setFilterSheetVisible(false);
@@ -911,7 +927,7 @@ export default function HomeMapScreen({ navigation }) {
                 </Text>
               </View>
 
-              <ScrollView>
+              <ScrollView scrollEnabled={sheetScrollEnabled}>
                 {sheetPage === 'menu' && (
                   <>
                     <FilterFacetRow
@@ -1055,6 +1071,8 @@ export default function HomeMapScreen({ navigation }) {
                       setMaxPrice(nextMax);
                       setSheetPage('menu');
                     }}
+                    onDragStart={() => setSheetScrollEnabled(false)}
+                    onDragEnd={() => setSheetScrollEnabled(true)}
                     colors={colors}
                     t={t}
                   />
