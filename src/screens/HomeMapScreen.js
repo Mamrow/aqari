@@ -706,7 +706,7 @@ export default function HomeMapScreen({ navigation }) {
   // measured height already includes the top inset, since in list view the
   // header starts at the very top of the screen. Anything more leaves a band
   // of empty background between the header and the first card.
-  const listTopOffset = listHeaderHeight + 8;
+  const listTopOffset = listHeaderHeight + 4;
 
   if (dataLoading) {
     return <LoadingView />;
@@ -785,11 +785,10 @@ export default function HomeMapScreen({ navigation }) {
         </View>
       )}
 
-      {/* Floating pills over the map. Over the list, the search bar and the
-          For Sale/For Rent segment become an opaque header — otherwise cards
-          scroll through the gaps between them — but only those two: the
-          Filters button below stays transparent and the cards pass under it,
-          the same as on the map. */}
+      {/* Floating pills over the map. Over the list the whole thing —
+          search, segment and the Filters button — becomes one opaque header,
+          so nothing scrolls through or behind it, and the list starts
+          immediately below with no band of empty background. */}
       <View
         style={[styles.topBar, { top: viewMode === 'list' ? 0 : insets.top + 12 }]}
         onLayout={(event) => setTopBarHeight(event.nativeEvent.layout.height)}
@@ -836,8 +835,6 @@ export default function HomeMapScreen({ navigation }) {
             );
           })}
         </View>
-        </View>
-
         {/* One button instead of a row of pills. The pills scrolled
             horizontally, which hid whichever filters didn't fit — worst in
             Arabic, where the row starts at the right and the overflow falls
@@ -867,6 +864,7 @@ export default function HomeMapScreen({ navigation }) {
             </View>
           )}
         </Pressable>
+        </View>
 
 
         {/* One modal, several pages. Each facet used to be its own Modal
@@ -1307,7 +1305,7 @@ const styles = StyleSheet.create({
   listHeaderSolid: {
     marginHorizontal: -16,
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   searchBar: {
     marginBottom: 10,
