@@ -14,7 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { CITIES } from '../data/districts';
+import { CITIES, DISTRICTS } from '../data/districts';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
@@ -125,13 +125,35 @@ export default function SettingsScreen({ navigation }) {
     ? t('newListingAlertsSubtitleOff')
     : alertCities.length === 0
       ? t('newListingAlertsSubtitleAll')
-      : t('newListingAlertsSubtitleCities').replace('{count}', String(alertCities.length));
+      : (auth.notifyDistricts ?? []).length > 0
+        ? t('newListingAlertsSubtitleDistricts').replace(
+            '{count}',
+            String((auth.notifyDistricts ?? []).length)
+          )
+        : t('newListingAlertsSubtitleCities').replace('{count}', String(alertCities.length));
+
+  const alertDistricts = auth.notifyDistricts ?? [];
 
   const toggleAlertCity = (key) => {
-    const next = alertCities.includes(key)
-      ? alertCities.filter((city) => city !== key)
-      : [...alertCities, key];
-    updateNotificationPrefs({ notifyCities: next });
+    const adding = !alertCities.includes(key);
+    const next = adding ? [...alertCities, key] : alertCities.filter((city) => city !== key);
+    updateNotificationPrefs({
+      notifyCities: next,
+      // Unfollowing a city drops the districts picked inside it. Leaving them
+      // behind would mean a stale narrowing springs back the day that city is
+      // followed again, which nobody would connect to a choice made weeks ago.
+      ...(adding ? {} : { notifyDistricts: alertDistricts.filter((d) => !d.startsWith(`${key}:`)) }),
+    });
+  };
+
+  // "city:district" — district keys aren't unique across cities, and this is
+  // the form the Edge Function matches on.
+  const toggleAlertDistrict = (cityKey, districtKey) => {
+    const composite = `${cityKey}:${districtKey}`;
+    const next = alertDistricts.includes(composite)
+      ? alertDistricts.filter((d) => d !== composite)
+      : [...alertDistricts, composite];
+    updateNotificationPrefs({ notifyDistricts: next });
   };
 
   const handleLogout = () => {
@@ -446,6 +468,36 @@ export default function SettingsScreen({ navigation }) {
                       />
                     ))}
                   </View>
+
+                  {/* Districts appear only for cities you're actually
+                      following, and only where the city has any. Picking none
+                      means the whole city — Tripoli alone is 35km across, so
+                      "anywhere in the city" is the wrong default to force on
+                      someone watching one neighbourhood. */}
+                  {CITIES.filter(
+                    (city) =>
+                      alertCities.includes(city.key) &&
+                      DISTRICTS.some((d) => d.city === city.key)
+                  ).map((city) => (
+                    <View key={city.key}>
+                      <Text
+                        style={[styles.subLabel, styles.subLabelSpacing, { color: colors.textMuted }]}
+                      >
+                        {t('newListingAlertsDistrictsLabel').replace('{city}', t(city.labelKey))}
+                      </Text>
+                      <View style={styles.chipRow}>
+                        {DISTRICTS.filter((d) => d.city === city.key).map((district) => (
+                          <Chip
+                            key={district.key}
+                            label={t(district.labelKey)}
+                            active={alertDistricts.includes(`${city.key}:${district.key}`)}
+                            colors={colors}
+                            onPress={() => toggleAlertDistrict(city.key, district.key)}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  ))}
                 </>
               )}
             </View>

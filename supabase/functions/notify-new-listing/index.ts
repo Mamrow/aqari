@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
   // what an overlap test would return for it.
   const { data: recipients, error } = await adminClient
     .from('profiles')
-    .select('auth_uid, push_token, notify_cities')
+    .select('auth_uid, push_token, notify_cities, notify_districts')
     .eq('notify_new_listings', true)
     .not('push_token', 'is', null);
 
@@ -58,16 +58,31 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Query failed' }), { status: 500 });
   }
 
+  // Districts are stored as "city:district" so this function needs no
+  // district→city map of its own: everything below is decided from the
+  // listing's own city and district.
+  const matchesArea = (profile: { notify_cities?: string[]; notify_districts?: string[] }) => {
+    const cities = profile.notify_cities ?? [];
+    // No cities picked means everywhere, which is the default this feature
+    // shipped with.
+    if (cities.length > 0 && !cities.includes(record.city)) return false;
+
+    const narrowed = (profile.notify_districts ?? []).filter((key) =>
+      key.startsWith(`${record.city}:`)
+    );
+    // They follow this city but named no districts in it — the whole city.
+    if (narrowed.length === 0) return true;
+    // They did name districts, so the listing has to be in one of them. A
+    // listing with no district at all can't match a district filter, and
+    // shouldn't fall through to "send anyway".
+    return record.district ? narrowed.includes(`${record.city}:${record.district}`) : false;
+  };
+
   const tokens = (recipients ?? [])
     // Never tell someone about their own listing being approved — they
     // already got the approval push from notify-listing-status.
     .filter((profile) => profile.auth_uid !== record.owner_id)
-    .filter(
-      (profile) =>
-        !profile.notify_cities ||
-        profile.notify_cities.length === 0 ||
-        profile.notify_cities.includes(record.city)
-    )
+    .filter(matchesArea)
     .map((profile) => profile.push_token);
 
   if (tokens.length === 0) {

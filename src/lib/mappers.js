@@ -82,6 +82,9 @@ export function profileFromRow(row) {
     // instead of undefined.
     notifyNewListings: row.notify_new_listings ?? false,
     notifyCities: row.notify_cities ?? [],
+    // "city:district" keys — see migration_new_listing_alert_districts.sql
+    // for why they're composite.
+    notifyDistricts: row.notify_districts ?? [],
   };
 }
 

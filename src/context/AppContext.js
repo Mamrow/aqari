@@ -32,6 +32,7 @@ const initialState = {
     avatarUrl: null,
     notifyNewListings: false,
     notifyCities: [],
+    notifyDistricts: [],
   },
   theme: 'light',
 };
@@ -94,6 +95,7 @@ export function AppProvider({ children }) {
       email: profile.email,
       notifyNewListings: profile.notifyNewListings,
       notifyCities: profile.notifyCities,
+      notifyDistricts: profile.notifyDistricts,
     });
   }, []);
 
@@ -535,16 +537,18 @@ export function AppProvider({ children }) {
    * rewriting the city list too.
    */
   const updateNotificationPrefs = useCallback(
-    async ({ notifyNewListings, notifyCities }) => {
+    async ({ notifyNewListings, notifyCities, notifyDistricts }) => {
       if (!auth.phone) return;
       setAuth((prev) => ({
         ...prev,
         ...(notifyNewListings !== undefined ? { notifyNewListings } : {}),
         ...(notifyCities !== undefined ? { notifyCities } : {}),
+        ...(notifyDistricts !== undefined ? { notifyDistricts } : {}),
       }));
       const row = { phone: auth.phone };
       if (notifyNewListings !== undefined) row.notify_new_listings = notifyNewListings;
       if (notifyCities !== undefined) row.notify_cities = notifyCities;
+      if (notifyDistricts !== undefined) row.notify_districts = notifyDistricts;
       const { error } = await supabase.from('profiles').upsert(row);
       if (error) console.warn('updateNotificationPrefs error', error);
     },
