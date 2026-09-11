@@ -708,9 +708,9 @@ export default function HomeMapScreen({ navigation }) {
   // header starts at the very top of the screen. Anything more leaves a band
   // of empty background between the header and the first card.
   const listTopOffset = listHeaderHeight + 4;
-  // Liquid Glass where the OS provides it, and only over the map: over a
-  // flat list background the effect is an expensive way to draw a grey box.
-  const glassOnMap = viewMode === 'map' && isLiquidGlassAvailable();
+  // Liquid Glass on the floating controls wherever the OS provides it — the
+  // buttons and the tab bar, not the map itself.
+  const glass = isLiquidGlassAvailable();
 
   if (dataLoading) {
     return <LoadingView />;
@@ -845,12 +845,9 @@ export default function HomeMapScreen({ navigation }) {
             off the left edge — and they took a third of the map with them.
             Everything now lives behind this, the way a marketplace app's
             filter button works. */}
-        {/* Over the map it's glass; over the list it sits on the opaque
-            header and takes the ordinary surface colour, because glass over
-            a flat background is just a grey box. */}
         <GlassSurface
           style={[styles.filtersButtonSurface, { borderColor: filterAccent }]}
-          fallbackColor={glassOnMap ? undefined : colors.surface}
+          fallbackColor={glass ? undefined : colors.surface}
           glassEffectStyle="regular"
           isInteractive
         >
@@ -1236,11 +1233,9 @@ export default function HomeMapScreen({ navigation }) {
         />
       )}
 
-      {/* Glass over the map, solid over the list — the effect needs
-          something with detail behind it to read as glass at all. */}
       <GlassSurface
         style={styles.fab}
-        fallbackColor={glassOnMap ? undefined : '#1a1a1a'}
+        fallbackColor={glass ? undefined : '#1a1a1a'}
         glassEffectStyle="regular"
         isInteractive
         pointerEvents="box-none"

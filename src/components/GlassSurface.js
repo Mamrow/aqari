@@ -10,10 +10,10 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
  * opted out of the new design (UIDesignRequiresCompatibility). Version
  * sniffing would get all three of those wrong.
  *
- * Glass only reads as glass over something with detail — a map, a photo, a
- * list scrolling past. Over a flat background it's an expensive way to draw a
- * grey box, which is why this is applied to the floating controls and the tab
- * bar rather than to cards and sheets.
+ * Applied to the floating controls and the tab bar — the things that sit
+ * *over* content — rather than to cards, sheets or the map itself. Those
+ * already have their own surfaces, and glass on a surface that isn't floating
+ * over anything just costs a blur pass to draw a tinted rectangle.
  */
 export default function GlassSurface({
   children,
