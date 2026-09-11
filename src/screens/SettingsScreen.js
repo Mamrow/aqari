@@ -19,9 +19,7 @@ import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import Avatar from '../components/Avatar';
-import PasswordInput from '../components/PasswordInput';
 import { uploadAvatarImage } from '../utils/uploadImage';
-import { friendlyErrorMessage } from '../utils/friendlyError';
 import appConfig from '../../app.json';
 import { BOOST_PURCHASES_ENABLED } from '../config/features';
 
@@ -37,7 +35,6 @@ export default function SettingsScreen({ navigation }) {
     requireAuth,
     updateProfile,
     updateNotificationPrefs,
-    updateAccountPassword,
     isAdmin,
     listings,
     saved,
@@ -54,9 +51,6 @@ export default function SettingsScreen({ navigation }) {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
-  const [settingPassword, setSettingPassword] = useState(false);
-  const [passwordDraft, setPasswordDraft] = useState('');
-  const [savingPassword, setSavingPassword] = useState(false);
   // Language and theme used to sit permanently open, which pushed everything
   // below them off the first screen. They're one row that opens now, so the
   // list reads as a list.
@@ -123,26 +117,6 @@ export default function SettingsScreen({ navigation }) {
       updateProfile({ name: trimmed });
     }
     setEditingName(false);
-  };
-
-  const handleSetPassword = async () => {
-    const trimmed = passwordDraft.trim();
-    if (trimmed.length < 6) {
-      Alert.alert(t('authErrorTitle'), t('authPasswordTooShort'));
-      return;
-    }
-    setSavingPassword(true);
-    try {
-      await updateAccountPassword(trimmed);
-      Alert.alert(t('passwordSetTitle'), t('passwordSetMessage'));
-      setSettingPassword(false);
-      setPasswordDraft('');
-    } catch (error) {
-      console.warn('updateAccountPassword error', error);
-      Alert.alert(t('authErrorTitle'), friendlyErrorMessage(error, t));
-    } finally {
-      setSavingPassword(false);
-    }
   };
 
   // What the row says without opening it: off, everywhere, or a count.
@@ -477,48 +451,6 @@ export default function SettingsScreen({ navigation }) {
             </View>
           )}
 
-          {auth.loggedIn &&
-            (settingPassword ? (
-              <View style={[styles.expanded, styles.rowDivider, { borderTopColor: colors.border }]}>
-                <View style={styles.nameEditRow}>
-                  <PasswordInput
-                    style={[styles.nameInput, { borderColor: colors.inputBorder }]}
-                    colors={colors}
-                    value={passwordDraft}
-                    onChangeText={setPasswordDraft}
-                    autoFocus
-                    placeholder={t('authPasswordPlaceholder')}
-                    placeholderTextColor={colors.placeholderText}
-                  />
-                  {savingPassword ? (
-                    <ActivityIndicator size="small" color={colors.accent} />
-                  ) : (
-                    <Pressable onPress={handleSetPassword} hitSlop={8}>
-                      <Ionicons name="checkmark-circle" size={26} color={colors.accent} />
-                    </Pressable>
-                  )}
-                  <Pressable
-                    onPress={() => {
-                      setSettingPassword(false);
-                      setPasswordDraft('');
-                    }}
-                    hitSlop={8}
-                    disabled={savingPassword}
-                  >
-                    <Ionicons name="close-circle" size={26} color={colors.danger} />
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <Row
-                icon="key-outline"
-                label={t('setPasswordRow')}
-                subtitle={t('setPasswordRowSubtitle')}
-                colors={colors}
-                divider
-                onPress={() => setSettingPassword(true)}
-              />
-            ))}
 
           {auth.loggedIn && !isAdmin && (
             <Row
