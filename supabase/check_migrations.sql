@@ -77,9 +77,15 @@ from checks
 order by applied, migration;
 
 -- ── Grants: migration_revoke_public_execute.sql ───────────────────────────
--- Every SECURITY DEFINER function below must NOT be executable by PUBLIC.
--- A row here means that migration hasn't been run (or a later CREATE OR
--- REPLACE re-granted it, which Postgres does silently on a new function).
+-- These SECURITY DEFINER functions must NOT be executable by PUBLIC. Rows
+-- here mean that migration hasn't been run — or that a later CREATE OR
+-- REPLACE silently re-granted it, which Postgres does on every new function.
+--
+-- am_i_admin() is excluded on purpose and is not a finding. It takes no
+-- arguments and reports whether *the caller* is an admin, so an anonymous
+-- caller learns only that they aren't one. schema.sql grants it to anon and
+-- authenticated deliberately, and migration_revoke_public_execute.sql leaves
+-- it alone for the same reason.
 select
   p.proname as function_still_public,
   '❌ EXECUTE granted to PUBLIC' as status
@@ -88,6 +94,7 @@ join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public'
   and p.prosecdef
   and has_function_privilege('public', p.oid, 'EXECUTE')
+  and p.proname <> 'am_i_admin'
 order by p.proname;
 
 -- ── Column lockdown: migration_fix_listings_column_lockdown.sql ───────────
