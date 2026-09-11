@@ -10,6 +10,7 @@ import { tabIcon } from './tabIcon';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { useAppContext } from '../context/AppContext';
+import GlassSurface, { isLiquidGlassAvailable } from '../components/GlassSurface';
 
 const Tab = createBottomTabNavigator();
 
@@ -39,9 +40,32 @@ export default function MainTabs() {
   const t = useT();
   const colors = useThemeColors();
   const { auth, requireAuth } = useAppContext();
+  const glass = isLiquidGlassAvailable();
 
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false, tabBarLabelPosition: 'below-icon' }}>
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarLabelPosition: 'below-icon',
+        // On iOS 26+ the bar floats over the content on glass: transparent
+        // background, no top border, and the blur supplied by tabBarBackground.
+        // Everywhere else this is all undefined and the default opaque bar
+        // renders exactly as before.
+        ...(glass
+          ? {
+              tabBarStyle: {
+                position: 'absolute',
+                backgroundColor: 'transparent',
+                borderTopWidth: 0,
+                elevation: 0,
+              },
+              tabBarBackground: () => (
+                <GlassSurface style={StyleSheet.absoluteFill} glassEffectStyle="regular" />
+              ),
+            }
+          : null),
+      }}
+    >
       <Tab.Screen
         name="Home"
         component={HomeStack}

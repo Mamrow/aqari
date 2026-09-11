@@ -62,7 +62,7 @@
     <div class="prose">
       <section id="en-collect">
         <h2>Information we collect</h2>
-        <p><strong>Account information.</strong> When you sign up, we collect your name and phone number, and you choose a password. Your phone number and password are used to sign in. To confirm the number belongs to you — at sign-up, and again if you ask to reset your password — we send a one-time code to it by SMS or WhatsApp.</p>
+        <p><strong>Account information.</strong> When you sign up, we collect your name and phone number, and you choose a password. Your phone number and password are used to sign in. To confirm the number belongs to you — at sign-up, and again if you ask to reset your password — we send a one-time code to it on WhatsApp.</p>
         <p><strong>Contact email (optional).</strong> You can add an email address to your profile if you want one on file. It is not used to sign in, is not a way to recover your account, and we do not send messages to it automatically. You can remove it at any time in Settings.</p>
         <p><strong>Profile photo (optional).</strong> If you add a profile photo, it's stored and shown on your account.</p>
         <p><strong>Listing content.</strong> If you list a property, we store the details you provide — title, price, description, location, and any photos or videos you upload — so other users can browse and contact you about it.</p>
@@ -91,8 +91,7 @@
         <p>We use the following service providers to operate Aqari. We share only the information reasonably necessary for each provider to perform its service:</p>
         <ul class="service-list">
           <li><span class="name">Supabase</span><span class="desc">Provides our database, authentication, file storage, and server-side functions. May process account information, saved listings, listing content, uploaded photos/videos, profile photos, reports, and push-notification tokens on our behalf.</span></li>
-          <li><span class="name">Twilio</span><span class="desc">Delivers the one-time codes used to confirm your phone number, on our behalf and through Supabase. Receives the phone number and the message containing the code.</span></li>
-          <li><span class="name">Meta (WhatsApp Business Platform)</span><span class="desc">Where a code is delivered over WhatsApp instead of SMS, Meta receives the phone number and the message containing the code.</span></li>
+          <li><span class="name">Meta (WhatsApp Business Platform)</span><span class="desc">Delivers the one-time codes used to confirm your phone number. Receives the phone number and the message containing the code. Codes are sent over WhatsApp only; Aqari does not send SMS.</span></li>
           <li><span class="name">Expo Push Service</span><span class="desc">Delivers push notifications to devices when you have enabled notifications. Aqari sends the device push token and notification payload required for delivery.</span></li>
           <li><span class="name">Map services</span><span class="desc">Displays the map and property locations — Apple Maps on iOS, MapTiler on Android. MapTiler receives a request for the map area shown on your screen in order to return that imagery, and does not receive your account information. Your current location is used on-device only, never sent to or stored on our servers for this purpose.</span></li>
           <li><span class="name">DPay</span><span class="desc">Used only in sandbox/development infrastructure for the disabled Boost feature — not part of the current mobile release. If Boost is enabled in a future release, this policy will be updated before activation.</span></li>
@@ -161,7 +160,7 @@
     <div class="prose">
       <section id="ar-collect">
         <h2>المعلومات التي نجمعها</h2>
-        <p><strong>معلومات الحساب.</strong> عند إنشاء حساب، نجمع اسمك ورقم هاتفك، وتختار كلمة مرور. يُستخدم رقم الهاتف وكلمة المرور لتسجيل الدخول. وللتأكد من أن الرقم يخصّك — عند إنشاء الحساب، وعند إعادة تعيين كلمة المرور — نرسل رمزًا لمرة واحدة إليه عبر رسالة نصية أو واتساب.</p>
+        <p><strong>معلومات الحساب.</strong> عند إنشاء حساب، نجمع اسمك ورقم هاتفك، وتختار كلمة مرور. يُستخدم رقم الهاتف وكلمة المرور لتسجيل الدخول. وللتأكد من أن الرقم يخصّك — عند إنشاء الحساب، وعند إعادة تعيين كلمة المرور — نرسل رمزًا لمرة واحدة إليه عبر واتساب.</p>
         <p><strong>البريد الإلكتروني للتواصل (اختياري).</strong> يمكنك إضافة بريد إلكتروني إلى ملفك إن أردت. لا يُستخدم لتسجيل الدخول، وليس وسيلة لاستعادة الحساب، ولا نرسل إليه رسائل تلقائية. ويمكنك حذفه في أي وقت من الإعدادات.</p>
         <p><strong>الصورة الشخصية (اختياري).</strong> إذا أضفت صورة شخصية، يتم تخزينها وعرضها في حسابك.</p>
         <p><strong>محتوى الإعلانات.</strong> عند نشر عقار، نخزّن التفاصيل التي تقدمها — العنوان والسعر والوصف والموقع وأي صور أو مقاطع فيديو ترفعها — ليتمكن المستخدمون الآخرون من تصفحها والتواصل معك بشأنها.</p>
@@ -188,8 +187,7 @@
         <p>نستخدم الخدمات التالية لتشغيل التطبيق، وكل منها يستلم فقط البيانات اللازمة لتقديم خدمته لنا:</p>
         <ul class="service-list">
           <li><span class="name">Supabase</span><span class="desc">تستضيف قاعدة البيانات والمصادقة وتخزين الملفات ودوال الخادم.</span></li>
-          <li><span class="name">Twilio</span><span class="desc">لإيصال رموز التحقق لمرة واحدة المستخدمة لتأكيد رقم هاتفك، نيابةً عنا وعبر Supabase. يستلم رقم الهاتف والرسالة التي تحتوي على الرمز.</span></li>
-          <li><span class="name">Meta (منصة واتساب للأعمال)</span><span class="desc">عند إرسال الرمز عبر واتساب بدل الرسائل النصية، تستلم Meta رقم الهاتف والرسالة التي تحتوي على الرمز.</span></li>
+          <li><span class="name">Meta (منصة واتساب للأعمال)</span><span class="desc">لإيصال رموز التحقق لمرة واحدة المستخدمة لتأكيد رقم هاتفك. تستلم رقم الهاتف والرسالة التي تحتوي على الرمز. تُرسل الرموز عبر واتساب فقط، ولا يرسل عقاري رسائل نصية.</span></li>
           <li><span class="name">Expo Push Service</span><span class="desc">لإرسال الإشعارات الفورية عند تفعيلها.</span></li>
           <li><span class="name">خدمات الخرائط</span><span class="desc">لعرض الخريطة ومواقع العقارات — Apple Maps على iOS و MapTiler على Android. تتلقى MapTiler طلبًا بمنطقة الخريطة الظاهرة على شاشتك فقط، ولا تتلقى معلومات حسابك. يُستخدم موقعك على جهازك فقط.</span></li>
           <li><span class="name">DPay</span><span class="desc">تُستخدم حاليًا فقط في بيئة تجريبية لميزة الإبراز المعطّلة، وليست جزءًا من الإصدار الحالي.</span></li>

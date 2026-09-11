@@ -6,7 +6,7 @@ This policy describes what information Aqari ("the app," "we," "us") collects, h
 
 ## Information We Collect
 
-**Account information**: When you sign up, we collect your name and phone number, and you choose a password. Your phone number and password are used to sign in. To confirm the number belongs to you — at sign-up, and again if you ask to reset your password — we send a one-time code to it by SMS or WhatsApp.
+**Account information**: When you sign up, we collect your name and phone number, and you choose a password. Your phone number and password are used to sign in. To confirm the number belongs to you — at sign-up, and again if you ask to reset your password — we send a one-time code to it on WhatsApp.
 
 **Contact email** (optional): You can add an email address to your profile if you want one on file. It is not used to sign in, is not a way to recover your account, and we do not send messages to it automatically. You can remove it at any time in Settings.
 
@@ -39,8 +39,7 @@ We do not use your information for advertising, and we do not sell or rent your 
 We use the following service providers to operate Aqari. We share only the information reasonably necessary for each provider to perform its service:
 
 - **Supabase** — provides our database, authentication, file storage, and server-side functions. Supabase may process account information, saved listings, listing content, uploaded photos/videos, profile photos, reports, and push-notification tokens on our behalf.
-- **Twilio** — delivers the one-time codes used to confirm your phone number, on our behalf and through Supabase. Twilio receives the phone number and the message containing the code.
-- **Meta (WhatsApp Business Platform)** — where a code is delivered over WhatsApp instead of SMS, Meta receives the phone number and the message containing the code.
+- **Meta (WhatsApp Business Platform)** — delivers the one-time codes used to confirm your phone number. Meta receives the phone number and the message containing the code. Codes are sent over WhatsApp only; Aqari does not send SMS.
 - **Expo Push Service** — delivers push notifications to devices when you have enabled notifications. Aqari sends the device push token and notification payload required for delivery. Expo may process delivery metadata such as the token, device/platform information, and delivery status.
 - **Map services** — Aqari displays maps and property locations using a different provider on each platform. On iOS it uses **Apple Maps**, which is provided by Apple as part of the operating system. On Android it uses **MapTiler**, which serves the map imagery; MapTiler receives a request for the map area shown on your screen in order to return that imagery, and does not receive your account information. When you enable location access, Aqari uses your current location on the device to center the map. Aqari does not send or store that current location on our servers for this purpose.
 - **DPay** — DPay is currently used only in sandbox/development infrastructure for the disabled Boost feature and is not part of the first mobile release. If Boost or any payment feature is enabled in a future release, this policy will be updated before activation to describe the payment data, provider, processing, retention, and refund handling.
@@ -84,7 +83,7 @@ _آخر تحديث: 11 سبتمبر 2026_
 
 ## المعلومات التي نجمعها
 
-**معلومات الحساب**: عند إنشاء حساب، نجمع اسمك ورقم هاتفك، وتختار كلمة مرور. يُستخدم رقم الهاتف وكلمة المرور لتسجيل الدخول. وللتأكد من أن الرقم يخصّك — عند إنشاء الحساب، وعند إعادة تعيين كلمة المرور — نرسل رمزًا لمرة واحدة إليه عبر رسالة نصية أو واتساب.
+**معلومات الحساب**: عند إنشاء حساب، نجمع اسمك ورقم هاتفك، وتختار كلمة مرور. يُستخدم رقم الهاتف وكلمة المرور لتسجيل الدخول. وللتأكد من أن الرقم يخصّك — عند إنشاء الحساب، وعند إعادة تعيين كلمة المرور — نرسل رمزًا لمرة واحدة إليه عبر واتساب.
 
 **البريد الإلكتروني للتواصل** (اختياري): يمكنك إضافة بريد إلكتروني إلى ملفك إن أردت. لا يُستخدم لتسجيل الدخول، وليس وسيلة لاستعادة الحساب، ولا نرسل إليه رسائل تلقائية. ويمكنك حذفه في أي وقت من الإعدادات.
 
@@ -114,8 +113,7 @@ _آخر تحديث: 11 سبتمبر 2026_
 نستخدم مزودي الخدمات التاليين لتشغيل تطبيق عقاري. نشارك فقط المعلومات اللازمة بشكل معقول لتمكين كل مزود من تقديم خدمته:
 
 - **Supabase** — توفر قاعدة البيانات والمصادقة وتخزين الملفات والوظائف من جهة الخادم. قد تعالج Supabase معلومات الحساب والعقارات المحفوظة ومحتوى الإعلانات والصور/مقاطع الفيديو المرفوعة والصور الشخصية والبلاغات ورموز الإشعارات الفورية نيابةً عنا.
-- **Twilio** — لإيصال رموز التحقق لمرة واحدة المستخدمة لتأكيد رقم هاتفك، نيابةً عنا وعبر Supabase. يستلم Twilio رقم الهاتف والرسالة التي تحتوي على الرمز.
-- **Meta (منصة واتساب للأعمال)** — عند إرسال الرمز عبر واتساب بدل الرسائل النصية، تستلم Meta رقم الهاتف والرسالة التي تحتوي على الرمز.
+- **Meta (منصة واتساب للأعمال)** — لإيصال رموز التحقق لمرة واحدة المستخدمة لتأكيد رقم هاتفك. تستلم Meta رقم الهاتف والرسالة التي تحتوي على الرمز. تُرسل الرموز عبر واتساب فقط، ولا يرسل عقاري رسائل نصية.
 - **خدمة Expo للإشعارات الفورية** — لإيصال الإشعارات إلى الأجهزة عند تفعيلك للإشعارات. يرسل تطبيق عقاري رمز الإشعارات الفورية وبيانات الإشعار اللازمة للإيصال. قد تعالج Expo بيانات التسليم مثل الرمز ومعلومات الجهاز/المنصة وحالة التسليم.
 - **خدمات الخرائط** — يعرض تطبيق عقاري الخرائط ومواقع العقارات باستخدام مزوّد مختلف على كل منصة. على iOS يستخدم **Apple Maps**، وهي خدمة تقدمها Apple ضمن نظام التشغيل. وعلى Android يستخدم **MapTiler**، التي توفر صور الخريطة؛ تتلقى MapTiler طلبًا بمنطقة الخريطة الظاهرة على شاشتك لإرجاع تلك الصور، ولا تتلقى معلومات حسابك. عند تفعيل الوصول إلى الموقع، يستخدم التطبيق موقعك الحالي على الجهاز لتوسيط الخريطة. لا يرسل تطبيق عقاري موقعك الحالي إلى خوادمنا ولا يخزّنه عليها لهذا الغرض.
 - **DPay** — يُستخدم DPay حاليًا فقط في بنية الاختبار/التطوير sandbox لميزة Boost المعطلة، وليس جزءًا من الإصدار الأول للهاتف. إذا تم تفعيل Boost أو أي ميزة دفع في إصدار مستقبلي، فسنحدّث هذه السياسة قبل التفعيل لوصف بيانات الدفع والمزود والمعالجة والاحتفاظ بالبيانات ومعالجة المبالغ المستردة.

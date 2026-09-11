@@ -1,4 +1,4 @@
-# Phone auth: Twilio + Supabase setup
+# Phone auth: WhatsApp (Meta) + Supabase setup
 
 Sign-up, sign-in and password reset are all phone-number based. There is no
 email address anywhere in the app any more.
@@ -28,40 +28,25 @@ There are two routes, and they're alternatives, not steps:
   required before real users. Better delivery to Libya, because it rides on
   data rather than international SMS routing.
 
-## 1. Twilio
-
-You need three values from <https://console.twilio.com>:
-
-| Value | Where |
-| --- | --- |
-| Account SID | Console dashboard, starts `AC…` |
-| Auth Token | Console dashboard, next to the SID |
-| Messaging Service SID | Messaging → Services → create one, starts `MG…` |
-
-Create a **Messaging Service** rather than pasting a bare phone number —
-Supabase accepts either, but a Messaging Service is what lets you add or swap
-senders later without touching the app or the Supabase config. The number you
-add to its sender pool must have SMS capability.
-
-**Enable Libya in Geo Permissions first.** Messaging → Settings → **Geo
-Permissions**, find Libya, tick it, save. Twilio ships with most destinations
-switched *off*, so without this every send fails with error **21408
-("Permission to send an SMS has not been enabled for the region")** — which
-looks exactly like a broken integration and isn't one. This is the single
-most common reason phone auth appears not to work on a fresh account.
-
-## 2. Supabase
+## Supabase settings
 
 Dashboard → **Authentication** → **Sign In / Providers** → **Phone**:
 
 1. Turn **Enable phone provider** on.
-2. **SMS provider** → Twilio. Paste the three values above.
+2. **SMS provider** → pick anything and leave it unconfigured. With the hook
+   below enabled Supabase never reaches a provider, but the form still wants
+   the field populated.
 3. Leave **Confirm phone** ON. This is what makes the code mandatory — with it
    off, `signUp` returns a session immediately and the number is never
    actually proven. (The app handles that case rather than breaking, but it
    means anyone can register any number, including someone else's.)
 4. **OTP expiry**: 600 seconds is a reasonable default. Shorter is safer;
    much shorter is hostile when SMS to Libya is slow.
+
+Then **Authentication → Hooks → Send SMS hook**: enable it, point it at the
+deployed `send-whatsapp-otp` function, and copy the `v1,whsec_…` secret it
+shows you into the function's `SEND_SMS_HOOK_SECRET`. That hook is what
+diverts delivery away from SMS entirely.
 
 Then run the two migrations, in this order:
 
@@ -73,7 +58,7 @@ supabase/migration_phone_auth_no_email.sql            # drops profiles.email and
 The first one is **destructive and irreversible**. Its header explains what it
 removes and tells you to run the SELECT alone first. Do that.
 
-## 3. Choosing the channel
+## Why OTP_CHANNEL still says 'sms'
 
 `src/utils/otp.js` holds a single constant:
 
@@ -86,37 +71,10 @@ the Send SMS Hook route below, Supabase never reaches a provider at all — the
 hook decides delivery — so this constant stays on `'sms'` even when codes are
 going out over WhatsApp. That looks contradictory and isn't: it only has to
 remain a value the API accepts. Change it to `'whatsapp'` only if you're
-using Twilio *and* have a WhatsApp sender attached there.
+using one of Supabase's own SMS providers with a WhatsApp sender attached,
+which this project doesn't.
 
-## What the free trial can and can't do
-
-Worth knowing before you test, because both limits look like bugs:
-
-- **A trial account can only send to numbers you've verified** in the Twilio
-  console (Phone Numbers → Verified Caller IDs). Sending to any other number
-  fails with error 21608. So you can test with your own phone and any number
-  you add there, but nobody else can sign up until the account is upgraded.
-- **Trial messages are prefixed** with "Sent from your Twilio trial account".
-  Harmless, but it's in the SMS your testers will see.
-- **The trial credit is small.** Each OTP is a real paid message once you
-  upgrade; sign-in deliberately doesn't send one, which is most of why.
-
-## Reading a failure
-
-Twilio → Monitor → **Logs** → Messaging shows every attempt with a status and
-error code. The four worth recognising:
-
-| Code | Means |
-| --- | --- |
-| 21408 | Libya isn't enabled in Geo Permissions |
-| 21608 | Trial account, and the recipient isn't a Verified Caller ID |
-| 30003 / 30005 | Handset unreachable or number doesn't exist — carrier-side |
-| 30007 | Carrier filtered the message as spam |
-
-A message logged as *delivered* that never arrived is a carrier problem, not a
-configuration one. An *undelivered* with a code above usually isn't.
-
-## WhatsApp via Meta's Cloud API (no Twilio)
+## Setting up WhatsApp delivery
 
 This is the route that doesn't need a paid Twilio account. Supabase's **Send
 SMS Hook** lets you replace the SMS provider with your own function, so
@@ -210,20 +168,17 @@ Two things worth checking before you build a launch plan on this route:
 whether Meta accepts business verification with Libyan business details, and
 Meta's current per-message price for authentication messages to Libya.
 
-## SMS delivery to Libya
+## Delivery notes
 
-Set expectations here — this is the part nobody controls. Delivery to Libyan
-carriers (Libyana, Al-Madar) via international A2P routes is inconsistent:
-messages can be slow, and some routes drop them entirely. Things that help:
+WhatsApp reaches Libyan phones over data, which is the main reason this
+project doesn't send SMS at all: international A2P SMS routes into Libyana and
+Al-Madar are slow and sometimes drop messages entirely, and nothing on your
+side can fix that.
 
-- The 60-second resend cooldown in `AuthModal` exists so a slow first message
-  isn't immediately followed by three more.
-- If delivery turns out to be bad in practice, WhatsApp is the better channel
-  for Libya specifically — it's data, not SMS routing — which is the real
-  argument for finishing the Meta process.
-- Twilio's Messaging → Logs shows per-message status and error codes. A
-  message that says "delivered" but never arrived is a carrier problem; one
-  that says "undelivered" with an error code is usually fixable.
+The 60-second resend cooldown in `AuthModal` exists so a slow first message
+isn't immediately followed by three more. Delivery failures show up in Meta's
+WhatsApp Manager rather than anywhere in Supabase — a code Supabase generated
+successfully can still fail to arrive, and only Meta knows why.
 
 ## Testing checklist
 
@@ -235,3 +190,7 @@ messages can be slow, and some routes drop them entirely. Things that help:
 5. Wrong code → localized error, field clears, resend available after 60s.
 6. Both languages: Arabic and English, checking the code field stays
    left-to-right under RTL.
+
+On a test number, only the recipients nominated in Meta's API Setup page can
+receive anything — a code that never arrives for anyone else is that limit,
+not a bug.

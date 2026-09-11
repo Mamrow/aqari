@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 // cluster identically and the pins are pixel-identical; only the map
 // underneath differs. See src/components/map/.
 import ListingsMap from '../components/map/ListingsMap';
+import GlassSurface, { isLiquidGlassAvailable } from '../components/GlassSurface';
 import * as Location from 'expo-location';
 import { useAppContext } from '../context/AppContext';
 import ListingCard from '../components/ListingCard';
@@ -707,6 +708,9 @@ export default function HomeMapScreen({ navigation }) {
   // header starts at the very top of the screen. Anything more leaves a band
   // of empty background between the header and the first card.
   const listTopOffset = listHeaderHeight + 4;
+  // Liquid Glass where the OS provides it, and only over the map: over a
+  // flat list background the effect is an expensive way to draw a grey box.
+  const glassOnMap = viewMode === 'map' && isLiquidGlassAvailable();
 
   if (dataLoading) {
     return <LoadingView />;
@@ -841,13 +845,18 @@ export default function HomeMapScreen({ navigation }) {
             off the left edge — and they took a third of the map with them.
             Everything now lives behind this, the way a marketplace app's
             filter button works. */}
+        {/* Over the map it's glass; over the list it sits on the opaque
+            header and takes the ordinary surface colour, because glass over
+            a flat background is just a grey box. */}
+        <GlassSurface
+          style={[styles.filtersButtonSurface, { borderColor: filterAccent }]}
+          fallbackColor={glassOnMap ? undefined : colors.surface}
+          glassEffectStyle="regular"
+          isInteractive
+        >
         <Pressable
           onPress={() => setFilterSheetVisible(true)}
-          style={({ pressed }) => [
-            styles.filtersButton,
-            { backgroundColor: colors.surface, borderColor: filterAccent },
-            pressed && { opacity: 0.6 },
-          ]}
+          style={({ pressed }) => [styles.filtersButton, pressed && { opacity: 0.6 }]}
           accessibilityRole="button"
           accessibilityLabel={t('filtersLabel')}
           testID="filters-button"
@@ -864,6 +873,7 @@ export default function HomeMapScreen({ navigation }) {
             </View>
           )}
         </Pressable>
+        </GlassSurface>
         </View>
 
 
@@ -1226,8 +1236,17 @@ export default function HomeMapScreen({ navigation }) {
         />
       )}
 
-      <Pressable
+      {/* Glass over the map, solid over the list — the effect needs
+          something with detail behind it to read as glass at all. */}
+      <GlassSurface
         style={styles.fab}
+        fallbackColor={glassOnMap ? undefined : '#1a1a1a'}
+        glassEffectStyle="regular"
+        isInteractive
+        pointerEvents="box-none"
+      >
+      <Pressable
+        style={styles.fabInner}
         onPress={toggleViewMode}
         accessibilityRole="button"
         accessibilityLabel={viewMode === 'map' ? t('showList') : t('showMap')}
@@ -1240,6 +1259,7 @@ export default function HomeMapScreen({ navigation }) {
         <Ionicons name={viewMode === 'map' ? 'list' : 'map'} size={18} color="#fff" />
         <Text style={styles.fabText}>{viewMode === 'map' ? t('showList') : t('showMap')}</Text>
       </Pressable>
+      </GlassSurface>
 
     </View>
   );
@@ -1418,16 +1438,21 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '600',
   },
-  filtersButton: {
+  // Wrapper owns the pill shape and the surface; the Pressable inside owns
+  // the row layout and the touch target.
+  filtersButtonSurface: {
     // The segment row above has no bottom margin of its own, so this is what
     // keeps the button off it.
     marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 7,
     borderWidth: 1,
     borderRadius: 20,
+    overflow: 'hidden',
+  },
+  filtersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
@@ -1597,22 +1622,26 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     padding: 7,
   },
+  // The wrapper owns the shape and the surface (glass or solid); the inner
+  // Pressable owns the row layout and the touch target.
   fab: {
     position: 'absolute',
     bottom: 30,
     alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#1a1a1a',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
     borderRadius: 24,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.25,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
+  },
+  fabInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   fabText: {
     color: '#fff',
