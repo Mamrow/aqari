@@ -47,14 +47,21 @@ export default function MainTabs() {
       screenOptions={{
         headerShown: false,
         tabBarLabelPosition: 'below-icon',
-        // On iOS 26+ the bar floats over the content on glass: transparent
-        // background, no top border, and the blur supplied by tabBarBackground.
-        // Everywhere else this is all undefined and the default opaque bar
-        // renders exactly as before.
+        // Glass material on the bar, but the bar stays in the layout flow.
+        //
+        // position:'absolute' is what the floating iOS 26 look needs — content
+        // scrolling under the bar — and it silently broke every screen that
+        // doesn't reserve space for it: the bar stops taking up layout room,
+        // so whatever is last on a screen ends up underneath it. ListingDetail
+        // lost its Edit button that way, and auditing every scroll view in the
+        // app for bottom padding is a much bigger change than it looks.
+        //
+        // So the bar keeps its slot and only its material changes. Less
+        // dramatic than content sliding under frosted glass, and nothing can
+        // hide behind it.
         ...(glass
           ? {
               tabBarStyle: {
-                position: 'absolute',
                 backgroundColor: 'transparent',
                 borderTopWidth: 0,
                 elevation: 0,

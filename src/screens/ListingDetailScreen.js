@@ -471,6 +471,9 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 16,
+    // Breathing room under the last control (Edit/Delete on your own
+    // listing), so it never ends flush against the tab bar.
+    paddingBottom: 40,
   },
   gallery: {
     marginBottom: 16,
