@@ -52,6 +52,10 @@ export default function PersonalInfoScreen({ navigation }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
+  // Only once something's been typed in the confirm box — warning against an
+  // empty field is nagging, not help.
+  const passwordMismatch = confirmPassword.length > 0 && confirmPassword !== password;
+
   const nextPhone = toE164(country, phone);
   const phoneChanged = nextPhone !== auth.phone;
   const profileChanged = name.trim() !== (auth.name ?? '') || email.trim() !== (auth.email ?? '');
@@ -248,17 +252,25 @@ export default function PersonalInfoScreen({ navigation }) {
             placeholderTextColor={colors.placeholderText}
           />
           <PasswordInput
-            style={[styles.input, { borderColor: colors.inputBorder }]}
+            style={[
+              styles.input,
+              { borderColor: passwordMismatch ? colors.danger : colors.inputBorder },
+            ]}
             colors={colors}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             placeholder={t('authConfirmPasswordPlaceholder')}
             placeholderTextColor={colors.placeholderText}
           />
+          {passwordMismatch && (
+            <Text style={[styles.mismatchText, { color: colors.danger }]}>
+              {t('passwordsDoNotMatch')}
+            </Text>
+          )}
           <SaveButton
             label={t('authSavePassword')}
             onPress={handleSavePassword}
-            disabled={password.length === 0}
+            disabled={password.length === 0 || passwordMismatch}
             busy={savingPassword}
             colors={colors}
           />
@@ -343,6 +355,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     letterSpacing: 6,
     fontWeight: '700',
+  },
+  mismatchText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: -6,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
   },
   hint: {
     fontSize: 12.5,

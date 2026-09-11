@@ -32,6 +32,8 @@ const STEPS = {
   SIGN_IN: 'signIn',
   SIGN_UP: 'signUp',
   SIGN_UP_CODE: 'signUpCode',
+  // Recovering an account whose auth row exists but whose profile doesn't.
+  COMPLETE_PROFILE: 'completeProfile',
   RESET_PHONE: 'resetPhone',
   RESET_CODE: 'resetCode',
 };
@@ -43,6 +45,7 @@ export default function AuthModal() {
     signUp,
     verifySignUpOtp,
     signIn,
+    completeMissingProfile,
     sendPasswordResetCode,
     resetPasswordWithOtp,
     language,
@@ -60,6 +63,9 @@ export default function AuthModal() {
   const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  // Carried from the failed sign-in so the recovery step knows which account
+  // it's completing.
+  const [incomplete, setIncomplete] = useState(null);
 
   const onCodeStep = step === STEPS.SIGN_UP_CODE || step === STEPS.RESET_CODE;
 
@@ -99,6 +105,9 @@ export default function AuthModal() {
   // WhatsApp is on a foreign number has to be able to sign up too.
   const phoneOk = isValidPhone(country, phone.trim());
   const passwordOk = password.length >= 6 && confirmPassword === password;
+  // Only once they've actually typed something in the confirm field —
+  // flagging a mismatch against an empty box is just nagging.
+  const mismatch = confirmPassword.length > 0 && confirmPassword !== password;
   const codeOk = code.length === OTP_LENGTH;
 
   const canSubmit = {
@@ -107,6 +116,7 @@ export default function AuthModal() {
     [STEPS.SIGN_UP_CODE]: codeOk,
     [STEPS.RESET_PHONE]: phoneOk,
     [STEPS.RESET_CODE]: codeOk && passwordOk,
+    [STEPS.COMPLETE_PROFILE]: name.trim().length > 0,
   }[step];
 
   // Supabase's own error messages are English-only — map the ones a user can
@@ -150,6 +160,10 @@ export default function AuthModal() {
       if (step === STEPS.SIGN_IN) {
         await signIn({ phone: toE164(country, phone), password });
         resetFields();
+      } else if (step === STEPS.COMPLETE_PROFILE) {
+        await completeMissingProfile({ ...incomplete, name: name.trim() });
+        setIncomplete(null);
+        resetFields();
       } else if (step === STEPS.SIGN_UP) {
         const { verified } = await signUp({
           name: name.trim(),
@@ -177,6 +191,15 @@ export default function AuthModal() {
         resetFields();
       }
     } catch (error) {
+      // Not a failure the user can do anything about by retrying — the
+      // account is real and the password was right, it just has no profile.
+      // Ask for a name and finish it instead of showing an error.
+      if (error?.message === 'PROFILE_INCOMPLETE') {
+        setIncomplete({ uid: error.uid, phone: error.phone });
+        setName('');
+        goToStep(STEPS.COMPLETE_PROFILE);
+        return;
+      }
       fail(error);
       // Cleared the instant the error happens rather than on a later focus
       // event — that timing was the old "sometimes clears, sometimes doesn't"
@@ -215,6 +238,7 @@ export default function AuthModal() {
     [STEPS.SIGN_UP_CODE]: t('authVerifyTitle'),
     [STEPS.RESET_PHONE]: t('forgotPasswordTitle'),
     [STEPS.RESET_CODE]: t('forgotPasswordTitle'),
+    [STEPS.COMPLETE_PROFILE]: t('completeProfileTitle'),
   };
 
   const submitLabel = {
@@ -223,6 +247,7 @@ export default function AuthModal() {
     [STEPS.SIGN_UP_CODE]: t('authVerifyButton'),
     [STEPS.RESET_PHONE]: t('authSendCode'),
     [STEPS.RESET_CODE]: t('authSavePassword'),
+    [STEPS.COMPLETE_PROFILE]: t('authContinue'),
   }[step];
 
   const showTabs = step === STEPS.SIGN_IN || step === STEPS.SIGN_UP;
@@ -274,7 +299,30 @@ export default function AuthModal() {
 
             {/* Step 1 of sign-up, sign-in, and the start of a reset all
                 collect a phone number; only the code steps don't. */}
-            {!onCodeStep && (
+            {step === STEPS.COMPLETE_PROFILE && (
+              <>
+                <Text style={[styles.hint, { color: colors.textMuted }]}>
+                  {t('completeProfileHint')}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: colors.inputBorder,
+                      color: colors.text,
+                      textAlign: isRTL ? 'right' : 'left',
+                    },
+                  ]}
+                  placeholder={`${t('authNamePlaceholder')} *`}
+                  placeholderTextColor={colors.placeholderText}
+                  value={name}
+                  onChangeText={setName}
+                  autoFocus
+                />
+              </>
+            )}
+
+            {!onCodeStep && step !== STEPS.COMPLETE_PROFILE && (
               <>
                 {step === STEPS.SIGN_UP && (
                   <TextInput
@@ -320,14 +368,20 @@ export default function AuthModal() {
                 )}
 
                 {step === STEPS.SIGN_UP && (
-                  <PasswordInput
-                    style={[styles.input, { borderColor: colors.inputBorder }]}
-                    colors={colors}
-                    placeholder={`${t('authConfirmPasswordPlaceholder')} *`}
-                    placeholderTextColor={colors.placeholderText}
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                  />
+                  <>
+                    <PasswordInput
+                      style={[
+                        styles.input,
+                        { borderColor: mismatch ? colors.danger : colors.inputBorder },
+                      ]}
+                      colors={colors}
+                      placeholder={`${t('authConfirmPasswordPlaceholder')} *`}
+                      placeholderTextColor={colors.placeholderText}
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                    />
+                    {mismatch && <MismatchNote colors={colors} text={t('passwordsDoNotMatch')} />}
+                  </>
                 )}
               </>
             )}
@@ -373,13 +427,17 @@ export default function AuthModal() {
                       onChangeText={setPassword}
                     />
                     <PasswordInput
-                      style={[styles.input, { borderColor: colors.inputBorder }]}
+                      style={[
+                        styles.input,
+                        { borderColor: mismatch ? colors.danger : colors.inputBorder },
+                      ]}
                       colors={colors}
                       placeholder={`${t('authConfirmPasswordPlaceholder')} *`}
                       placeholderTextColor={colors.placeholderText}
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
                     />
+                    {mismatch && <MismatchNote colors={colors} text={t('passwordsDoNotMatch')} />}
                   </>
                 )}
 
@@ -438,6 +496,10 @@ export default function AuthModal() {
       </Pressable>
     </Modal>
   );
+}
+
+function MismatchNote({ colors, text }) {
+  return <Text style={[styles.mismatchText, { color: colors.danger }]}>{text}</Text>;
 }
 
 function Tab({ label, active, colors, onPress }) {
@@ -543,6 +605,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
     marginTop: -2,
+  },
+  mismatchText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: -6,
+    marginBottom: 12,
   },
   linkText: {
     fontSize: 13,

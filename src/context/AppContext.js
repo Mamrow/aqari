@@ -394,12 +394,22 @@ export function AppProvider({ children }) {
           .maybeSingle();
         if (error) throw error;
         if (!data) {
-          // The auth account exists but its profiles row never got written —
-          // a sign-up that died between verifying the code and the profile
-          // insert. Surface it loudly instead of silently closing the modal
-          // with nothing usable signed in.
-          await supabase.auth.signOut();
-          throw new Error('NO_PROFILE');
+          // The auth account exists but its profiles row doesn't. That
+          // happens when a sign-up creates the account and then dies before
+          // the profile insert — and it used to be terminal: the number was
+          // taken, so sign-up said "already registered", while sign-in said
+          // "account incomplete". No way out from inside the app.
+          //
+          // It's recoverable, though. Whoever is holding this session just
+          // proved they own the account with its password, and the only
+          // thing missing is a name. Hand that back to the caller so it can
+          // ask for one, rather than signing out and dead-ending. Not signed
+          // out here on purpose: the session is exactly what makes writing
+          // the profile allowed under RLS.
+          const incomplete = new Error('PROFILE_INCOMPLETE');
+          incomplete.uid = uid;
+          incomplete.phone = phone ?? null;
+          throw incomplete;
         }
         profileRow = data;
       }
@@ -465,7 +475,21 @@ export function AppProvider({ children }) {
     async ({ phone, password }) => {
       const { data, error } = await supabase.auth.signInWithPassword({ phone, password });
       if (error) throw error;
-      await completeAuthedSession({ uid: data.user.id });
+      // Pass the phone through so a PROFILE_INCOMPLETE recovery knows which
+      // number to write, without having to re-read the session for it.
+      await completeAuthedSession({ uid: data.user.id, phone });
+    },
+    [completeAuthedSession]
+  );
+
+  /**
+   * Finishes an account whose auth row exists but whose profile never got
+   * written — see PROFILE_INCOMPLETE in completeAuthedSession. Takes the name
+   * the user just supplied and writes the row the failed sign-up should have.
+   */
+  const completeMissingProfile = useCallback(
+    async ({ uid, phone, name }) => {
+      await completeAuthedSession({ uid, phone, name });
     },
     [completeAuthedSession]
   );
@@ -1042,6 +1066,7 @@ export function AppProvider({ children }) {
     signUp,
     verifySignUpOtp,
     signIn,
+    completeMissingProfile,
     sendPasswordResetCode,
     resetPasswordWithOtp,
     updateAccountPassword,
