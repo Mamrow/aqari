@@ -41,7 +41,7 @@
   <div id="content-en" dir="ltr" lang="en">
     <div class="meta">
       <h1 class="title">Aqari Privacy Policy</h1>
-      <p class="updated">Last updated: August 27, 2026</p>
+      <p class="updated">Last updated: September 11, 2026</p>
       <p class="lede">This policy describes what information Aqari ("the app," "we," "us") collects, how it's used, and how you can control or delete it.</p>
     </div>
 
@@ -62,12 +62,14 @@
     <div class="prose">
       <section id="en-collect">
         <h2>Information we collect</h2>
-        <p><strong>Account information.</strong> When you sign up, we collect your name, phone number, and email address. Your phone number and password are used to sign in; your email address is used only to send you a password-reset link if you request one.</p>
+        <p><strong>Account information.</strong> When you sign up, we collect your name and phone number, and you choose a password. Your phone number and password are used to sign in. To confirm the number belongs to you — at sign-up, and again if you ask to reset your password — we send a one-time code to it by SMS or WhatsApp.</p>
+        <p><strong>Contact email (optional).</strong> You can add an email address to your profile if you want one on file. It is not used to sign in, is not a way to recover your account, and we do not send messages to it automatically. You can remove it at any time in Settings.</p>
         <p><strong>Profile photo (optional).</strong> If you add a profile photo, it's stored and shown on your account.</p>
         <p><strong>Listing content.</strong> If you list a property, we store the details you provide — title, price, description, location, and any photos or videos you upload — so other users can browse and contact you about it.</p>
         <p><strong>Location.</strong> If you allow it, we use your device's current location to center the map around you when you browse listings. This location is used only on your device to set the initial map view — it is never sent to or stored on our servers.</p>
         <p><strong>Saved listings.</strong> We store which listings you've saved ("favorites") so they're available across your sessions.</p>
-        <p><strong>Push notifications (optional).</strong> If you allow notifications, Aqari collects and stores a device push-notification token associated with your account. We use this token to send important updates about your listings, such as approval, rejection, or other listing-status changes. You can disable notifications at any time in your device settings. If you disable notifications or sign out, we may stop using the token. We do not use push notifications for advertising.</p>
+        <p><strong>Push notifications (optional).</strong> If you allow notifications, Aqari collects and stores a device push-notification token associated with your account. We use this token to send updates about your own listings, such as approval or rejection. You can disable notifications at any time in your device settings.</p>
+        <p><strong>New listing alerts (optional, off by default).</strong> You can separately choose to be alerted when a new listing is approved, and choose which cities those alerts cover. We store that choice and the list of cities on your profile. It is off unless you turn it on, and you can turn it off or change the cities at any time in Settings. We do not use push notifications for advertising.</p>
       </section>
 
       <section id="en-use">
@@ -76,9 +78,10 @@
           <li>To create and secure your account</li>
           <li>To show your listings to other users and let them contact you</li>
           <li>To let you save and revisit listings you're interested in</li>
-          <li>To send you a password-reset email if you request one</li>
+          <li>To send a one-time code confirming your phone number, at sign-up and when resetting your password</li>
           <li>To review and approve listings before they appear publicly (all listings are moderated before going live)</li>
           <li>To send listing-status notifications when you have enabled push notifications</li>
+          <li>To send alerts about new listings in the cities you chose, if you turned those alerts on</li>
         </ul>
         <p>We do not use your information for advertising, and we do not sell or rent your information to third parties.</p>
       </section>
@@ -88,7 +91,8 @@
         <p>We use the following service providers to operate Aqari. We share only the information reasonably necessary for each provider to perform its service:</p>
         <ul class="service-list">
           <li><span class="name">Supabase</span><span class="desc">Provides our database, authentication, file storage, and server-side functions. May process account information, saved listings, listing content, uploaded photos/videos, profile photos, reports, and push-notification tokens on our behalf.</span></li>
-          <li><span class="name">Resend</span><span class="desc">Delivers password-reset emails. Receives the email address and information necessary to deliver the requested message.</span></li>
+          <li><span class="name">Twilio</span><span class="desc">Delivers the one-time codes used to confirm your phone number, on our behalf and through Supabase. Receives the phone number and the message containing the code.</span></li>
+          <li><span class="name">Meta (WhatsApp Business Platform)</span><span class="desc">Where a code is delivered over WhatsApp instead of SMS, Meta receives the phone number and the message containing the code.</span></li>
           <li><span class="name">Expo Push Service</span><span class="desc">Delivers push notifications to devices when you have enabled notifications. Aqari sends the device push token and notification payload required for delivery.</span></li>
           <li><span class="name">Map services</span><span class="desc">Displays the map and property locations — Apple Maps on iOS, MapTiler on Android. MapTiler receives a request for the map area shown on your screen in order to return that imagery, and does not receive your account information. Your current location is used on-device only, never sent to or stored on our servers for this purpose.</span></li>
           <li><span class="name">DPay</span><span class="desc">Used only in sandbox/development infrastructure for the disabled Boost feature — not part of the current mobile release. If Boost is enabled in a future release, this policy will be updated before activation.</span></li>
@@ -136,7 +140,7 @@
   <div id="content-ar" dir="rtl" lang="ar" hidden>
     <div class="meta">
       <h1 class="title">سياسة الخصوصية – عقاري</h1>
-      <p class="updated">آخر تحديث: 27 أغسطس 2026</p>
+      <p class="updated">آخر تحديث: 11 سبتمبر 2026</p>
       <p class="lede">توضح هذه السياسة المعلومات التي يجمعها تطبيق عقاري ("التطبيق"، "نحن")، وكيفية استخدامها، وكيف يمكنك التحكم بها أو حذفها.</p>
     </div>
 
@@ -157,7 +161,8 @@
     <div class="prose">
       <section id="ar-collect">
         <h2>المعلومات التي نجمعها</h2>
-        <p><strong>معلومات الحساب.</strong> عند إنشاء حساب، نجمع اسمك ورقم هاتفك وبريدك الإلكتروني. يُستخدم رقم الهاتف وكلمة المرور لتسجيل الدخول، ويُستخدم بريدك الإلكتروني فقط لإرسال رابط إعادة تعيين كلمة المرور عند طلبه.</p>
+        <p><strong>معلومات الحساب.</strong> عند إنشاء حساب، نجمع اسمك ورقم هاتفك، وتختار كلمة مرور. يُستخدم رقم الهاتف وكلمة المرور لتسجيل الدخول. وللتأكد من أن الرقم يخصّك — عند إنشاء الحساب، وعند إعادة تعيين كلمة المرور — نرسل رمزًا لمرة واحدة إليه عبر رسالة نصية أو واتساب.</p>
+        <p><strong>البريد الإلكتروني للتواصل (اختياري).</strong> يمكنك إضافة بريد إلكتروني إلى ملفك إن أردت. لا يُستخدم لتسجيل الدخول، وليس وسيلة لاستعادة الحساب، ولا نرسل إليه رسائل تلقائية. ويمكنك حذفه في أي وقت من الإعدادات.</p>
         <p><strong>الصورة الشخصية (اختياري).</strong> إذا أضفت صورة شخصية، يتم تخزينها وعرضها في حسابك.</p>
         <p><strong>محتوى الإعلانات.</strong> عند نشر عقار، نخزّن التفاصيل التي تقدمها — العنوان والسعر والوصف والموقع وأي صور أو مقاطع فيديو ترفعها — ليتمكن المستخدمون الآخرون من تصفحها والتواصل معك بشأنها.</p>
         <p><strong>الموقع الجغرافي.</strong> إذا سمحت بذلك، نستخدم موقعك الحالي لتوسيط الخريطة حولك عند تصفح العقارات. يُستخدم هذا الموقع على جهازك فقط لتحديد نقطة بداية الخريطة — ولا يُرسل أو يُخزَّن على خوادمنا أبدًا.</p>
@@ -171,7 +176,7 @@
           <li>لإنشاء حسابك وتأمينه</li>
           <li>لعرض إعلاناتك للمستخدمين الآخرين والسماح لهم بالتواصل معك</li>
           <li>للسماح لك بحفظ العقارات التي تهمك والعودة إليها</li>
-          <li>لإرسال رابط إعادة تعيين كلمة المرور عند طلبه</li>
+          <li>لإرسال رمز تحقق لمرة واحدة لتأكيد رقم هاتفك، عند إنشاء الحساب وعند إعادة تعيين كلمة المرور</li>
           <li>لمراجعة العقارات والموافقة عليها قبل ظهورها للعامة (تخضع جميع الإعلانات للمراجعة قبل نشرها)</li>
           <li>لإرسال إشعارات حول حالة الإعلان عند تفعيلك للإشعارات الفورية</li>
         </ul>
@@ -183,7 +188,8 @@
         <p>نستخدم الخدمات التالية لتشغيل التطبيق، وكل منها يستلم فقط البيانات اللازمة لتقديم خدمته لنا:</p>
         <ul class="service-list">
           <li><span class="name">Supabase</span><span class="desc">تستضيف قاعدة البيانات والمصادقة وتخزين الملفات ودوال الخادم.</span></li>
-          <li><span class="name">Resend</span><span class="desc">لإرسال رسائل إعادة تعيين كلمة المرور نيابة عنا.</span></li>
+          <li><span class="name">Twilio</span><span class="desc">لإيصال رموز التحقق لمرة واحدة المستخدمة لتأكيد رقم هاتفك، نيابةً عنا وعبر Supabase. يستلم رقم الهاتف والرسالة التي تحتوي على الرمز.</span></li>
+          <li><span class="name">Meta (منصة واتساب للأعمال)</span><span class="desc">عند إرسال الرمز عبر واتساب بدل الرسائل النصية، تستلم Meta رقم الهاتف والرسالة التي تحتوي على الرمز.</span></li>
           <li><span class="name">Expo Push Service</span><span class="desc">لإرسال الإشعارات الفورية عند تفعيلها.</span></li>
           <li><span class="name">خدمات الخرائط</span><span class="desc">لعرض الخريطة ومواقع العقارات — Apple Maps على iOS و MapTiler على Android. تتلقى MapTiler طلبًا بمنطقة الخريطة الظاهرة على شاشتك فقط، ولا تتلقى معلومات حسابك. يُستخدم موقعك على جهازك فقط.</span></li>
           <li><span class="name">DPay</span><span class="desc">تُستخدم حاليًا فقط في بيئة تجريبية لميزة الإبراز المعطّلة، وليست جزءًا من الإصدار الحالي.</span></li>

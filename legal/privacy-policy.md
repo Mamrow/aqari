@@ -1,12 +1,14 @@
 # Aqari Privacy Policy
 
-_Last updated: August 27, 2026_
+_Last updated: September 11, 2026_
 
 This policy describes what information Aqari ("the app," "we," "us") collects, how it's used, and how you can control or delete it.
 
 ## Information We Collect
 
-**Account information**: When you sign up, we collect your name, phone number, and email address. Your phone number and password are used to sign in; your email address is used only to send you a password-reset link if you request one.
+**Account information**: When you sign up, we collect your name and phone number, and you choose a password. Your phone number and password are used to sign in. To confirm the number belongs to you — at sign-up, and again if you ask to reset your password — we send a one-time code to it by SMS or WhatsApp.
+
+**Contact email** (optional): You can add an email address to your profile if you want one on file. It is not used to sign in, is not a way to recover your account, and we do not send messages to it automatically. You can remove it at any time in Settings.
 
 **Profile photo** (optional): If you add a profile photo, it's stored and shown on your account.
 
@@ -16,16 +18,19 @@ This policy describes what information Aqari ("the app," "we," "us") collects, h
 
 **Saved listings**: We store which listings you've saved ("favorites") so they're available across your sessions.
 
-**Push notifications** (optional): If you allow notifications, Aqari collects and stores a device push-notification token associated with your account. We use this token to send important updates about your listings, such as approval, rejection, or other listing-status changes. You can disable notifications at any time in your device settings. If you disable notifications or sign out, we may stop using the token. We do not use push notifications for advertising.
+**Push notifications** (optional): If you allow notifications, Aqari collects and stores a device push-notification token associated with your account. We use this token to send updates about your own listings, such as approval or rejection.
+
+**New listing alerts** (optional, off by default): You can separately choose to be alerted when a new listing is approved, and choose which cities those alerts cover. We store that choice and the list of cities on your profile. It is off unless you turn it on, and you can turn it off or change the cities at any time in Settings. We do not use push notifications for advertising.
 
 ## How We Use Your Information
 
 - To create and secure your account
 - To show your listings to other users and let them contact you
 - To let you save and revisit listings you're interested in
-- To send you a password-reset email if you request one
+- To send a one-time code confirming your phone number, at sign-up and when resetting your password
 - To review and approve listings before they appear publicly (all listings are moderated before going live)
 - To send listing-status notifications when you have enabled push notifications
+- To send alerts about new listings in the cities you chose, if you turned those alerts on
 
 We do not use your information for advertising, and we do not sell or rent your information to third parties.
 
@@ -34,7 +39,8 @@ We do not use your information for advertising, and we do not sell or rent your 
 We use the following service providers to operate Aqari. We share only the information reasonably necessary for each provider to perform its service:
 
 - **Supabase** — provides our database, authentication, file storage, and server-side functions. Supabase may process account information, saved listings, listing content, uploaded photos/videos, profile photos, reports, and push-notification tokens on our behalf.
-- **Resend** — delivers password-reset emails. Resend receives the email address and the information necessary to deliver the requested message.
+- **Twilio** — delivers the one-time codes used to confirm your phone number, on our behalf and through Supabase. Twilio receives the phone number and the message containing the code.
+- **Meta (WhatsApp Business Platform)** — where a code is delivered over WhatsApp instead of SMS, Meta receives the phone number and the message containing the code.
 - **Expo Push Service** — delivers push notifications to devices when you have enabled notifications. Aqari sends the device push token and notification payload required for delivery. Expo may process delivery metadata such as the token, device/platform information, and delivery status.
 - **Map services** — Aqari displays maps and property locations using a different provider on each platform. On iOS it uses **Apple Maps**, which is provided by Apple as part of the operating system. On Android it uses **MapTiler**, which serves the map imagery; MapTiler receives a request for the map area shown on your screen in order to return that imagery, and does not receive your account information. When you enable location access, Aqari uses your current location on the device to center the map. Aqari does not send or store that current location on our servers for this purpose.
 - **DPay** — DPay is currently used only in sandbox/development infrastructure for the disabled Boost feature and is not part of the first mobile release. If Boost or any payment feature is enabled in a future release, this policy will be updated before activation to describe the payment data, provider, processing, retention, and refund handling.
@@ -43,7 +49,8 @@ We do not use advertising or analytics/tracking SDKs in the current release. We 
 
 ## Your Choices
 
-- You can edit your name and profile photo at any time in Settings.
+- You can edit your name, contact email, phone number and password at any time in Settings → Personal info. Changing your phone number requires confirming the new number with a one-time code.
+- You can turn new listing alerts on or off, and change which cities they cover, in Settings.
 - You can delete individual saved listings or your own submitted listings at any time.
 - You can allow or disable push notifications through your device settings.
 - You can ask us to remove your stored push-notification token by contacting us at **aaqaaryy@gmail.com** or by deleting your account.
@@ -71,13 +78,15 @@ Questions about this policy or your data can be sent to: **aaqaaryy@gmail.com**
 
 # سياسة الخصوصية - عقاري
 
-_آخر تحديث: 27 أغسطس 2026_
+_آخر تحديث: 11 سبتمبر 2026_
 
 توضح هذه السياسة المعلومات التي يجمعها تطبيق عقاري ("التطبيق"، "نحن")، وكيفية استخدامها، وكيف يمكنك التحكم بها أو حذفها.
 
 ## المعلومات التي نجمعها
 
-**معلومات الحساب**: عند إنشاء حساب، نجمع اسمك ورقم هاتفك وبريدك الإلكتروني. يُستخدم رقم الهاتف وكلمة المرور لتسجيل الدخول، ويُستخدم بريدك الإلكتروني فقط لإرسال رابط إعادة تعيين كلمة المرور عند طلبه.
+**معلومات الحساب**: عند إنشاء حساب، نجمع اسمك ورقم هاتفك، وتختار كلمة مرور. يُستخدم رقم الهاتف وكلمة المرور لتسجيل الدخول. وللتأكد من أن الرقم يخصّك — عند إنشاء الحساب، وعند إعادة تعيين كلمة المرور — نرسل رمزًا لمرة واحدة إليه عبر رسالة نصية أو واتساب.
+
+**البريد الإلكتروني للتواصل** (اختياري): يمكنك إضافة بريد إلكتروني إلى ملفك إن أردت. لا يُستخدم لتسجيل الدخول، وليس وسيلة لاستعادة الحساب، ولا نرسل إليه رسائل تلقائية. ويمكنك حذفه في أي وقت من الإعدادات.
 
 **الصورة الشخصية** (اختياري): إذا أضفت صورة شخصية، يتم تخزينها وعرضها في حسابك.
 
@@ -105,7 +114,8 @@ _آخر تحديث: 27 أغسطس 2026_
 نستخدم مزودي الخدمات التاليين لتشغيل تطبيق عقاري. نشارك فقط المعلومات اللازمة بشكل معقول لتمكين كل مزود من تقديم خدمته:
 
 - **Supabase** — توفر قاعدة البيانات والمصادقة وتخزين الملفات والوظائف من جهة الخادم. قد تعالج Supabase معلومات الحساب والعقارات المحفوظة ومحتوى الإعلانات والصور/مقاطع الفيديو المرفوعة والصور الشخصية والبلاغات ورموز الإشعارات الفورية نيابةً عنا.
-- **Resend** — لإرسال رسائل إعادة تعيين كلمة المرور. يستلم Resend عنوان البريد الإلكتروني والمعلومات اللازمة لإيصال الرسالة المطلوبة.
+- **Twilio** — لإيصال رموز التحقق لمرة واحدة المستخدمة لتأكيد رقم هاتفك، نيابةً عنا وعبر Supabase. يستلم Twilio رقم الهاتف والرسالة التي تحتوي على الرمز.
+- **Meta (منصة واتساب للأعمال)** — عند إرسال الرمز عبر واتساب بدل الرسائل النصية، تستلم Meta رقم الهاتف والرسالة التي تحتوي على الرمز.
 - **خدمة Expo للإشعارات الفورية** — لإيصال الإشعارات إلى الأجهزة عند تفعيلك للإشعارات. يرسل تطبيق عقاري رمز الإشعارات الفورية وبيانات الإشعار اللازمة للإيصال. قد تعالج Expo بيانات التسليم مثل الرمز ومعلومات الجهاز/المنصة وحالة التسليم.
 - **خدمات الخرائط** — يعرض تطبيق عقاري الخرائط ومواقع العقارات باستخدام مزوّد مختلف على كل منصة. على iOS يستخدم **Apple Maps**، وهي خدمة تقدمها Apple ضمن نظام التشغيل. وعلى Android يستخدم **MapTiler**، التي توفر صور الخريطة؛ تتلقى MapTiler طلبًا بمنطقة الخريطة الظاهرة على شاشتك لإرجاع تلك الصور، ولا تتلقى معلومات حسابك. عند تفعيل الوصول إلى الموقع، يستخدم التطبيق موقعك الحالي على الجهاز لتوسيط الخريطة. لا يرسل تطبيق عقاري موقعك الحالي إلى خوادمنا ولا يخزّنه عليها لهذا الغرض.
 - **DPay** — يُستخدم DPay حاليًا فقط في بنية الاختبار/التطوير sandbox لميزة Boost المعطلة، وليس جزءًا من الإصدار الأول للهاتف. إذا تم تفعيل Boost أو أي ميزة دفع في إصدار مستقبلي، فسنحدّث هذه السياسة قبل التفعيل لوصف بيانات الدفع والمزود والمعالجة والاحتفاظ بالبيانات ومعالجة المبالغ المستردة.
