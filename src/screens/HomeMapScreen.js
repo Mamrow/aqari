@@ -58,14 +58,26 @@ const FEATURED_SCROLL_SPEED = 25; // px/second
 const FEATURED_SCROLL_TICK_MS = 100;
 
 
-// Slider bounds for the price filter — the ends of the range stand in for
-// "no lower/upper bound" (same meaning the old empty-string min/max had),
-// so listings above PRICE_MAX still show up when the upper thumb is left at
-// the max. Round LYD figure, not derived from live listing data, so it
-// doesn't shift under a user's feet as new listings come in.
-const PRICE_MIN = 0;
-const PRICE_MAX = 2000000;
-const PRICE_STEP = 5000;
+// Slider bounds for the price filter, per purpose. The ends of the range
+// stand in for "no lower/upper bound" (same meaning the old empty-string
+// min/max had), so listings past the top still show up when the upper thumb
+// is left at the max.
+//
+// Sale and rent aren't the same order of magnitude and can't share a scale:
+// a flat sells for hundreds of thousands, and rents for a couple of thousand
+// a month. On a 0–2,000,000 slider the entire rental market sits inside the
+// first 1% of the track — every rent in the country is indistinguishable
+// from zero, and a 5,000 step can't even express the difference between a
+// 1,500 and a 3,500 apartment.
+//
+// Round LYD figures, not derived from live listing data, so the scale
+// doesn't shift under someone's feet as new listings come in.
+const PRICE_RANGES = {
+  sale: { min: 0, max: 2000000, step: 5000 },
+  // Covers monthly apartment rents and the nightly chalet rates in the same
+  // scale, since both are listed as 'rent'.
+  rent: { min: 0, max: 20000, step: 250 },
+};
 // pickerModalBackdrop has 32px padding each side, pickerModalCard has 16px
 // padding each side, and the slider thumbs need a little breathing room of
 // their own so they don't clip against the card edge mid-drag.
@@ -129,7 +141,7 @@ function OptionRow({ label, active, colors, filterAccent, onPress }) {
   );
 }
 
-function FilterFacetRow({ label, value, active, colors, filterAccent, isRTL, onPress }) {
+function FilterFacetRow({ label, value, active, colors, filterAccent, isRTL, onPress, last }) {
   return (
     <Pressable
       onPress={onPress}
@@ -138,6 +150,9 @@ function FilterFacetRow({ label, value, active, colors, filterAccent, isRTL, onP
       style={({ pressed }) => [
         styles.facetRow,
         { borderBottomColor: colors.border },
+        // The last row's divider would otherwise float in the gap above the
+        // footer buttons, reading as an unfinished edge.
+        last && styles.facetRowLast,
         pressed && { opacity: 0.6 },
       ]}
     >
@@ -192,7 +207,7 @@ const formatPrice = (value) => (Number.isFinite(value) ? value.toLocaleString('e
  * Keeps a draft while you drag, so the map isn't re-filtering on every
  * intermediate value, and commits when Apply is pressed.
  */
-function PriceRangeSection({ minPrice, maxPrice, onApply, onDragStart, onDragEnd, colors, t }) {
+function PriceRangeSection({ minPrice, maxPrice, range, onApply, onDragStart, onDragEnd, colors, t }) {
   const [draftMin, setDraftMin] = useState(minPrice);
   const [draftMax, setDraftMax] = useState(maxPrice);
 
@@ -211,15 +226,15 @@ function PriceRangeSection({ minPrice, maxPrice, onApply, onDragStart, onDragEnd
           </Text>
           <Text style={[styles.priceInputSeparator, { color: colors.textMuted }]}>—</Text>
           <Text style={[styles.priceValueText, { color: colors.text }]}>
-            {draftMax >= PRICE_MAX ? `${formatPrice(PRICE_MAX)}+` : formatPrice(draftMax)}
+            {draftMax >= range.max ? `${formatPrice(range.max)}+` : formatPrice(draftMax)}
           </Text>
         </View>
         <View style={styles.priceSliderWrap}>
           <MultiSlider
             values={[draftMin, draftMax]}
-            min={PRICE_MIN}
-            max={PRICE_MAX}
-            step={PRICE_STEP}
+            min={range.min}
+            max={range.max}
+            step={range.step}
             sliderLength={SLIDER_WIDTH}
             onValuesChangeStart={onDragStart}
             onValuesChangeFinish={onDragEnd}
@@ -251,8 +266,8 @@ function PriceRangeSection({ minPrice, maxPrice, onApply, onDragStart, onDragEnd
           <Pressable
             style={[styles.priceClearButton, { borderColor: colors.inputBorder }]}
             onPress={() => {
-              setDraftMin(PRICE_MIN);
-              setDraftMax(PRICE_MAX);
+              setDraftMin(range.min);
+              setDraftMax(range.max);
             }}
           >
             <Text style={[styles.priceClearButtonText, { color: colors.textMuted }]}>
@@ -314,10 +329,10 @@ export default function HomeMapScreen({ navigation }) {
   const [selectedPropertyTypes, setSelectedPropertyTypes] = useState([]);
   // Numeric, not string state — the price filter is a drag-only slider now,
   // there's no typed digit input to normalize with toEnglishDigits anymore.
-  // PRICE_MIN/PRICE_MAX at the ends of the range mean "no bound", same as
+  // The ends of the active range mean "no bound", same as
   // the old empty-string min/max did.
-  const [minPrice, setMinPrice] = useState(PRICE_MIN);
-  const [maxPrice, setMaxPrice] = useState(PRICE_MAX);
+  const [minPrice, setMinPrice] = useState(PRICE_RANGES.sale.min);
+  const [maxPrice, setMaxPrice] = useState(PRICE_RANGES.sale.max);
   const [cityFilter, setCityFilter] = useState('all');
   const [districtFilter, setDistrictFilter] = useState('all');
   // One combined modal instead of two separate popups: picking a city moves
@@ -423,10 +438,18 @@ export default function HomeMapScreen({ navigation }) {
 
   // Switching Sale/Rent resets the secondary filters — a property-type/audience
   // choice made under one purpose isn't necessarily meaningful under the other.
+  const priceRange = PRICE_RANGES[listingType] ?? PRICE_RANGES.sale;
+
   const handleListingTypeChange = (type) => {
     setListingType(type);
     setSelectedPropertyTypes([]);
     setAudienceFilter('all');
+    // The two purposes have different price scales, so a bound carried over
+    // from the other one is meaningless — 300,000 as a monthly rent filter
+    // would silently hide every rental there is.
+    const nextRange = PRICE_RANGES[type] ?? PRICE_RANGES.sale;
+    setMinPrice(nextRange.min);
+    setMaxPrice(nextRange.max);
   };
   // Istiraha rentals get an extra audience sub-filter (Families/Youth) — that
   // distinction is specific to renting a chalet short-term, not buying one.
@@ -450,10 +473,10 @@ export default function HomeMapScreen({ navigation }) {
           )}`;
   const priceSummary = formatFilterSummary(
     t('priceFilterLabel'),
-    minPrice > PRICE_MIN || maxPrice < PRICE_MAX
+    minPrice > priceRange.min || maxPrice < priceRange.max
       ? [
           `${minPrice.toLocaleString('en-US')} - ${
-            maxPrice >= PRICE_MAX ? '∞' : maxPrice.toLocaleString('en-US')
+            maxPrice >= priceRange.max ? '∞' : maxPrice.toLocaleString('en-US')
           }`,
         ]
       : []
@@ -479,7 +502,7 @@ export default function HomeMapScreen({ navigation }) {
   const activeFilterCount =
     (selectedPropertyTypes.length > 0 ? 1 : 0) +
     (cityFilter !== 'all' ? 1 : 0) +
-    (minPrice > PRICE_MIN || maxPrice < PRICE_MAX ? 1 : 0) +
+    (minPrice > priceRange.min || maxPrice < priceRange.max ? 1 : 0) +
     (showAudienceFilter && audienceFilter !== 'all' ? 1 : 0) +
     (viewMode === 'list' && sortBy !== 'featured' ? 1 : 0);
 
@@ -499,8 +522,8 @@ export default function HomeMapScreen({ navigation }) {
     setSelectedPropertyTypes([]);
     setCityFilter('all');
     setDistrictFilter('all');
-    setMinPrice(PRICE_MIN);
-    setMaxPrice(PRICE_MAX);
+    setMinPrice(priceRange.min);
+    setMaxPrice(priceRange.max);
     setAudienceFilter('all');
     setSortBy('featured');
   };
@@ -516,8 +539,8 @@ export default function HomeMapScreen({ navigation }) {
       // browsing regardless of which one, just for a different reason.
       if (listing.listingState === 'expired' || listing.listingState === 'sold') return false;
       if (selectedPropertyTypes.length > 0 && !selectedPropertyTypes.includes(listing.propertyType)) return false;
-      if (minPrice > PRICE_MIN && listing.price < minPrice) return false;
-      if (maxPrice < PRICE_MAX && listing.price > maxPrice) return false;
+      if (minPrice > priceRange.min && listing.price < minPrice) return false;
+      if (maxPrice < priceRange.max && listing.price > maxPrice) return false;
       if (cityFilter !== 'all' && listing.city !== cityFilter) return false;
       if (districtFilter !== 'all' && listing.district !== districtFilter) return false;
       if (showAudienceFilter && audienceFilter !== 'all' && listing.audienceTarget !== audienceFilter) {
@@ -956,13 +979,14 @@ export default function HomeMapScreen({ navigation }) {
                     <FilterFacetRow
                       label={t('priceFilterLabel')}
                       value={
-                        minPrice > PRICE_MIN || maxPrice < PRICE_MAX ? priceSummary : t('allFilter')
+                        minPrice > priceRange.min || maxPrice < priceRange.max ? priceSummary : t('allFilter')
                       }
-                      active={minPrice > PRICE_MIN || maxPrice < PRICE_MAX}
+                      active={minPrice > priceRange.min || maxPrice < priceRange.max}
                       colors={colors}
                       filterAccent={filterAccent}
                       isRTL={isRTL}
                       onPress={() => setSheetPage('price')}
+                      last={!showAudienceFilter && viewMode !== 'list'}
                     />
                     {showAudienceFilter && (
                       <FilterFacetRow
@@ -977,6 +1001,7 @@ export default function HomeMapScreen({ navigation }) {
                         filterAccent={filterAccent}
                         isRTL={isRTL}
                         onPress={() => setSheetPage('audience')}
+                        last={viewMode !== 'list'}
                       />
                     )}
                     {/* Map pin order isn't meaningful, so sorting is list-only. */}
@@ -989,6 +1014,7 @@ export default function HomeMapScreen({ navigation }) {
                         filterAccent={filterAccent}
                         isRTL={isRTL}
                         onPress={() => setSheetPage('sort')}
+                        last
                       />
                     )}
                   </>
@@ -1068,6 +1094,7 @@ export default function HomeMapScreen({ navigation }) {
                   <PriceRangeSection
                     minPrice={minPrice}
                     maxPrice={maxPrice}
+                    range={priceRange}
                     onApply={(nextMin, nextMax) => {
                       setMinPrice(nextMin);
                       setMaxPrice(nextMax);
@@ -1379,13 +1406,22 @@ const styles = StyleSheet.create({
     // the heading lands under the same edge as the rows beneath it.
     alignSelf: 'flex-start',
   },
+  // Rounded on all four corners and floating clear of the screen edge. With
+  // only the top corners rounded it read as a slab someone had chopped the
+  // bottom off — a bottom sheet needs to actually reach the bottom edge to
+  // look intentional, and this one sits inside the backdrop's padding.
   filterSheetCard: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderRadius: 22,
     padding: 16,
     paddingTop: 40,
+    paddingBottom: 20,
     maxHeight: '80%',
     marginTop: 'auto',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
   filterSheetTitle: {
     marginBottom: 4,
@@ -1398,7 +1434,7 @@ const styles = StyleSheet.create({
   filterSheetFooter: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 16,
+    marginTop: 18,
   },
   facetRow: {
     flexDirection: 'row',
@@ -1407,6 +1443,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  facetRowLast: {
+    borderBottomWidth: 0,
   },
   // See SettingsScreen's rowTextBlock: 'flex-start' is the writing-direction
   // start and resolves the same on both platforms, where textAlign didn't.
