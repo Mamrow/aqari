@@ -24,7 +24,15 @@ import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
 const STORAGE_KEY = '@aqari/app_state';
 
 const initialState = {
-  auth: { loggedIn: false, name: null, phone: null, avatarUrl: null, notifyNewListings: false, notifyCities: [] },
+  auth: {
+    loggedIn: false,
+    name: null,
+    phone: null,
+    email: null,
+    avatarUrl: null,
+    notifyNewListings: false,
+    notifyCities: [],
+  },
   theme: 'light',
 };
 
@@ -83,6 +91,7 @@ export function AppProvider({ children }) {
       name: profile.name,
       phone: profile.phone,
       avatarUrl: profile.avatarUrl,
+      email: profile.email,
       notifyNewListings: profile.notifyNewListings,
       notifyCities: profile.notifyCities,
     });
@@ -519,20 +528,70 @@ export function AppProvider({ children }) {
   );
 
   const updateProfile = useCallback(
-    async ({ name, avatarUrl }) => {
+    async ({ name, avatarUrl, email }) => {
       if (!auth.phone) return;
       setAuth((prev) => ({
         ...prev,
         ...(name !== undefined ? { name } : {}),
         ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+        ...(email !== undefined ? { email } : {}),
       }));
       const row = { phone: auth.phone, name: name ?? auth.name };
       if (avatarUrl !== undefined) row.avatar_url = avatarUrl;
+      // An emptied field means "remove it", which is null in the column, not
+      // an empty string — otherwise "has an email" checks start being true
+      // for people who cleared theirs.
+      if (email !== undefined) row.email = email?.trim() ? email.trim() : null;
       const { error } = await supabase.from('profiles').upsert(row);
-      if (error) console.warn('updateProfile error', error);
+      if (error) throw error;
     },
     [auth.phone, auth.name]
   );
+
+  /**
+   * Changes the number the account signs in with.
+   *
+   * Two steps or one, depending on the project's "Confirm phone" setting:
+   * with it on, Supabase sends a code to the NEW number and nothing changes
+   * until verifyPhoneChange redeems it; with it off, the change lands
+   * immediately. Either way the profiles row is only rewritten once auth
+   * itself has accepted the new number — doing it the other way round would
+   * leave the profile pointing at a number that can't sign in.
+   *
+   * Existing listings keep the contact number they were published with.
+   * That's deliberate: agent_phone is a snapshot of how to reach the seller
+   * about that listing, not a live reference, so changing an account's login
+   * number doesn't silently rewrite adverts other people are looking at.
+   */
+  const changePhoneNumber = useCallback(async (newPhone) => {
+    const { data, error } = await supabase.auth.updateUser({ phone: newPhone });
+    if (error) throw error;
+    const confirmed = data?.user?.phone === newPhone.replace('+', '');
+    if (!confirmed) return { needsVerification: true };
+    await finishPhoneChange(newPhone);
+    return { needsVerification: false };
+  }, []);
+
+  const finishPhoneChange = async (newPhone) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const uid = sessionData.session?.user.id;
+    if (!uid) throw new Error('NO_SESSION');
+    const { data: row, error } = await supabase
+      .from('profiles')
+      .update({ phone: newPhone })
+      .eq('auth_uid', uid)
+      .select()
+      .single();
+    if (error) throw error;
+    setAuth((prev) => ({ ...prev, phone: row.phone }));
+  };
+
+  /** Redeems the code sent to the new number — `type: 'phone_change'`. */
+  const verifyPhoneChange = useCallback(async ({ phone, token }) => {
+    const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'phone_change' });
+    if (error) throw error;
+    await finishPhoneChange(phone);
+  }, []);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
@@ -990,6 +1049,8 @@ export function AppProvider({ children }) {
     completeOnboarding,
     replayOnboarding,
     updateProfile,
+    changePhoneNumber,
+    verifyPhoneChange,
     updateNotificationPrefs,
     logout,
     deleteAccount,

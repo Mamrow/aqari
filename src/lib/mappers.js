@@ -74,6 +74,8 @@ export function profileFromRow(row) {
     name: row.name,
     avatarUrl: row.avatar_url ?? null,
     role: row.role,
+    // Optional contact email the account typed in — not an auth identity.
+    email: row.email ?? null,
     // New-listing alerts. Defaulted here rather than assumed present, so a
     // client running against a database that hasn't had
     // migration_new_listing_alerts.sql applied yet reads as "opted out"

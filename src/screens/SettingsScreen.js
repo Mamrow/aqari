@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { CITIES } from '../data/districts';
@@ -61,6 +62,14 @@ export default function SettingsScreen({ navigation }) {
   // list reads as a list.
   const [displayOpen, setDisplayOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+
+  // Reset the scroll on the way OUT, not on the way in: doing it on focus
+  // means you watch the list jump back to the top after it's already on
+  // screen. Navigating away and returning should look like arriving fresh.
+  const scrollRef = useRef(null);
+  useFocusEffect(
+    useCallback(() => () => scrollRef.current?.scrollTo({ y: 0, animated: false }), [])
+  );
 
   const languageOptions = [
     { value: 'ar', label: t('languageArabic') },
@@ -241,6 +250,7 @@ export default function SettingsScreen({ navigation }) {
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(40, insets.bottom + 104) }]}
         keyboardShouldPersistTaps="handled"
       >
@@ -362,7 +372,7 @@ export default function SettingsScreen({ navigation }) {
               label={t('personalInfoRow')}
               subtitle={t('personalInfoRowSubtitle')}
               colors={colors}
-              onPress={startEditingName}
+              onPress={() => navigation.navigate('PersonalInfo')}
             />
           )}
 

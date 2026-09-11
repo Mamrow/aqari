@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import SettingsScreen from '../screens/SettingsScreen';
 import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
 import BlockedSellersScreen from '../screens/BlockedSellersScreen';
+import PersonalInfoScreen from '../screens/PersonalInfoScreen';
 import LegalInfoScreen from '../screens/LegalInfoScreen';
 import { useT } from '../i18n/useT';
 
@@ -19,6 +20,12 @@ export default function SettingsStack() {
         // the stack's default native header would just duplicate that.
         // PaymentHistory below has neither, so it keeps the default header
         // (title + auto back button).
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PersonalInfo"
+        component={PersonalInfoScreen}
+        // Renders its own back row and heading, like SettingsHome does.
         options={{ headerShown: false }}
       />
       <Stack.Screen
