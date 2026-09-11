@@ -21,7 +21,6 @@ import { Ionicons } from '@expo/vector-icons';
 // cluster identically and the pins are pixel-identical; only the map
 // underneath differs. See src/components/map/.
 import ListingsMap from '../components/map/ListingsMap';
-import GlassSurface, { isLiquidGlassAvailable } from '../components/GlassSurface';
 import * as Location from 'expo-location';
 import { useAppContext } from '../context/AppContext';
 import ListingCard from '../components/ListingCard';
@@ -708,9 +707,6 @@ export default function HomeMapScreen({ navigation }) {
   // header starts at the very top of the screen. Anything more leaves a band
   // of empty background between the header and the first card.
   const listTopOffset = listHeaderHeight + 4;
-  // Liquid Glass on the floating controls wherever the OS provides it — the
-  // buttons and the tab bar, not the map itself.
-  const glass = isLiquidGlassAvailable();
 
   if (dataLoading) {
     return <LoadingView />;
@@ -845,11 +841,11 @@ export default function HomeMapScreen({ navigation }) {
             off the left edge — and they took a third of the map with them.
             Everything now lives behind this, the way a marketplace app's
             filter button works. */}
-        <GlassSurface
-          style={[styles.filtersButtonSurface, { borderColor: filterAccent }]}
-          fallbackColor={glass ? undefined : colors.surface}
-          glassEffectStyle="regular"
-          isInteractive
+        <View
+          style={[
+            styles.filtersButtonSurface,
+            { borderColor: filterAccent, backgroundColor: colors.surface },
+          ]}
         >
         <Pressable
           onPress={() => setFilterSheetVisible(true)}
@@ -870,7 +866,7 @@ export default function HomeMapScreen({ navigation }) {
             </View>
           )}
         </Pressable>
-        </GlassSurface>
+        </View>
         </View>
 
 
@@ -1233,13 +1229,7 @@ export default function HomeMapScreen({ navigation }) {
         />
       )}
 
-      <GlassSurface
-        style={styles.fab}
-        fallbackColor={glass ? undefined : '#1a1a1a'}
-        glassEffectStyle="regular"
-        isInteractive
-        pointerEvents="box-none"
-      >
+      <View style={styles.fab}>
       <Pressable
         style={styles.fabInner}
         onPress={toggleViewMode}
@@ -1254,7 +1244,7 @@ export default function HomeMapScreen({ navigation }) {
         <Ionicons name={viewMode === 'map' ? 'list' : 'map'} size={18} color="#fff" />
         <Text style={styles.fabText}>{viewMode === 'map' ? t('showList') : t('showMap')}</Text>
       </Pressable>
-      </GlassSurface>
+      </View>
 
     </View>
   );
@@ -1617,12 +1607,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     padding: 7,
   },
-  // The wrapper owns the shape and the surface (glass or solid); the inner
-  // Pressable owns the row layout and the touch target.
+  // The wrapper owns the shape and the surface; the inner Pressable owns the
+  // row layout and the touch target.
   fab: {
     position: 'absolute',
     bottom: 30,
     alignSelf: 'center',
+    backgroundColor: '#1a1a1a',
     borderRadius: 24,
     overflow: 'hidden',
     shadowColor: '#000',

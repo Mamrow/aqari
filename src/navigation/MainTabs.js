@@ -10,7 +10,6 @@ import { tabIcon } from './tabIcon';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { useAppContext } from '../context/AppContext';
-import GlassSurface, { isLiquidGlassAvailable } from '../components/GlassSurface';
 
 const Tab = createBottomTabNavigator();
 
@@ -40,39 +39,9 @@ export default function MainTabs() {
   const t = useT();
   const colors = useThemeColors();
   const { auth, requireAuth } = useAppContext();
-  const glass = isLiquidGlassAvailable();
 
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarLabelPosition: 'below-icon',
-        // Glass material on the bar, but the bar stays in the layout flow.
-        //
-        // position:'absolute' is what the floating iOS 26 look needs — content
-        // scrolling under the bar — and it silently broke every screen that
-        // doesn't reserve space for it: the bar stops taking up layout room,
-        // so whatever is last on a screen ends up underneath it. ListingDetail
-        // lost its Edit button that way, and auditing every scroll view in the
-        // app for bottom padding is a much bigger change than it looks.
-        //
-        // So the bar keeps its slot and only its material changes. Less
-        // dramatic than content sliding under frosted glass, and nothing can
-        // hide behind it.
-        ...(glass
-          ? {
-              tabBarStyle: {
-                backgroundColor: 'transparent',
-                borderTopWidth: 0,
-                elevation: 0,
-              },
-              tabBarBackground: () => (
-                <GlassSurface style={StyleSheet.absoluteFill} glassEffectStyle="regular" />
-              ),
-            }
-          : null),
-      }}
-    >
+    <Tab.Navigator screenOptions={{ headerShown: false, tabBarLabelPosition: 'below-icon' }}>
       <Tab.Screen
         name="Home"
         component={HomeStack}
