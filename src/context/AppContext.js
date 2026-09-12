@@ -535,9 +535,13 @@ export function AppProvider({ children }) {
 
   /**
    * New-listing alert preferences. Its own updater rather than a branch of
-   * updateProfile: that one is keyed on `auth.phone` and writes name/avatar,
-   * and folding an array column into it would mean every avatar change
-   * rewriting the city list too.
+   * updateProfile: that one writes name/avatar/email, and folding the array
+   * columns into it would mean every avatar change rewriting the city list
+   * too.
+   *
+   * Still an upsert keyed on phone, unlike updateProfile — if a save here
+   * ever reports an error while appearing to work, it's the same cause, and
+   * the same fix applies.
    */
   const updateNotificationPrefs = useCallback(
     async ({ notifyNewListings, notifyCities, notifyDistricts }) => {
@@ -558,25 +562,53 @@ export function AppProvider({ children }) {
     [auth.phone]
   );
 
+  /**
+   * Edits the signed-in account's own profile row.
+   *
+   * An update keyed on auth_uid, not an upsert. Every caller here is editing
+   * a profile that already exists, and an upsert has to satisfy the INSERT
+   * policy as well as the UPDATE one — which means sending auth_uid on a row
+   * that already has it, to prove ownership of a row we aren't creating. The
+   * update policy (auth_uid = auth.uid()) says exactly what we mean, and the
+   * filter and the policy are then the same condition.
+   *
+   * Local state is set *after* the write lands, not before. Optimistically
+   * updating first meant a failed save still renamed you on screen: the
+   * error alert and the new name appeared together, and the old name came
+   * back at the next launch with nothing to explain it.
+   */
   const updateProfile = useCallback(
     async ({ name, avatarUrl, email }) => {
-      if (!auth.phone) return;
+      if (!authUid) return;
+      const patch = {};
+      if (name !== undefined) patch.name = name;
+      if (avatarUrl !== undefined) patch.avatar_url = avatarUrl;
+      // An emptied field means "remove it", which is null in the column, not
+      // an empty string — otherwise "has an email" checks start being true
+      // for people who cleared theirs.
+      if (email !== undefined) patch.email = email?.trim() ? email.trim() : null;
+      if (Object.keys(patch).length === 0) return;
+
+      // Returning the row is what proves it was actually written. A filter
+      // that matches nothing is not an error in Postgres, so without this a
+      // no-op update would report success.
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(patch)
+        .eq('auth_uid', authUid)
+        .select('phone')
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error('Profile row not found for this account');
+
       setAuth((prev) => ({
         ...prev,
         ...(name !== undefined ? { name } : {}),
         ...(avatarUrl !== undefined ? { avatarUrl } : {}),
         ...(email !== undefined ? { email } : {}),
       }));
-      const row = { phone: auth.phone, name: name ?? auth.name };
-      if (avatarUrl !== undefined) row.avatar_url = avatarUrl;
-      // An emptied field means "remove it", which is null in the column, not
-      // an empty string — otherwise "has an email" checks start being true
-      // for people who cleared theirs.
-      if (email !== undefined) row.email = email?.trim() ? email.trim() : null;
-      const { error } = await supabase.from('profiles').upsert(row);
-      if (error) throw error;
     },
-    [auth.phone, auth.name]
+    [authUid]
   );
 
   /**

@@ -14,6 +14,7 @@ import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { friendlyErrorMessage } from '../utils/friendlyError';
+import { reportError } from '../lib/crashReporting';
 import PhoneInput, { fromE164, isValidPhone, toE164 } from '../components/PhoneInput';
 import PasswordInput from '../components/PasswordInput';
 
@@ -60,6 +61,10 @@ export default function PersonalInfoScreen() {
 
   const fail = (error) => {
     console.warn('Personal info save failed', error);
+    // The user gets a friendly sentence; the actual Postgres/Supabase error
+    // goes where it can be read later. Without this a save failure in a
+    // release build leaves no trace anywhere.
+    reportError(error, { screen: 'PersonalInfo' });
     Alert.alert(t('authErrorTitle'), friendlyErrorMessage(error, t));
   };
 
