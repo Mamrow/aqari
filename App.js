@@ -34,7 +34,7 @@ function buildNavigationTheme(theme) {
 }
 
 function AppShell() {
-  const { theme, hydrated, showOnboarding, completeOnboarding } = useAppContext();
+  const { theme, language, hydrated, showOnboarding, completeOnboarding } = useAppContext();
 
   // Onboarding lives inside AppProvider (it needs theme + translations) but
   // outside NavigationContainer — it's a pre-app gate, not a route, so it
@@ -54,7 +54,17 @@ function AppShell() {
 
   return (
     <>
-      <NavigationContainer theme={buildNavigationTheme(theme)}>
+      {/* The native stack header takes its direction from here and nowhere
+          else — react-navigation's useLocale() is what decides which side the
+          back button sits on and which way its chevron points, and the native
+          header ignores I18nManager for that. The container's own default
+          reads I18nManager.getConstants().isRTL, which is a *launch-time*
+          snapshot; the app's language is the thing that's actually true right
+          now, so drive it from that. Arabic is the only RTL language here. */}
+      <NavigationContainer
+        theme={buildNavigationTheme(theme)}
+        direction={language === 'ar' ? 'rtl' : 'ltr'}
+      >
         <RootNavigator />
       </NavigationContainer>
       <AuthModal />
