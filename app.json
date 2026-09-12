@@ -64,7 +64,13 @@
       ],
       "expo-notifications",
       "@maplibre/maplibre-react-native",
-      "@sentry/react-native"
+      [
+        "@sentry/react-native",
+        {
+          "organization": "aqari-l7",
+          "project": "react-native"
+        }
+      ]
     ],
     "owner": "mamrow",
     "extra": {
