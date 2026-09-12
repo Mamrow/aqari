@@ -12,6 +12,26 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import OnboardingScreen from './src/components/OnboardingScreen';
 import { LANGUAGE_STORAGE_KEY } from './src/i18n/constants';
 import { lightColors, darkColors } from './src/theme/colors';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://4a353adb00ffc8a2e1e09ebc49a08b85@o4512073432563712.ingest.us.sentry.io/4512073440821248',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 // Before any component mounts, so a crash during the very first render is
 // still reported. No-op unless EXPO_PUBLIC_SENTRY_DSN was set at build time.
@@ -73,7 +93,7 @@ function AppShell() {
   );
 }
 
-export default function App() {
+export default Sentry.wrap(function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -108,5 +128,4 @@ export default function App() {
       </ErrorBoundary>
     </SafeAreaProvider>
   );
-}
-   
+});

@@ -61,3 +61,5 @@ graphify-out/
 # Output of `npm run build:android:check` — a throwaway bundle used to verify
 # the app still compiles; never part of the source tree.
 .expo-bundle-check/
+
+.env.local

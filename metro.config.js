@@ -1,9 +1,8 @@
-// Lets `.svg` files be imported directly as React components (used for the
-// payment-gateway logos in BoostListingSection.js) — plain RN <Image> can't
-// decode SVG on Android, so this is required rather than optional.
-const { getDefaultConfig } = require('expo/metro-config');
+const {
+  getSentryExpoConfig
+} = require("@sentry/react-native/metro");
 
-const config = getDefaultConfig(__dirname);
+const config = getSentryExpoConfig(__dirname);
 const { transformer, resolver } = config;
 
 config.transformer = {
