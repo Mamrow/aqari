@@ -21,7 +21,8 @@ import { useThemeColors } from '../theme/useThemeColors';
 import Avatar from '../components/Avatar';
 import { uploadAvatarImage } from '../utils/uploadImage';
 import appConfig from '../../app.json';
-import { BOOST_PURCHASES_ENABLED } from '../config/features';
+import { BOOST_PURCHASES_ENABLED, CRASH_TEST_ENABLED } from '../config/features';
+import { reportError } from '../lib/crashReporting';
 
 export default function SettingsScreen({ navigation }) {
   const {
@@ -160,6 +161,34 @@ export default function SettingsScreen({ navigation }) {
     Alert.alert(t('logoutConfirmTitle'), t('logoutConfirmMessage'), [
       { text: t('cancel'), style: 'cancel' },
       { text: t('logout'), style: 'destructive', onPress: logout },
+    ]);
+  };
+
+  // Two tests, because they fail for different reasons. The handled one
+  // proves the DSN, the network path and the project are right. The crash
+  // proves the boundary catches a real render failure and that the uploaded
+  // source map turns index.hbc:1:284729 back into a filename and a line.
+  const [crashNow, setCrashNow] = useState(false);
+  if (crashNow) {
+    throw new Error('Aqari test: deliberate crash from Settings');
+  }
+
+  const handleCrashTest = () => {
+    Alert.alert('Crash reporting test', 'Sentry only — nothing is sent to users.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Send handled error',
+        onPress: () =>
+          reportError(new Error('Aqari test: handled error'), { source: 'settings-longpress' }),
+      },
+      {
+        text: 'Crash the app',
+        style: 'destructive',
+        // Thrown from a state update rather than inline, so it unwinds through
+        // React's render path the way a genuine crash does — an inline throw
+        // here would be caught as a plain event-handler error instead.
+        onPress: () => setCrashNow(true),
+      },
     ]);
   };
 
@@ -563,6 +592,8 @@ export default function SettingsScreen({ navigation }) {
             divider
             value={`${t('appVersionLabel')} ${appConfig.expo.version}`}
             chevron={null}
+            // Hidden crash-reporting test — see CRASH_TEST_ENABLED.
+            onLongPress={CRASH_TEST_ENABLED ? handleCrashTest : undefined}
           />
           <Row
             icon="star-outline"
@@ -604,11 +635,12 @@ export default function SettingsScreen({ navigation }) {
  * No textAlign anywhere: the label shrinks to its content and the row's
  * layout puts it at the writing-direction start. See rowTextBlock.
  */
-function Row({ icon, label, subtitle, value, colors, onPress, divider, chevron = 'chevron-forward' }) {
+function Row({ icon, label, subtitle, value, colors, onPress, onLongPress, divider, chevron = 'chevron-forward' }) {
   return (
     <Pressable
       onPress={onPress}
-      disabled={!onPress}
+      onLongPress={onLongPress}
+      disabled={!onPress && !onLongPress}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={label}
       style={({ pressed }) => [

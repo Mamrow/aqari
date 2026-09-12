@@ -12,3 +12,14 @@
 // unreferenced from the UI. Flip this back to true once a compliant, actually
 // payable path exists.
 export const BOOST_PURCHASES_ENABLED = false;
+
+// A hidden way to prove crash reporting actually works in a *release* build,
+// which is the only build where it matters: dev builds symbolicate locally
+// and never exercise the source-map upload. Long-press the version row in
+// Settings (see SettingsScreen.js) — no label, no chevron, nothing a real
+// user would find by accident.
+//
+// TURN THIS OFF BEFORE THE APP STORE SUBMISSION. It's a deliberate crash
+// sitting in a shipped binary; the fact that it's hard to reach is not a
+// reason to leave it there.
+export const CRASH_TEST_ENABLED = true;
