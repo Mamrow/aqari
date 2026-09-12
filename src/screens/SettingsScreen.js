@@ -936,13 +936,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
   },
+  // Centred rather than hugging an edge: it's the last thing on the screen
+  // and the only destructive one, so it shouldn't look like another list row
+  // that happens to be left over.
   deleteLinkRow: {
     paddingVertical: 14,
     paddingHorizontal: 4,
+    alignItems: 'center',
   },
   deleteLinkText: {
     fontSize: 13,
     textDecorationLine: 'underline',
+    textAlign: 'center',
   },
 
   // ---- delete-account confirmation screen ----

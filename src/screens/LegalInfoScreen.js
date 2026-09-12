@@ -53,7 +53,7 @@ const PAGE_CONFIG = {
   },
 };
 
-export default function LegalInfoScreen({ navigation, route }) {
+export default function LegalInfoScreen({ route }) {
   const t = useT();
   const colors = useThemeColors();
   const { language } = useAppContext();
@@ -76,26 +76,11 @@ export default function LegalInfoScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={[styles.backRow, isRTL && styles.backRowRTL]}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={t('back')}
-        >
-          <Ionicons
-            name={isRTL ? 'chevron-forward' : 'chevron-back'}
-            size={22}
-            color={colors.accent}
-          />
-          <Text style={[styles.backText, { color: colors.accent }]}>{t('back')}</Text>
-        </Pressable>
-
         <View style={styles.titleRow}>
           <View style={[styles.titleBlock, isRTL && styles.titleBlockRTL]}>
             <Text style={[styles.title, { color: colors.heading, textAlign: isRTL ? 'right' : 'left' }]}>
@@ -175,8 +160,6 @@ export default function LegalInfoScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 48 },
-  backRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 22 },
-  backRowRTL: { flexDirection: 'row-reverse', justifyContent: 'flex-start' },
   backText: { fontSize: 15, fontWeight: '600' },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 },
   titleBlock: { flex: 1 },

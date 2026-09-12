@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
+import { initCrashReporting } from './src/lib/crashReporting';
 import { AppProvider, useAppContext } from './src/context/AppContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import AuthModal from './src/components/AuthModal';
@@ -11,6 +12,10 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import OnboardingScreen from './src/components/OnboardingScreen';
 import { LANGUAGE_STORAGE_KEY } from './src/i18n/constants';
 import { lightColors, darkColors } from './src/theme/colors';
+
+// Before any component mounts, so a crash during the very first render is
+// still reported. No-op unless EXPO_PUBLIC_SENTRY_DSN was set at build time.
+initCrashReporting();
 
 function buildNavigationTheme(theme) {
   const base = theme === 'dark' ? DarkTheme : DefaultTheme;

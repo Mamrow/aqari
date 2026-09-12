@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
@@ -29,13 +28,12 @@ const OTP_LENGTH = 6;
  * call plus a verification step — and one "Save" button implying they commit
  * together would be a lie the moment one of them failed.
  */
-export default function PersonalInfoScreen({ navigation }) {
-  const { auth, language, updateProfile, updateAccountPassword, changePhoneNumber, verifyPhoneChange } =
+export default function PersonalInfoScreen() {
+  const { auth, updateProfile, updateAccountPassword, changePhoneNumber, verifyPhoneChange } =
     useAppContext();
   const t = useT();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const isRTL = language === 'ar';
 
   const [name, setName] = useState(auth.name ?? '');
   const [email, setEmail] = useState(auth.email ?? '');
@@ -138,18 +136,11 @@ export default function PersonalInfoScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 104) }]}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable onPress={() => navigation.goBack()} style={styles.backRow} hitSlop={8}>
-          <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={22} color={colors.text} />
-          <Text style={[styles.backText, { color: colors.text }]}>{t('back')}</Text>
-        </Pressable>
-
-        <Text style={[styles.heading, { color: colors.heading }]}>{t('personalInfoRow')}</Text>
-
         {/* --- name + email --- */}
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <FieldLabel colors={colors}>{t('authNamePlaceholder')}</FieldLabel>
@@ -312,23 +303,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-  },
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 12,
-    alignSelf: 'flex-start',
-  },
-  backText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  heading: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 18,
-    alignSelf: 'flex-start',
   },
   card: {
     borderRadius: 16,

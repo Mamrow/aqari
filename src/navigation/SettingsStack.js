@@ -13,6 +13,12 @@ export default function SettingsStack() {
 
   return (
     <Stack.Navigator>
+      {/* Every screen below SettingsHome uses the native stack header. It
+          was three different back affordances before — a black "رجوع" row on
+          Personal info, a plain native chevron on Blocked sellers, and a blue
+          "رجوع" on the legal pages — because two screens drew their own and
+          one didn't. The native header also puts the chevron on the correct
+          side in Arabic without anyone thinking about it. */}
       <Stack.Screen
         name="SettingsHome"
         component={SettingsScreen}
@@ -25,8 +31,7 @@ export default function SettingsStack() {
       <Stack.Screen
         name="PersonalInfo"
         component={PersonalInfoScreen}
-        // Renders its own back row and heading, like SettingsHome does.
-        options={{ headerShown: false }}
+        options={{ title: t('personalInfoRow') }}
       />
       <Stack.Screen
         name="PaymentHistory"
@@ -42,19 +47,19 @@ export default function SettingsStack() {
         name="PrivacyPolicy"
         component={LegalInfoScreen}
         initialParams={{ type: 'privacy' }}
-        options={{ headerShown: false }}
+        options={{ title: t('privacyPolicyRow') }}
       />
       <Stack.Screen
         name="TermsOfService"
         component={LegalInfoScreen}
         initialParams={{ type: 'terms' }}
-        options={{ headerShown: false }}
+        options={{ title: t('termsOfServiceRow') }}
       />
       <Stack.Screen
         name="Support"
         component={LegalInfoScreen}
         initialParams={{ type: 'support' }}
-        options={{ headerShown: false }}
+        options={{ title: t('supportRow') }}
       />
     </Stack.Navigator>
   );

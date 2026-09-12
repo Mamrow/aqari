@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { reportError } from '../lib/crashReporting';
 
 // Catches any render-time crash below it (a bad API response shaped
 // unexpectedly, a null where a listing was assumed to exist, etc.) and
@@ -20,6 +21,9 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('Uncaught render error', error, info?.componentStack);
+    // The component stack is the useful half: it says which screen died,
+    // which the JS stack alone often doesn't in a release build.
+    reportError(error, { componentStack: info?.componentStack });
   }
 
   handleReset = () => {

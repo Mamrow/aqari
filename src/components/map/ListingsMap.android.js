@@ -16,7 +16,12 @@ const DEFAULT_CENTER_LNGLAT = [TRIPOLI_MAP_DEFAULT.longitude, TRIPOLI_MAP_DEFAUL
 // TRIPOLI_MAP_DEFAULT.zoom, like every zoom outside this file, is on the
 // standard 256px-tile scale; MapLibre wants its own 512px-tile scale.
 const DEFAULT_ZOOM = TRIPOLI_MAP_DEFAULT.zoom - MAPLIBRE_ZOOM_OFFSET;
-const USER_LOCATION_ZOOM = 15;
+// Where the map lands when it follows the device's location on open.
+// Street level (15) put you in the middle of your own block with nothing
+// else in frame — technically "your location", useless as a property search.
+// This is roughly a district: near enough to recognise where you are, wide
+// enough that the listings around you are already on screen.
+const USER_LOCATION_ZOOM = 13;
 
 // Seeded with a bbox roughly matching DEFAULT_ZOOM around DEFAULT_CENTER so
 // the very first render has something to cluster against, before the Map's

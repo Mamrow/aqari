@@ -63,7 +63,8 @@
         }
       ],
       "expo-notifications",
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "@sentry/react-native"
     ],
     "owner": "mamrow",
     "extra": {
