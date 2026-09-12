@@ -100,6 +100,23 @@ export default Sentry.wrap(function App() {
         lang = 'ar';
         await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
       }
+      // allowRTL as well as forceRTL, and the pair is load-bearing.
+      //
+      // forceRTL(false) only means "don't force it" — it leaves the app
+      // inheriting UIKit's direction, which comes from the *device's*
+      // language. On an Arabic iPhone that's RTL, so the English app was
+      // laying its navigation bar out right-to-left: the back button sat on
+      // the right, reading "Back >".
+      //
+      // The direction prop on NavigationContainer doesn't save us here.
+      // react-native-screens only applies it when it *changes*, and its
+      // declared default is already 'ltr' — so passing 'ltr' on first mount
+      // is a no-op and the inherited direction stands. 'rtl' differs from
+      // that default, which is why Arabic looked right and English didn't.
+      //
+      // allowRTL(false) is the one that says "this app is LTR, whatever the
+      // phone is set to", and it applies natively at launch.
+      I18nManager.allowRTL(lang === 'ar');
       I18nManager.forceRTL(lang === 'ar');
       setReady(true);
     })();

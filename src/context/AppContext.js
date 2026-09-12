@@ -319,6 +319,9 @@ export function AppProvider({ children }) {
   const setLanguage = useCallback(
     async (lang) => {
       await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+      // Both, and in this order — see the note in App.js. forceRTL alone
+      // leaves an English app inheriting an Arabic phone's RTL layout.
+      I18nManager.allowRTL(lang === 'ar');
       I18nManager.forceRTL(lang === 'ar');
       setLanguageState(lang);
 
