@@ -9,7 +9,10 @@ export default function HomeStack() {
   const t = useT();
 
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      // Labelled back button — see SettingsStack.js for why.
+      screenOptions={{ headerBackTitle: t('back'), headerBackButtonDisplayMode: 'default' }}
+    >
       <Stack.Screen
         name="HomeMap"
         component={HomeMapScreen}

@@ -12,7 +12,10 @@ export default function AdminApprovalsStack() {
   const t = useT();
 
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      // Labelled back button — see SettingsStack.js for why.
+      screenOptions={{ headerBackTitle: t('back'), headerBackButtonDisplayMode: 'default' }}
+    >
       <Stack.Screen
         name="AdminApprovals"
         component={AdminApprovalsScreen}
