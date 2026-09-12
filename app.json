@@ -70,14 +70,6 @@
           "organization": "aqari-l7",
           "project": "react-native"
         }
-      ],
-      [
-        "@sentry/react-native/expo",
-        {
-          "url": "https://sentry.io/",
-          "project": "react-native",
-          "organization": "aqari-l7"
-        }
       ]
     ],
     "owner": "mamrow",
