@@ -334,7 +334,20 @@ export default function AddListingScreen({ navigation, route }) {
         variant="success"
         title={t('listingSubmittedTitle')}
         subtitle={t('listingSubmittedMessage')}
-        secondaryAction={{ label: t('skipForNowButton'), onPress: goToMyListings }}
+        // "Not now" is an answer to the Boost offer below it — decline the
+        // upsell, go to your listings. With BOOST_PURCHASES_ENABLED off
+        // there's no offer on the screen, so it was the only button and it
+        // was declining nothing: it read as if something had been skipped.
+        primaryAction={
+          BOOST_PURCHASES_ENABLED
+            ? undefined
+            : { label: t('goToMyListingsButton'), onPress: goToMyListings }
+        }
+        secondaryAction={
+          BOOST_PURCHASES_ENABLED
+            ? { label: t('skipForNowButton'), onPress: goToMyListings }
+            : undefined
+        }
       >
         {BOOST_PURCHASES_ENABLED && (
           <View style={styles.successBoostSection}>
