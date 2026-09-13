@@ -4,14 +4,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
-import * as SplashScreen from 'expo-splash-screen';
 import { initCrashReporting } from './src/lib/crashReporting';
 import { AppProvider, useAppContext } from './src/context/AppContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import AuthModal from './src/components/AuthModal';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import OnboardingScreen from './src/components/OnboardingScreen';
-import SplashLoading from './src/components/SplashLoading';
 import { LANGUAGE_STORAGE_KEY } from './src/i18n/constants';
 import { lightColors, darkColors } from './src/theme/colors';
 import * as Sentry from '@sentry/react-native';
@@ -26,20 +24,6 @@ import * as Sentry from '@sentry/react-native';
 // records the screen), and console logs, in a product whose screens are full
 // of people's phone numbers.
 initCrashReporting();
-
-// Hold the native splash until there's something real to show.
-//
-// By default it dismisses the moment React renders its first frame — and the
-// first frame here is `null`, because the language has to be read off disk
-// and applied before anything can lay out. That's what produced the flash:
-// splash for a fraction of a second, then a blank screen, then a spinner
-// appearing on its own once the listings request was still in flight. Three
-// different things in the first second and a half of an app launch.
-//
-// Failing is fine and deliberately swallowed: if the splash has already gone
-// (a hot reload, a module reloaded out of order), the app should carry on
-// rather than refuse to start over a cosmetic call.
-SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function buildNavigationTheme(theme) {
   const base = theme === 'dark' ? DarkTheme : DefaultTheme;
@@ -58,25 +42,13 @@ function buildNavigationTheme(theme) {
 }
 
 function AppShell() {
-  const { theme, language, hydrated, dataLoading, listings, showOnboarding, completeOnboarding } =
-    useAppContext();
-
-  // One continuous screen from launch to first paint, rather than a flash of
-  // splash and a spinner arriving separately. SplashLoading is pixel-matched
-  // to the native splash, so dismissing the native one under it isn't
-  // visible — the logo stays put and a spinner fades in beneath it.
-  //
-  // `listings.length === 0` narrows this to the very first load. A later
-  // refetch (pull to refresh, a language change) has listings on screen
-  // already and must not throw the user back to a splash; HomeMapScreen's
-  // own LoadingView still covers those.
-  const booting = !hydrated || (dataLoading && listings.length === 0);
+  const { theme, language, hydrated, showOnboarding, completeOnboarding } = useAppContext();
 
   // Onboarding lives inside AppProvider (it needs theme + translations) but
   // outside NavigationContainer — it's a pre-app gate, not a route, so it
   // shouldn't end up in anyone's back stack.
-  if (booting) {
-    return <SplashLoading />;
+  if (!hydrated) {
+    return null;
   }
 
   if (showOnboarding) {
@@ -113,14 +85,6 @@ function AppShell() {
 // JS alone. It doesn't report anything by itself — init decides that.
 export default Sentry.wrap(function App() {
   const [ready, setReady] = useState(false);
-
-  // Once the language is applied, AppShell renders SplashLoading — which
-  // looks identical to the native splash — so the handover has something to
-  // land on. Hiding any earlier shows the blank frame this exists to avoid.
-  useEffect(() => {
-    if (!ready) return;
-    SplashScreen.hideAsync().catch(() => {});
-  }, [ready]);
 
   useEffect(() => {
     (async () => {
@@ -159,7 +123,6 @@ export default Sentry.wrap(function App() {
   }, []);
 
   if (!ready) {
-    // Nothing: the native splash is still up and covering this frame.
     return null;
   }
 
