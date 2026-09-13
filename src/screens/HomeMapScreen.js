@@ -564,17 +564,6 @@ export default function HomeMapScreen({ navigation }) {
         : undefined,
   };
 
-  // Panned somewhere with nothing in it, while listings do exist elsewhere.
-  // Distinct from emptyState above, and deliberately quieter: panning across
-  // empty ground is normal map use, not an error, and a full card thrown up
-  // every time you cross the sea would be worse than saying nothing. A
-  // banner states the fact and offers the way back.
-  //
-  // Only once the map has actually measured (visibleCount !== null), so it
-  // can't appear before the first region event arrives.
-  const showNoListingsHere =
-    viewMode === 'map' && filteredListings.length > 0 && visibleCount === 0;
-
   // Buyer-facing map/list only ever shows admin-approved listings, filtered by
   // purpose + type — featured ones are pinned to the top of that same list
   // (not a separate section) via the sort below.
@@ -617,6 +606,23 @@ export default function HomeMapScreen({ navigation }) {
           return 0;
       }
     });
+
+  // Panned somewhere with nothing in it, while listings do exist elsewhere.
+  // Distinct from emptyState above, and deliberately quieter: panning across
+  // empty ground is normal map use, not an error, and a full card thrown up
+  // every time you cross the sea would be worse than saying nothing. A
+  // banner states the fact and offers the way back.
+  //
+  // Only once the map has actually measured (visibleCount !== null), so it
+  // can't appear before the first region event arrives.
+  //
+  // Below filteredListings, and that placement is the whole point: this read
+  // it from above it in build 17, and Babel had already rewritten the const
+  // to a var, so instead of a temporal-dead-zone ReferenceError it silently
+  // read undefined and threw "Cannot read property 'length' of undefined" on
+  // every launch.
+  const showNoListingsHere =
+    viewMode === 'map' && filteredListings.length > 0 && visibleCount === 0;
 
   // Map view's own bottom carousel — independent of the sale/rent/type
   // filters above, same as the list view's featured-first sort.
