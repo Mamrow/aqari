@@ -937,7 +937,25 @@ export function AppProvider({ children }) {
       // above, editable per-listing).
       supabase
         .from('agents')
-        .upsert({ phone: agentId, name: auth.name, owner_id: authUid })
+        // ignoreDuplicates, i.e. ON CONFLICT DO NOTHING, rather than a real
+        // upsert. A merging upsert's DO UPDATE names every column in the
+        // payload — phone and owner_id included — and 'authenticated' is
+        // granted UPDATE on `name` alone (migration_agent_verified.sql, which
+        // locks down `verified`). Postgres checks those column privileges
+        // when it plans the statement, not when a conflict actually happens,
+        // so the merging form was denied outright and *no* directory entry
+        // was ever created: the admin's Registered Sellers list stayed empty
+        // however many listings went up. It failed into a console.warn, which
+        // is why nobody noticed.
+        //
+        // The cost of DO NOTHING is that an existing entry keeps the name it
+        // was registered with. That's the right trade here — the alternative
+        // is widening a grant that exists to stop sellers writing their own
+        // columns.
+        .upsert({ phone: agentId, name: auth.name, owner_id: authUid }, {
+          onConflict: 'phone',
+          ignoreDuplicates: true,
+        })
         .then(({ error: agentError }) => {
           if (agentError) {
             console.warn('seller directory upsert error', agentError);

@@ -158,9 +158,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  // A phone number is LTR text in both languages, and the leading '+' is a
+  // bidi-neutral character: in an Arabic (RTL) paragraph the algorithm puts
+  // it at the run's *end*, rendering +218912345678 as 218912345678+. Setting
+  // the base direction for this one Text fixes the '+' without affecting the
+  // alignment, which is still right-aligned in Arabic like the rest.
   phone: {
     fontSize: 13,
     marginTop: 2,
+    writingDirection: 'ltr',
   },
   iconButton: {
     width: 40,

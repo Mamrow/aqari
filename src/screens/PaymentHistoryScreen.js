@@ -182,8 +182,18 @@ export default function PaymentHistoryScreen({ navigation }) {
                 </Text>
               </View>
             </View>
+            {/* writingDirection on this line only — paymentMeta is shared
+                with the date below, which is ordinary localised text. */}
             {isAdmin && item.agentPhone && (
-              <Text style={[styles.paymentMeta, rtlText, { color: colors.textMuted }]}>{item.agentPhone}</Text>
+              <Text
+                style={[
+                  styles.paymentMeta,
+                  rtlText,
+                  { color: colors.textMuted, writingDirection: 'ltr' },
+                ]}
+              >
+                {item.agentPhone}
+              </Text>
             )}
             <View style={styles.paymentBottomRow}>
               <Text style={[styles.paymentMeta, rtlText, { color: colors.textMuted }]}>
