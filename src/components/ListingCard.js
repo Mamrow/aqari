@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
+import { DISTRICTS } from '../data/districts';
 import { useThemeColors } from '../theme/useThemeColors';
 import { FEATURED_GOLD } from '../theme/colors';
 import { LISTING_TYPE_LABEL_KEYS, PROPERTY_TYPE_LABEL_KEYS } from '../data/propertyTypes';
@@ -27,6 +28,13 @@ export default function ListingCard({
   const t = useT();
   const colors = useThemeColors();
   const isRTL = language === 'ar';
+  // District keys repeat across cities (see src/data/districts.js), so match
+  // on the city too — otherwise a Benghazi listing can pick up a Tripoli
+  // neighbourhood's name.
+  const district = listing.district
+    ? DISTRICTS.find((item) => item.key === listing.district && item.city === listing.city)
+    : null;
+  const districtLabel = district ? t(district.labelKey) : null;
   const isSaved = saved.includes(listing.id);
   // Prefer an actual photo for the thumbnail — a live video player per list
   // row would be both slow and pointless at this size. Only fall back to a
@@ -106,13 +114,27 @@ export default function ListingCard({
               >
                 {listing.title}
               </Text>
+              {/* Rooms and neighbourhood share the area line rather than
+                  adding a fourth row: the card's height is fixed by the map
+                  carousel below, which sizes itself to it.
+
+                  Built from whatever exists. Land and offices have no rooms,
+                  and district is optional on every listing — a card for one
+                  of those shows the area alone, as before. */}
               <Text
                 style={[
                   styles.area,
                   { color: colors.textMuted, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
                 ]}
+                numberOfLines={1}
               >
-                {listing.area.toLocaleString('en-US')} {t('areaUnit')}
+                {[
+                  listing.rooms ? `${listing.rooms} ${t('roomsSuffix')}` : null,
+                  `${listing.area.toLocaleString('en-US')} ${t('areaUnit')}`,
+                  districtLabel,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </Text>
               {(listing.propertyType || listing.listingType) && (
                 <Text

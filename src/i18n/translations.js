@@ -320,6 +320,8 @@ export const translations = {
 
     homeEmptyTitle: 'لا توجد عقارات',
     homeEmptySubtitle: 'جرّب تغيير الفلاتر أو عد لاحقًا',
+    homeEmptyFilteredSubtitle: 'لا يوجد عقار يطابق الفلاتر المحددة.',
+    clearFiltersButton: 'مسح الفلاتر',
 
     settingsHeading: 'الإعدادات',
     legalSupportLabel: 'القانوني والدعم',
@@ -826,6 +828,8 @@ export const translations = {
 
     homeEmptyTitle: 'No listings',
     homeEmptySubtitle: 'Try different filters or check back later',
+    homeEmptyFilteredSubtitle: 'No property matches the filters you picked.',
+    clearFiltersButton: 'Clear filters',
 
     settingsHeading: 'Settings',
     legalSupportLabel: 'Legal & support',

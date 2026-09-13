@@ -528,6 +528,24 @@ export default function HomeMapScreen({ navigation }) {
     setSortBy('featured');
   };
 
+  // Both views show the same thing when nothing matches, and both offer the
+  // way out. Without it the map is just empty — no pins, no explanation, and
+  // no hint that a filter three screens deep is the reason — and the only
+  // escape is reopening the sheet and remembering what you set.
+  //
+  // The copy splits on whether any filter is actually on: "nothing matches
+  // your filters" is wrong and confusing when there are simply no listings
+  // in the area, and that's the state a brand-new user is most likely to hit.
+  const emptyState = {
+    icon: 'search-outline',
+    title: t('homeEmptyTitle'),
+    subtitle: activeFilterCount > 0 ? t('homeEmptyFilteredSubtitle') : t('homeEmptySubtitle'),
+    action:
+      activeFilterCount > 0
+        ? { label: t('clearFiltersButton'), onPress: clearAllFilters }
+        : undefined,
+  };
+
   // Buyer-facing map/list only ever shows admin-approved listings, filtered by
   // purpose + type — featured ones are pinned to the top of that same list
   // (not a separate section) via the sort below.
@@ -749,22 +767,37 @@ export default function HomeMapScreen({ navigation }) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {viewMode === 'map' ? (
-        <ListingsMap
-          ref={mapRef}
-          listings={filteredListings}
-          selectedId={selectedId}
-          onSelectListing={setSelectedId}
-          showsUserLocation={showsUserLocation}
-          theme={theme}
-          colors={colors}
-        />
+        <>
+          <ListingsMap
+            ref={mapRef}
+            listings={filteredListings}
+            selectedId={selectedId}
+            onSelectListing={setSelectedId}
+            showsUserLocation={showsUserLocation}
+            theme={theme}
+            colors={colors}
+          />
+          {/* A card over the map rather than instead of it. The map is still
+              worth panning when a filter is too narrow — replacing it would
+              take away the one control that fixes the problem. pointerEvents
+              is set on the wrapper so the map keeps receiving gestures
+              everywhere the card isn't. */}
+          {filteredListings.length === 0 && (
+            <View style={styles.mapEmptyOverlay} pointerEvents="box-none">
+              <View
+                style={[
+                  styles.mapEmptyCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
+                <PlaceholderScreen {...emptyState} inline />
+              </View>
+            </View>
+          )}
+        </>
       ) : filteredListings.length === 0 ? (
         <View style={[styles.listEmptyContainer, { paddingTop: listTopOffset }]}>
-          <PlaceholderScreen
-            icon="search-outline"
-            title={t('homeEmptyTitle')}
-            subtitle={t('homeEmptySubtitle')}
-          />
+          <PlaceholderScreen {...emptyState} />
         </View>
       ) : (
         <FlatList
@@ -1300,6 +1333,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  mapEmptyOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  mapEmptyCard: {
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    width: '100%',
+    maxWidth: 360,
+    shadowColor: '#000',
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
   listEmptyContainer: {
     flex: 1,

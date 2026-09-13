@@ -2,11 +2,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useThemeColors } from '../theme/useThemeColors';
 
-export default function PlaceholderScreen({ title, subtitle, icon = 'home-outline', action }) {
+export default function PlaceholderScreen({
+  title,
+  subtitle,
+  icon = 'home-outline',
+  action,
+  // Same escape hatch StatusScreen has: `inline` drops the flex:1 and the
+  // opaque background, so this can sit inside a card instead of filling a
+  // screen. Without it the content collapses to zero height in an
+  // auto-sized parent, and paints square corners over a rounded one.
+  inline = false,
+}) {
   const colors = useThemeColors();
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View
+      style={[
+        styles.container,
+        inline ? styles.containerInline : { backgroundColor: colors.background },
+      ]}
+    >
       <View style={[styles.iconCircle, { backgroundColor: `${colors.accent}12` }]}>
         <Ionicons name={icon} size={30} color={colors.accent} />
       </View>
@@ -34,6 +49,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 28,
+  },
+  containerInline: {
+    flex: 0,
+    backgroundColor: 'transparent',
+    paddingVertical: 26,
   },
   iconCircle: {
     width: 72,
