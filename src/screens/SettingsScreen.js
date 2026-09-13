@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -7,11 +7,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { CITIES, DISTRICTS } from '../data/districts';
@@ -46,8 +44,6 @@ export default function SettingsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const isRTL = language === 'ar';
 
-  const [editingName, setEditingName] = useState(false);
-  const [nameDraft, setNameDraft] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
@@ -57,13 +53,24 @@ export default function SettingsScreen({ navigation }) {
   const [displayOpen, setDisplayOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
 
-  // Reset the scroll on the way OUT, not on the way in: doing it on focus
-  // means you watch the list jump back to the top after it's already on
-  // screen. Navigating away and returning should look like arriving fresh.
+  // Reset the scroll when the Settings TAB is left, not when a sub-page is
+  // opened from it. Those are different intentions: stepping into Personal
+  // info and coming back should return you to the row you tapped, the way
+  // any list does, while leaving for another tab and returning later should
+  // look like arriving fresh.
+  //
+  // Hence the parent navigator's blur rather than this screen's own —
+  // pushing a screen blurs this one too, which is what made every trip into
+  // a sub-page come back to the top. Still on the way out, not the way in,
+  // so the jump happens off-screen instead of being watched.
   const scrollRef = useRef(null);
-  useFocusEffect(
-    useCallback(() => () => scrollRef.current?.scrollTo({ y: 0, animated: false }), [])
-  );
+  useEffect(() => {
+    const parent = navigation.getParent();
+    if (!parent) return undefined;
+    return parent.addListener('blur', () =>
+      scrollRef.current?.scrollTo({ y: 0, animated: false })
+    );
+  }, [navigation]);
 
   const languageOptions = [
     { value: 'ar', label: t('languageArabic') },
@@ -104,19 +111,6 @@ export default function SettingsScreen({ navigation }) {
     } finally {
       setAvatarUploading(false);
     }
-  };
-
-  const startEditingName = () => {
-    setNameDraft(auth.name ?? '');
-    setEditingName(true);
-  };
-
-  const handleSaveName = () => {
-    const trimmed = nameDraft.trim();
-    if (trimmed && trimmed !== auth.name) {
-      updateProfile({ name: trimmed });
-    }
-    setEditingName(false);
   };
 
   // What the row says without opening it: off, everywhere, or a count.
@@ -272,31 +266,12 @@ export default function SettingsScreen({ navigation }) {
           <View style={styles.profileText}>
             {auth.loggedIn ? (
               <>
-                {editingName ? (
-                  <View style={styles.nameEditRow}>
-                    <TextInput
-                      style={[styles.nameInput, { borderColor: colors.inputBorder, color: colors.text }]}
-                      value={nameDraft}
-                      onChangeText={setNameDraft}
-                      autoFocus
-                      placeholder={t('authNamePlaceholder')}
-                      placeholderTextColor={colors.placeholderText}
-                    />
-                    <Pressable onPress={handleSaveName} hitSlop={8}>
-                      <Ionicons name="checkmark-circle" size={26} color={colors.accent} />
-                    </Pressable>
-                    <Pressable onPress={() => setEditingName(false)} hitSlop={8}>
-                      <Ionicons name="close-circle" size={26} color={colors.danger} />
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Pressable onPress={startEditingName} style={styles.nameRow} hitSlop={6}>
-                    <Text style={[styles.name, { color: colors.heading }]} numberOfLines={1}>
-                      {auth.name}
-                    </Text>
-                    <Ionicons name="pencil" size={13} color={colors.textMuted} />
-                  </Pressable>
-                )}
+                {/* Just the name. Editing it lives on Personal info, which
+                    is also where the number, email and password are — two
+                    places to change one thing is how they drift apart. */}
+                <Text style={[styles.name, { color: colors.heading }]} numberOfLines={1}>
+                  {auth.name}
+                </Text>
                 {/* Phone numbers read left-to-right in both languages. */}
                 <Text style={[styles.phone, { color: colors.textMuted }]}>{auth.phone}</Text>
                 {isAdmin && (
@@ -718,11 +693,6 @@ const styles = StyleSheet.create({
     gap: 2,
     alignItems: 'flex-start',
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   name: {
     fontSize: 20,
     fontWeight: '700',
@@ -741,19 +711,6 @@ const styles = StyleSheet.create({
   roleBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-  },
-  nameEditRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  nameInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 15,
   },
   signInButton: {
     alignSelf: 'stretch',
