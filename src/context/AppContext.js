@@ -10,6 +10,7 @@ import { Alert, DevSettings, I18nManager, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LANGUAGE_STORAGE_KEY, ONBOARDING_SEEN_KEY } from '../i18n/constants';
 import { supabase } from '../lib/supabase';
+import { reportError } from '../lib/crashReporting';
 import {
   listingFromRow,
   listingToRow,
@@ -621,10 +622,10 @@ export function AppProvider({ children }) {
    * itself has accepted the new number — doing it the other way round would
    * leave the profile pointing at a number that can't sign in.
    *
-   * Existing listings keep the contact number they were published with.
-   * That's deliberate: agent_phone is a snapshot of how to reach the seller
-   * about that listing, not a live reference, so changing an account's login
-   * number doesn't silently rewrite adverts other people are looking at.
+   * Everything the account owns moves with it — listings, favorites and the
+   * seller-directory entry. See finishPhoneChange for why, and for why that
+   * reverses an earlier decision to leave each listing's contact number
+   * alone.
    */
   const changePhoneNumber = useCallback(async (newPhone) => {
     const { data, error } = await supabase.auth.updateUser({ phone: newPhone });
@@ -639,6 +640,7 @@ export function AppProvider({ children }) {
     const { data: sessionData } = await supabase.auth.getSession();
     const uid = sessionData.session?.user.id;
     if (!uid) throw new Error('NO_SESSION');
+    const oldPhone = auth.phone;
     const { data: row, error } = await supabase
       .from('profiles')
       .update({ phone: newPhone })
@@ -646,7 +648,57 @@ export function AppProvider({ children }) {
       .select()
       .single();
     if (error) throw error;
+
+    // Everything else this account owns that is keyed by the phone number
+    // has to follow it. The phone is this app's human-facing identity —
+    // "my listings" is `agent_id === my phone`, a favorite is keyed by
+    // `user_id = my phone`, the seller directory's primary key IS the phone
+    // — so a number that changes in one place and not the others doesn't
+    // just look wrong, it detaches the account from its own data: listings
+    // vanish from My Listings, saved listings empty out, and the call button
+    // on your own adverts dials a number you no longer have.
+    //
+    // Every one of these is scoped by owner_id = this uid, which is the
+    // stable identity RLS enforces on and the one thing a phone change
+    // never touches.
+    //
+    // Profiles must go first: the favorites policy checks user_id against
+    // the phone on the caller's profile row, so the new number has to be
+    // there before a favorite can carry it.
+    const repoint = [
+      // agent_phone as well as agent_id. It was documented as a deliberate
+      // per-listing contact snapshot, which is right for a number you chose
+      // for one advert — but not when the account's only number changes,
+      // because then every advert lists a phone that no longer reaches
+      // anyone. A stale contact number on a live advert is worse than a
+      // rewritten one.
+      supabase
+        .from('listings')
+        .update({ agent_id: newPhone, agent_phone: newPhone })
+        .eq('owner_id', uid),
+      supabase.from('favorites').update({ user_id: newPhone }).eq('owner_id', uid),
+      supabase.from('agents').update({ phone: newPhone }).eq('owner_id', uid),
+    ];
+    const results = await Promise.all(repoint);
+    const failures = results.map((result) => result.error).filter(Boolean);
+    if (failures.length > 0) {
+      // Deliberately not thrown. The number itself has already changed in
+      // auth and on the profile, so failing the whole operation here would
+      // tell someone their change didn't work when it did — the exact lie
+      // this codebase just spent a commit removing from profile saves. The
+      // errors go somewhere they can be read instead.
+      console.warn('Phone change: some rows kept the old number', failures);
+      reportError(new Error('Phone change left rows on the old number'), {
+        failures: failures.map((failure) => failure.message),
+        oldPhone,
+        newPhone,
+      });
+    }
+
     setAuth((prev) => ({ ...prev, phone: row.phone }));
+    // Listings carry the number in two places the UI reads directly, so
+    // refetch rather than patching each one locally.
+    fetchListings();
   };
 
   /** Redeems the code sent to the new number — `type: 'phone_change'`. */
