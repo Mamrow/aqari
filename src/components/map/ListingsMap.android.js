@@ -1,4 +1,12 @@
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { StyleSheet } from 'react-native';
 import { Camera, Map, Marker, UserLocation } from '@maplibre/maplibre-react-native';
 import { TRIPOLI_MAP_DEFAULT } from '../../data/constants';
@@ -36,7 +44,20 @@ const INITIAL_BOUNDS = [13.144, 32.808, 13.226, 32.948];
  * branch on Platform themselves.
  */
 const ListingsMap = forwardRef(function ListingsMap(
-  { listings, selectedId, onSelectListing, theme, colors, showsUserLocation, style },
+  {
+    listings,
+    selectedId,
+    onSelectListing,
+    theme,
+    colors,
+    showsUserLocation,
+    style,
+    // Called with how many listings are inside the current viewport, so the
+    // screen can say "nothing here" without needing to know anything about
+    // regions, bounds or zoom — all of which live in this file precisely
+    // because the two platforms express them differently.
+    onVisibleCountChange,
+  },
   ref
 ) {
   const cameraRef = useRef(null);
@@ -46,6 +67,21 @@ const ListingsMap = forwardRef(function ListingsMap(
   const clusterIndex = useListingClusters(listings);
   const listingsById = useListingsById(listings);
   const features = useMapFeatures(listings, mapBounds, mapZoom + MAPLIBRE_ZOOM_OFFSET);
+
+  // Clusters carry a point_count; a lone pin is one listing. Fires only when
+  // the number actually changes, not on every frame of a pan — the screen
+  // sets state from this, and an unconditional call would re-render the map
+  // on every gesture event.
+  const visibleCount = useMemo(
+    () => features.reduce((total, feature) => total + (feature.properties?.point_count ?? 1), 0),
+    [features]
+  );
+  const lastReportedCount = useRef(null);
+  useEffect(() => {
+    if (lastReportedCount.current === visibleCount) return;
+    lastReportedCount.current = visibleCount;
+    onVisibleCountChange?.(visibleCount);
+  }, [visibleCount, onVisibleCountChange]);
 
   useImperativeHandle(ref, () => ({
     // `zoom` is on the standard 256px-tile scale, same as everywhere else

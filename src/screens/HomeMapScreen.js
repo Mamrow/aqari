@@ -72,6 +72,12 @@ const FEATURED_SCROLL_TICK_MS = 100;
 //
 // Round LYD figures, not derived from live listing data, so the scale
 // doesn't shift under someone's feet as new listings come in.
+// Where "Show all" goes: the whole country, not a box fitted to the current
+// results. Listings are spread from Tripoli to Benghazi, so a fitted box is
+// usually the whole country anyway, and a fixed target lands the same way
+// every time rather than somewhere different per filter.
+const COUNTRY_VIEW = { latitude: 27.0, longitude: 18.0, zoom: 5 };
+
 const PRICE_RANGES = {
   sale: { min: 0, max: 2000000, step: 5000 },
   // Covers monthly apartment rents and the nightly chalet rates in the same
@@ -428,6 +434,10 @@ export default function HomeMapScreen({ navigation }) {
   // "brief flash while it settles" tradeoff already accepted elsewhere on
   // this screen (e.g. the captured price-pin images).
   const [topBarHeight, setTopBarHeight] = useState(0);
+  // How many listings are inside the map's current viewport. Null until the
+  // map has reported once — "not measured yet" and "measured, none" have to
+  // stay distinguishable, or the banner flashes on the first frame.
+  const [visibleCount, setVisibleCount] = useState(null);
   // Measured separately from the whole bar: in list view the opaque header
   // stops after the segment, and the list starts right under it, with the
   // Filters button floating over the cards.
@@ -518,6 +528,14 @@ export default function HomeMapScreen({ navigation }) {
     sort: t('sortLabel'),
   }[sheetPage];
 
+  // Pulls the camera back to the country rather than to a computed bounding
+  // box of the results: the listings are spread across Libya, so a fitted box
+  // is usually the whole country anyway, and a fixed target behaves the same
+  // every time instead of jumping somewhere different per filter.
+  const showAllOnMap = () => {
+    mapRef.current?.moveTo(COUNTRY_VIEW.latitude, COUNTRY_VIEW.longitude, COUNTRY_VIEW.zoom);
+  };
+
   const clearAllFilters = () => {
     setSelectedPropertyTypes([]);
     setCityFilter('all');
@@ -545,6 +563,17 @@ export default function HomeMapScreen({ navigation }) {
         ? { label: t('clearFiltersButton'), onPress: clearAllFilters }
         : undefined,
   };
+
+  // Panned somewhere with nothing in it, while listings do exist elsewhere.
+  // Distinct from emptyState above, and deliberately quieter: panning across
+  // empty ground is normal map use, not an error, and a full card thrown up
+  // every time you cross the sea would be worse than saying nothing. A
+  // banner states the fact and offers the way back.
+  //
+  // Only once the map has actually measured (visibleCount !== null), so it
+  // can't appear before the first region event arrives.
+  const showNoListingsHere =
+    viewMode === 'map' && filteredListings.length > 0 && visibleCount === 0;
 
   // Buyer-facing map/list only ever shows admin-approved listings, filtered by
   // purpose + type — featured ones are pinned to the top of that same list
@@ -776,12 +805,42 @@ export default function HomeMapScreen({ navigation }) {
             showsUserLocation={showsUserLocation}
             theme={theme}
             colors={colors}
+            onVisibleCountChange={setVisibleCount}
           />
           {/* A card over the map rather than instead of it. The map is still
               worth panning when a filter is too narrow — replacing it would
               take away the one control that fixes the problem. pointerEvents
               is set on the wrapper so the map keeps receiving gestures
               everywhere the card isn't. */}
+          {showNoListingsHere && (
+            <View
+              style={[styles.mapAreaBanner, { top: insets.top + 12 + topBarHeight + 10 }]}
+              pointerEvents="box-none"
+            >
+              <View
+                style={[
+                  styles.mapAreaBannerCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
+                <Ionicons name="location-outline" size={16} color={colors.textMuted} />
+                <Text style={[styles.mapAreaBannerText, { color: colors.text }]} numberOfLines={1}>
+                  {t('mapNoListingsHere')}
+                </Text>
+                <Pressable
+                  onPress={showAllOnMap}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('mapShowAllButton')}
+                >
+                  <Text style={[styles.mapAreaBannerAction, { color: colors.accent }]}>
+                    {t('mapShowAllButton')}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           {filteredListings.length === 0 && (
             <View style={styles.mapEmptyOverlay} pointerEvents="box-none">
               <View
@@ -1334,6 +1393,30 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.3,
   },
+  mapAreaBanner: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  mapAreaBannerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    maxWidth: '100%',
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  mapAreaBannerText: { flexShrink: 1, fontSize: 13, fontWeight: '600' },
+  mapAreaBannerAction: { fontSize: 13, fontWeight: '800' },
   mapEmptyOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

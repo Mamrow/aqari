@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Dimensions, StyleSheet } from 'react-native';
 // No `provider` prop anywhere in this file — that's what makes it Apple Maps.
 // Passing PROVIDER_GOOGLE here would pull in Google's SDK and the API key /
@@ -49,7 +49,20 @@ const INITIAL_REGION = regionForZoom(
  * never branch on Platform themselves.
  */
 const ListingsMap = forwardRef(function ListingsMap(
-  { listings, selectedId, onSelectListing, theme, colors, showsUserLocation, style },
+  {
+    listings,
+    selectedId,
+    onSelectListing,
+    theme,
+    colors,
+    showsUserLocation,
+    style,
+    // Called with how many listings are inside the current viewport, so the
+    // screen can say "nothing here" without needing to know anything about
+    // regions, bounds or zoom — all of which live in this file precisely
+    // because the two platforms express them differently.
+    onVisibleCountChange,
+  },
   ref
 ) {
   const mapRef = useRef(null);
@@ -91,6 +104,21 @@ const ListingsMap = forwardRef(function ListingsMap(
     bbox,
     zoomFromLongitudeDelta(region.longitudeDelta, VIEWPORT_WIDTH)
   );
+
+  // Clusters carry a point_count; a lone pin is one listing. Fires only when
+  // the number actually changes, not on every frame of a pan — the screen
+  // sets state from this, and an unconditional call would re-render the map
+  // on every gesture event.
+  const visibleCount = useMemo(
+    () => features.reduce((total, feature) => total + (feature.properties?.point_count ?? 1), 0),
+    [features]
+  );
+  const lastReportedCount = useRef(null);
+  useEffect(() => {
+    if (lastReportedCount.current === visibleCount) return;
+    lastReportedCount.current = visibleCount;
+    onVisibleCountChange?.(visibleCount);
+  }, [visibleCount, onVisibleCountChange]);
 
   const handleClusterPress = useCallback(
     (clusterId, latitude, longitude) => {
