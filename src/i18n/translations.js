@@ -397,6 +397,20 @@ export const translations = {
     languageDisplayRow: 'اللغة وخيارات العرض',
     feedbackRow: 'شاركنا ملاحظاتك',
     aboutAppRow: 'عن التطبيق',
+    appTitle: 'عقاري',
+    aboutTagline: 'سوق العقارات في ليبيا',
+    aboutWhatTitle: 'ما هو عقاري؟',
+    aboutWhatBody:
+      'عقاري تطبيق ليبي لعرض العقارات والبحث عنها. تصفّح الشقق والفلل والأراضي والمكاتب والمحلات على الخريطة أو في قائمة، وشاهد السعر والمساحة والموقع، ثم تواصل مع صاحب العقار مباشرة — بلا وسيط وبلا عمولة.',
+    aboutListTitle: 'اعرض عقارك',
+    aboutListBody:
+      'أضف عقارك بالصور والسعر وموقعه على الخريطة في دقائق. كل إعلان يُراجَع قبل نشره، ويصلك إشعار عند قبوله. يمكنك تعديله أو تعليمه كمباع في أي وقت.',
+    aboutPrivacyTitle: 'خصوصيتك',
+    aboutPrivacyBody:
+      'الدخول برقم الهاتف فقط. لا نطلب بريدًا إلكترونيًا، ولا نبيع بياناتك، ولا نشاركها مع المعلنين. رقمك يظهر لمن يشاهد إعلانك، لأنه وسيلة التواصل معك.',
+    aboutFollowLabel: 'تابعنا',
+    aboutSocialSoon: 'قريبًا',
+    aboutSocialSoonMessage: 'حساباتنا على مواقع التواصل لم تُفتح بعد.',
     rateUsRow: 'قيّمنا',
     rateUsUnavailable: 'التقييم غير متاح على هذا الجهاز حاليًا.',
     appVersionLabel: 'الإصدار',
@@ -889,6 +903,20 @@ export const translations = {
     languageDisplayRow: 'Language and display options',
     feedbackRow: 'Share your feedback with us',
     aboutAppRow: 'About the app',
+    appTitle: 'Aqari',
+    aboutTagline: 'Libya’s property marketplace',
+    aboutWhatTitle: 'What is Aqari?',
+    aboutWhatBody:
+      'Aqari is a Libyan app for listing and finding property. Browse apartments, villas, land, offices and shops on a map or as a list, see the price, size and location, then contact the owner directly — no middleman, no commission.',
+    aboutListTitle: 'List your property',
+    aboutListBody:
+      'Add your property with photos, a price and a spot on the map in minutes. Every listing is reviewed before it goes live, and you get a notification once it is approved. You can edit it or mark it sold at any time.',
+    aboutPrivacyTitle: 'Your privacy',
+    aboutPrivacyBody:
+      'You sign in with a phone number and nothing else. We ask for no email address, we do not sell your data, and we do not share it with advertisers. Your number is shown to people viewing your listing, because that is how they reach you.',
+    aboutFollowLabel: 'Follow us',
+    aboutSocialSoon: 'Coming soon',
+    aboutSocialSoonMessage: 'Our social accounts are not set up yet.',
     rateUsRow: 'Rate us',
     rateUsUnavailable: 'Rating is not available on this device right now.',
     appVersionLabel: 'Version',

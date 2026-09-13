@@ -537,7 +537,7 @@ export default function SettingsScreen({ navigation }) {
             colors={colors}
             divider
             value={`${t('appVersionLabel')} ${appConfig.expo.version}`}
-            chevron={null}
+            onPress={() => navigation.navigate('About')}
           />
           <Row
             icon="star-outline"

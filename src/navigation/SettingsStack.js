@@ -4,6 +4,7 @@ import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
 import BlockedSellersScreen from '../screens/BlockedSellersScreen';
 import PersonalInfoScreen from '../screens/PersonalInfoScreen';
 import LegalInfoScreen from '../screens/LegalInfoScreen';
+import AboutScreen from '../screens/AboutScreen';
 import { useT } from '../i18n/useT';
 
 const Stack = createNativeStackNavigator();
@@ -58,6 +59,7 @@ export default function SettingsStack() {
         component={BlockedSellersScreen}
         options={{ title: t('blockedSellersTitle') }}
       />
+      <Stack.Screen name="About" component={AboutScreen} options={{ title: t('aboutAppRow') }} />
       <Stack.Screen
         name="PrivacyPolicy"
         component={LegalInfoScreen}
