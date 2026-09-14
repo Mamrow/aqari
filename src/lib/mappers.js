@@ -20,6 +20,11 @@ export function listingFromRow(row) {
     longitude: row.longitude,
     status: row.status,
     agentId: row.agent_id,
+    // The seller's account (owner_id), for their profile page. Named sellerId,
+    // not ownerId, on purpose: listingToRow reads `ownerId` and would then
+    // send owner_id on every edit — a column the owner has no UPDATE grant
+    // on, so saving an edited listing would be denied.
+    sellerId: row.owner_id,
     isFeatured: row.is_featured ?? false,
     listingState: row.listing_state,
     expiresAt: row.expires_at,

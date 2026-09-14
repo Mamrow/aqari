@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -18,6 +18,7 @@ import SimpleMap from '../components/map/SimpleMap';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import PlaceholderScreen from '../components/PlaceholderScreen';
+import Avatar from '../components/Avatar';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { WHATSAPP_GREEN } from '../theme/colors';
@@ -44,6 +45,7 @@ export default function ListingDetailScreen({ route, navigation }) {
     getMyId,
     reportListing,
     agents,
+    fetchSellerProfile,
     blockedSellers,
     blockSeller,
     unblockSeller,
@@ -61,6 +63,21 @@ export default function ListingDetailScreen({ route, navigation }) {
   const [reportSubmitting, setReportSubmitting] = useState(false);
 
   const listing = listings.find((item) => item.id === listingId);
+
+  // The seller's name and photo for the row that opens their profile. Above
+  // the early return below, because it's a hook: after it, a listing that
+  // disappears mid-view would change the number of hooks between renders.
+  const sellerId = listing?.sellerId;
+  const [sellerProfile, setSellerProfile] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchSellerProfile(sellerId).then((result) => {
+      if (!cancelled) setSellerProfile(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sellerId, fetchSellerProfile]);
 
   if (!listing) {
     return <PlaceholderScreen title={t('listingNotFoundTitle')} subtitle={t('listingNotFoundSubtitle')} />;
@@ -285,20 +302,57 @@ export default function ListingDetailScreen({ route, navigation }) {
         </>
       )}
 
-      {!isOwner && listingAgent && (
-        <View style={styles.listedByRow}>
-          <Text style={[styles.listedByText, rtlText, { color: colors.textMuted }]}>
-            {t('listedByLabel')} {listingAgent.name}
-          </Text>
-          {listingAgent.verified && (
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={13} color={colors.accent} />
-              <Text style={[styles.verifiedBadgeText, { color: colors.accent }]}>
-                {t('verifiedAgentLabel')}
+      {/* The seller, opening their profile. Shown to the owner too — it's
+          the quickest way to see your own listings the way buyers do. Name
+          and photo come from get_seller_profile; the directory entry is the
+          fallback name if that RPC isn't installed yet. */}
+      {sellerId && (
+        <Pressable
+          onPress={() =>
+            navigation.push('SellerProfile', {
+              sellerId,
+              name: sellerProfile?.name ?? listingAgent?.name,
+            })
+          }
+          style={({ pressed }) => [
+            styles.sellerRow,
+            { borderColor: colors.border, backgroundColor: colors.surface },
+            pressed && { opacity: 0.7 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={t('sellerProfileTitle')}
+          testID="listing-seller-row"
+        >
+          <Avatar
+            uri={sellerProfile?.avatarUrl}
+            name={sellerProfile?.name ?? listingAgent?.name}
+            size={40}
+            colors={colors}
+          />
+          <View style={styles.sellerRowText}>
+            <Text style={[styles.listedByText, rtlText, { color: colors.textMuted }]}>
+              {t('listedByLabel')}
+            </Text>
+            <View style={styles.listedByRow}>
+              <Text style={[styles.sellerName, rtlText, { color: colors.text }]} numberOfLines={1}>
+                {sellerProfile?.name ?? listingAgent?.name ?? t('sellerFallbackName')}
               </Text>
+              {(sellerProfile?.verified ?? listingAgent?.verified) && (
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={13} color={colors.accent} />
+                  <Text style={[styles.verifiedBadgeText, { color: colors.accent }]}>
+                    {t('verifiedAgentLabel')}
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
-        </View>
+          </View>
+          <Ionicons
+            name={isRTL ? 'chevron-back' : 'chevron-forward'}
+            size={18}
+            color={colors.textMuted}
+          />
+        </Pressable>
       )}
 
       {/* A listing whose seller deleted their account has an empty
@@ -557,12 +611,22 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#fff',
   },
+  sellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  sellerRowText: { flex: 1, gap: 2 },
+  sellerName: { fontSize: 15, fontWeight: '700', flexShrink: 1 },
   listedByRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: 16,
   },
   listedByText: {
     fontSize: 13,

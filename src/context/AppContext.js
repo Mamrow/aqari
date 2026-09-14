@@ -730,6 +730,31 @@ export function AppProvider({ children }) {
     setIsAdmin(false);
   }, []);
 
+  /**
+   * A seller's public profile — name, photo, verified, join date — via the
+   * get_seller_profile RPC (migration_seller_profiles.sql), since RLS keeps
+   * other accounts' profile rows unreadable. Null when there's nothing to
+   * show: the RPC isn't installed yet, the seller has no approved listing,
+   * or the network failed. Every caller treats null as "show the listings
+   * without a name", so none of those cases break the page.
+   */
+  const fetchSellerProfile = useCallback(async (sellerId) => {
+    if (!sellerId) return null;
+    const { data, error } = await supabase.rpc('get_seller_profile', { p_owner_id: sellerId });
+    if (error) {
+      console.warn('get_seller_profile failed', error);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return null;
+    return {
+      name: row.name,
+      avatarUrl: row.avatar_url,
+      verified: Boolean(row.verified),
+      memberSince: row.member_since,
+    };
+  }, []);
+
   // Admin-only at the RLS level (agents delete requires private.is_admin()) —
   // just removes the directory entry, doesn't touch that agent's listings.
   const removeAgent = useCallback(
@@ -1151,6 +1176,7 @@ export function AppProvider({ children }) {
     blockSeller,
     unblockSeller,
     agents,
+    fetchSellerProfile,
     removeAgent,
     setAgentVerified,
     reports,

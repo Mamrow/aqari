@@ -4,6 +4,7 @@ import AdminAgentsScreen from '../screens/AdminAgentsScreen';
 import AdminSellerListingsScreen from '../screens/AdminSellerListingsScreen';
 import AdminReportsScreen from '../screens/AdminReportsScreen';
 import ListingDetailScreen from '../screens/ListingDetailScreen';
+import SellerProfileScreen from '../screens/SellerProfileScreen';
 import { useT } from '../i18n/useT';
 
 const Stack = createNativeStackNavigator();
@@ -36,6 +37,11 @@ export default function AdminApprovalsStack() {
         name="ListingDetail"
         component={ListingDetailScreen}
         options={{ title: t('listingDetailTitle') }}
+      />
+      <Stack.Screen
+        name="SellerProfile"
+        component={SellerProfileScreen}
+        options={{ title: t('sellerProfileTitle') }}
       />
     </Stack.Navigator>
   );

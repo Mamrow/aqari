@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MyListingsScreen from '../screens/MyListingsScreen';
 import AddListingScreen from '../screens/AddListingScreen';
 import ListingDetailScreen from '../screens/ListingDetailScreen';
+import SellerProfileScreen from '../screens/SellerProfileScreen';
 import { useT } from '../i18n/useT';
 
 const Stack = createNativeStackNavigator();
@@ -26,6 +27,11 @@ export default function MyListingsStack() {
         name="ListingDetail"
         component={ListingDetailScreen}
         options={{ title: t('listingDetailTitle') }}
+      />
+      <Stack.Screen
+        name="SellerProfile"
+        component={SellerProfileScreen}
+        options={{ title: t('sellerProfileTitle') }}
       />
       <Stack.Screen
         name="AddListing"

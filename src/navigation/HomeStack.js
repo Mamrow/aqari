@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeMapScreen from '../screens/HomeMapScreen';
 import ListingDetailScreen from '../screens/ListingDetailScreen';
+import SellerProfileScreen from '../screens/SellerProfileScreen';
 import { useT } from '../i18n/useT';
 
 const Stack = createNativeStackNavigator();
@@ -22,6 +23,11 @@ export default function HomeStack() {
         name="ListingDetail"
         component={ListingDetailScreen}
         options={{ title: t('listingDetailTitle') }}
+      />
+      <Stack.Screen
+        name="SellerProfile"
+        component={SellerProfileScreen}
+        options={{ title: t('sellerProfileTitle') }}
       />
     </Stack.Navigator>
   );
