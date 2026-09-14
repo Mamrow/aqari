@@ -1,0 +1,80 @@
+# iOS build on GitHub's own Mac, uploaded to TestFlight.
+#
+# Runs only when someone presses "Run workflow" on GitHub (Actions tab). It
+# never starts on a push: every run spends Mac minutes, and when to build is
+# the owner's call, not a side effect of committing.
+#
+# `eas build --local` builds on this runner instead of Expo's servers, so it
+# doesn't count against the EAS build quota. It still uses the signing
+# certificate and provisioning profile EAS already stores for the project, and
+# still bumps the remote build number, so builds made here and builds made on
+# EAS never collide.
+#
+# One-time setup, in GitHub → Settings → Secrets and variables → Actions:
+#   EXPO_TOKEN         required — expo.dev → Account settings → Access tokens
+#   SENTRY_AUTH_TOKEN  optional — without it the build works, but Sentry stack
+#                      traces for this build show minified code
+
+name: iOS build → TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: Upload to TestFlight when the build finishes
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The EXPO_PUBLIC_* keys are baked into the JavaScript at build time.
+      # Pulled into .env.local explicitly and checked, because a build without
+      # them doesn't fail — it succeeds and ships a blank white screen, which
+      # is exactly what an early TestFlight build did.
+      - name: Load production environment
+        run: |
+          eas env:pull --environment production --non-interactive
+          for key in EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_MAPTILER_KEY; do
+            grep -q "^${key}=." .env.local || { echo "::error::${key} is missing from the EAS production environment"; exit 1; }
+          done
+
+      - name: Build
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          # Secret-visibility EAS variables stay on Expo's servers, so the
+          # Sentry token has to come from GitHub. Without one, skip the
+          # source-map upload instead of failing the whole build over it.
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then export SENTRY_DISABLE_AUTO_UPLOAD=true; fi
+          eas build --platform ios --profile production --local --non-interactive --output "$RUNNER_TEMP/aqari.ipa"
+
+      # Kept whether or not the upload below works, so a failed submit never
+      # means rebuilding: download it and run
+      #   npx eas-cli submit --platform ios --path aqari.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aqari-ios
+          path: ${{ runner.temp }}/aqari.ipa
+          retention-days: 14
+
+      - name: Upload to TestFlight
+        if: ${{ inputs.submit }}
+        run: eas submit --platform ios --profile production --path "$RUNNER_TEMP/aqari.ipa" --non-interactive
