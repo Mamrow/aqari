@@ -92,7 +92,8 @@ export default function PaymentHistoryScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: colors.background }]}>
+    // No safe-area edges — see LegalInfoScreen.
+    <SafeAreaView edges={[]} style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={payments}
         keyExtractor={(item) => item.id}

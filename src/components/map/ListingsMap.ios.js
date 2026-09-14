@@ -6,6 +6,7 @@ import { Dimensions, StyleSheet } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { TRIPOLI_MAP_DEFAULT } from '../../data/constants';
 import {
+  boundsOfListings,
   CLUSTER_MAX_ZOOM,
   longitudeDeltaFromZoom,
   useListingClusters,
@@ -86,8 +87,27 @@ const ListingsMap = forwardRef(function ListingsMap(
         const zoom = Math.min(current, maxZoom);
         mapRef.current?.animateToRegion(regionForZoom(latitude, longitude, zoom), 500);
       },
+      /**
+       * Frames every listing currently on the map, with `padding` (points)
+       * kept clear for whatever floats over the map's edges. This is what
+       * "Show all" does: zoom out only as far as the listings need, rather
+       * than to a fixed country view — which on a tall phone screen stretched
+       * to half of Africa and Europe, because the map fills the height too.
+       */
+      showListings(padding) {
+        const bounds = boundsOfListings(listings);
+        if (!bounds) return;
+        const [west, south, east, north] = bounds;
+        mapRef.current?.fitToCoordinates(
+          [
+            { latitude: south, longitude: west },
+            { latitude: north, longitude: east },
+          ],
+          { edgePadding: padding, animated: true }
+        );
+      },
     }),
-    [region]
+    [region, listings]
   );
 
   const bbox = useMemo(

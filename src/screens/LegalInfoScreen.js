@@ -76,7 +76,12 @@ export default function LegalInfoScreen({ route }) {
   };
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: colors.background }]}>
+    // No safe-area edges. The native header above owns the top inset, and
+    // this screen sits inside the tab navigator, whose bar already owns the
+    // bottom one. Claiming 'bottom' here as well added the home-indicator
+    // inset a second time, as a blank band between the end of the content
+    // and the tab bar.
+    <SafeAreaView edges={[]} style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"

@@ -141,7 +141,8 @@ export default function PersonalInfoScreen() {
   };
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: colors.background }]}>
+    // No safe-area edges — see LegalInfoScreen.
+    <SafeAreaView edges={[]} style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: Math.max(40, insets.bottom + 104) }]}
         keyboardShouldPersistTaps="handled"

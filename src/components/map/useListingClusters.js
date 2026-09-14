@@ -132,3 +132,37 @@ export function useListingsById(listings) {
     [listings]
   );
 }
+
+// Smallest box "Show all" will fit, in degrees (~5km). A single listing, or
+// several at one address, is a zero-area box, and fitting a map to that zooms
+// to the last street level the renderer allows — which isn't "show me where
+// the listings are", it's a rooftop.
+const MIN_FIT_SPAN = 0.05;
+
+/**
+ * [west, south, east, north] around every listing with coordinates, widened
+ * to at least MIN_FIT_SPAN each way. Null when there's nothing to fit.
+ */
+export function boundsOfListings(listings) {
+  const points = listings.filter(
+    (listing) => Number.isFinite(listing.latitude) && Number.isFinite(listing.longitude)
+  );
+  if (points.length === 0) return null;
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+  for (const { latitude, longitude } of points) {
+    west = Math.min(west, longitude);
+    east = Math.max(east, longitude);
+    south = Math.min(south, latitude);
+    north = Math.max(north, latitude);
+  }
+  const widen = (low, high) => {
+    const shortfall = MIN_FIT_SPAN - (high - low);
+    return shortfall > 0 ? [low - shortfall / 2, high + shortfall / 2] : [low, high];
+  };
+  [west, east] = widen(west, east);
+  [south, north] = widen(south, north);
+  return [west, south, east, north];
+}

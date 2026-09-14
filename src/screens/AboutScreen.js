@@ -40,7 +40,8 @@ export default function AboutScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: colors.background }]}>
+    // See the note in LegalInfoScreen — no edges on purpose.
+    <SafeAreaView edges={[]} style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Image source={require('../../assets/icon.png')} style={styles.appIcon} />

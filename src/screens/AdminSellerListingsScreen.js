@@ -51,7 +51,8 @@ export default function AdminSellerListingsScreen({ navigation, route }) {
   }
 
   return (
-    <SafeAreaView edges={['bottom']} style={[styles.container, { backgroundColor: colors.background }]}>
+    // No safe-area edges — see LegalInfoScreen.
+    <SafeAreaView edges={[]} style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={sellerListings}
         keyExtractor={(item) => item.id}

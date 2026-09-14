@@ -72,12 +72,6 @@ const FEATURED_SCROLL_TICK_MS = 100;
 //
 // Round LYD figures, not derived from live listing data, so the scale
 // doesn't shift under someone's feet as new listings come in.
-// Where "Show all" goes: the whole country, not a box fitted to the current
-// results. Listings are spread from Tripoli to Benghazi, so a fitted box is
-// usually the whole country anyway, and a fixed target lands the same way
-// every time rather than somewhere different per filter.
-const COUNTRY_VIEW = { latitude: 27.0, longitude: 18.0, zoom: 5 };
-
 const PRICE_RANGES = {
   sale: { min: 0, max: 2000000, step: 5000 },
   // Covers monthly apartment rents and the nightly chalet rates in the same
@@ -528,12 +522,17 @@ export default function HomeMapScreen({ navigation }) {
     sort: t('sortLabel'),
   }[sheetPage];
 
-  // Pulls the camera back to the country rather than to a computed bounding
-  // box of the results: the listings are spread across Libya, so a fitted box
-  // is usually the whole country anyway, and a fixed target behaves the same
-  // every time instead of jumping somewhere different per filter.
+  // Zooms out only as far as the matching listings need. The padding keeps
+  // them out from under the floating search bar at the top and clear of the
+  // screen edges, so a pin can't be fitted into view and then sit behind the
+  // bar that asked for it.
   const showAllOnMap = () => {
-    mapRef.current?.moveTo(COUNTRY_VIEW.latitude, COUNTRY_VIEW.longitude, COUNTRY_VIEW.zoom);
+    mapRef.current?.showListings({
+      top: insets.top + 12 + topBarHeight + 24,
+      right: 48,
+      bottom: 64,
+      left: 48,
+    });
   };
 
   const clearAllFilters = () => {
@@ -818,18 +817,19 @@ export default function HomeMapScreen({ navigation }) {
               take away the one control that fixes the problem. pointerEvents
               is set on the wrapper so the map keeps receiving gestures
               everywhere the card isn't. */}
+          {/* Centred. The usual reason to keep a map message out of the
+              middle is that it covers pins, and this only ever shows when
+              there are no pins in view — so there's nothing under it to hide,
+              and the middle is where you're already looking while you pan. */}
           {showNoListingsHere && (
-            <View
-              style={[styles.mapAreaBanner, { top: insets.top + 12 + topBarHeight + 10 }]}
-              pointerEvents="box-none"
-            >
+            <View style={styles.mapAreaBanner} pointerEvents="box-none">
               <View
                 style={[
                   styles.mapAreaBannerCard,
                   { backgroundColor: colors.surface, borderColor: colors.border },
                 ]}
               >
-                <Ionicons name="location-outline" size={16} color={colors.textMuted} />
+                <Ionicons name="location-outline" size={19} color={colors.textMuted} />
                 <Text style={[styles.mapAreaBannerText, { color: colors.text }]} numberOfLines={1}>
                   {t('mapNoListingsHere')}
                 </Text>
@@ -962,6 +962,7 @@ export default function HomeMapScreen({ navigation }) {
             off the left edge — and they took a third of the map with them.
             Everything now lives behind this, the way a marketplace app's
             filter button works. */}
+        <View style={styles.filtersRow}>
         <View
           style={[
             styles.filtersButtonSurface,
@@ -987,6 +988,33 @@ export default function HomeMapScreen({ navigation }) {
             </View>
           )}
         </Pressable>
+        </View>
+        {/* Only while something is filtered — the same moment the count badge
+            appears. Shown all the time it would be a button that does nothing
+            most of the time, crowding the bar. Same clearAllFilters as the
+            sheet's footer and the empty-state card, so all three reset
+            exactly the same things. */}
+        {activeFilterCount > 0 && (
+          <View
+            style={[
+              styles.filtersButtonSurface,
+              { borderColor: colors.border, backgroundColor: colors.surface },
+            ]}
+          >
+            <Pressable
+              onPress={clearAllFilters}
+              style={({ pressed }) => [styles.filtersButton, pressed && { opacity: 0.6 }]}
+              accessibilityRole="button"
+              accessibilityLabel={t('clearFiltersButton')}
+              testID="clear-filters-button"
+            >
+              <Ionicons name="close" size={16} color={colors.textMuted} />
+              <Text style={[styles.filtersButtonText, { color: colors.textMuted }]}>
+                {t('clearFilter')}
+              </Text>
+            </Pressable>
+          </View>
+        )}
         </View>
         </View>
 
@@ -1400,29 +1428,28 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   mapAreaBanner: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 16,
   },
   mapAreaBannerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     maxWidth: '100%',
-    borderRadius: 20,
+    borderRadius: 26,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 18,
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
-  mapAreaBannerText: { flexShrink: 1, fontSize: 13, fontWeight: '600' },
-  mapAreaBannerAction: { fontSize: 13, fontWeight: '800' },
+  mapAreaBannerText: { flexShrink: 1, fontSize: 16, fontWeight: '600' },
+  mapAreaBannerAction: { fontSize: 16, fontWeight: '800' },
   mapEmptyOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
@@ -1605,11 +1632,16 @@ const styles = StyleSheet.create({
   },
   // Wrapper owns the pill shape and the surface; the Pressable inside owns
   // the row layout and the touch target.
-  filtersButtonSurface: {
+  filtersRow: {
     // The segment row above has no bottom margin of its own, so this is what
-    // keeps the button off it.
+    // keeps the buttons off it.
     marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
+    gap: 8,
+  },
+  filtersButtonSurface: {
     borderWidth: 1,
     borderRadius: 20,
     overflow: 'hidden',

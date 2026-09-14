@@ -12,6 +12,7 @@ import { Camera, Map, Marker, UserLocation } from '@maplibre/maplibre-react-nati
 import { TRIPOLI_MAP_DEFAULT } from '../../data/constants';
 import { getMapStyleUrl } from '../../theme/mapStyle';
 import {
+  boundsOfListings,
   CLUSTER_MAX_ZOOM,
   MAPLIBRE_ZOOM_OFFSET,
   useListingClusters,
@@ -108,7 +109,21 @@ const ListingsMap = forwardRef(function ListingsMap(
         duration: 700,
       });
     },
-  }), [mapZoom]);
+    /**
+     * Frames every listing currently on the map, with `padding` (points)
+     * kept clear for whatever floats over the map's edges. This is what
+     * "Show all" does: zoom out only as far as the listings need, rather
+     * than to a fixed country view — which on a tall phone screen stretched
+     * to half of Africa and Europe, because the map fills the height too.
+     */
+    showListings(padding) {
+      const bounds = boundsOfListings(listings);
+      if (!bounds) return;
+      // MapLibre takes [west, south, east, north] directly — the same order
+      // boundsOfListings returns, so no conversion.
+      cameraRef.current?.fitBounds(bounds, { padding, duration: 700 });
+    },
+  }), [mapZoom, listings]);
 
   // MapLibre hands back bounds already in supercluster's own
   // [west, south, east, north] order, so no conversion is needed here — the
