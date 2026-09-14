@@ -1,12 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Image, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
 // A gray placeholder with a lighter band sliding across it while the image
 // is still downloading/decoding — replaces the old flat ActivityIndicator
 // spinner treatment with the more standard "shimmer" loading cue.
-export default function SkeletonImage({ uri, style, colors, resizeMode, imageStyle }) {
+//
+// expo-image rather than React Native's Image, for two concrete problems:
+//
+// - Speed. RN's Image leans on the OS URL cache, which evicts freely, so
+//   opening a listing re-downloaded photos already seen on its card. expo-image
+//   keeps a real memory + disk cache, which is also what makes the prefetch in
+//   HomeMapScreen worth doing.
+// - Stale pictures. The map's preview card is one component that stays
+//   mounted while the selected listing changes, and RN's Image keeps painting
+//   the previous bitmap until the new one arrives — tap your listing and a
+//   demo listing's photo showed first. recyclingKey drops the old image the
+//   moment the URI changes.
+const CONTENT_FIT = { cover: 'cover', contain: 'contain', stretch: 'fill', center: 'none' };
+
+export default function SkeletonImage({ uri, style, colors, resizeMode = 'cover', imageStyle }) {
   const [loading, setLoading] = useState(true);
+  // Same component, new photo: back to the shimmer. Without this the flag is
+  // still false from the previous image, so the swap shows nothing at all.
+  useEffect(() => {
+    setLoading(true);
+  }, [uri]);
   const [width, setWidth] = useState(0);
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
@@ -40,7 +60,10 @@ export default function SkeletonImage({ uri, style, colors, resizeMode, imageSty
       <Image
         source={{ uri }}
         style={[StyleSheet.absoluteFill, imageStyle]}
-        resizeMode={resizeMode}
+        contentFit={CONTENT_FIT[resizeMode] ?? 'cover'}
+        cachePolicy="memory-disk"
+        recyclingKey={uri}
+        transition={150}
         onLoadEnd={() => setLoading(false)}
       />
       {loading && (

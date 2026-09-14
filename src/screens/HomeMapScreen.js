@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 // cluster identically and the pins are pixel-identical; only the map
 // underneath differs. See src/components/map/.
 import ListingsMap from '../components/map/ListingsMap';
+import { Image as ExpoImage } from 'expo-image';
 import * as Location from 'expo-location';
 import { useAppContext } from '../context/AppContext';
 import ListingCard from '../components/ListingCard';
@@ -754,6 +755,14 @@ export default function HomeMapScreen({ navigation }) {
   }, []);
 
   const selectedListing = filteredListings.find((item) => item.id === selectedId);
+  // Tapping a pin shows the card; the next tap is usually into the listing.
+  // Start fetching its photos now, into the same cache the detail screen
+  // reads from, so they're already there when it opens instead of loading
+  // one by one in front of the person.
+  const selectedImages = selectedListing?.images;
+  useEffect(() => {
+    if (selectedImages?.length) ExpoImage.prefetch(selectedImages, 'memory-disk');
+  }, [selectedImages]);
 
   // The carousel below only actually renders (and its FlatList only exists
   // as a live native instance) when this is true — a fresh mount means a
