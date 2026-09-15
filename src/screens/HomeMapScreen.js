@@ -838,10 +838,15 @@ export default function HomeMapScreen({ navigation }) {
                   { backgroundColor: colors.surface, borderColor: colors.border },
                 ]}
               >
-                <Ionicons name="location-outline" size={19} color={colors.textMuted} />
-                <Text style={[styles.mapAreaBannerText, { color: colors.text }]} numberOfLines={1}>
-                  {t('mapNoListingsHere')}
-                </Text>
+                {/* Message on one line, Show all under it. Side by side, the
+                    16pt Arabic message and the button didn't both fit on a
+                    phone, and the message was cut to "لا توجد عقارات في هـ…". */}
+                <View style={styles.mapAreaBannerMessage}>
+                  <Ionicons name="location-outline" size={19} color={colors.textMuted} />
+                  <Text style={[styles.mapAreaBannerText, { color: colors.text }]}>
+                    {t('mapNoListingsHere')}
+                  </Text>
+                </View>
                 <Pressable
                   onPress={showAllOnMap}
                   hitSlop={8}
@@ -1443,9 +1448,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   mapAreaBannerCard: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     maxWidth: '100%',
     borderRadius: 26,
     borderWidth: StyleSheet.hairlineWidth,
@@ -1457,7 +1461,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
-  mapAreaBannerText: { flexShrink: 1, fontSize: 16, fontWeight: '600' },
+  mapAreaBannerMessage: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  mapAreaBannerText: { flexShrink: 1, fontSize: 16, fontWeight: '600', textAlign: 'center' },
   mapAreaBannerAction: { fontSize: 16, fontWeight: '800' },
   mapEmptyOverlay: {
     ...StyleSheet.absoluteFillObject,
