@@ -329,12 +329,16 @@ export default function ListingDetailScreen({ route, navigation }) {
             size={40}
             colors={colors}
           />
+          {/* Both lines hug the start edge through alignItems, not
+              textAlign. The label had textAlign on a full-width Text, which
+              iOS mirrors under RTL, so "أدرجه" landed on the left while the
+              name row — laid out by flexbox — sat on the right. */}
           <View style={styles.sellerRowText}>
-            <Text style={[styles.listedByText, rtlText, { color: colors.textMuted }]}>
+            <Text style={[styles.listedByText, { color: colors.textMuted }]}>
               {t('listedByLabel')}
             </Text>
             <View style={styles.listedByRow}>
-              <Text style={[styles.sellerName, rtlText, { color: colors.text }]} numberOfLines={1}>
+              <Text style={[styles.sellerName, { color: colors.text }]} numberOfLines={1}>
                 {sellerProfile?.name ?? listingAgent?.name ?? t('sellerFallbackName')}
               </Text>
               {(sellerProfile?.verified ?? listingAgent?.verified) && (
@@ -620,13 +624,14 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  sellerRowText: { flex: 1, gap: 2 },
+  sellerRowText: { flex: 1, gap: 2, alignItems: 'flex-start' },
   sellerName: { fontSize: 15, fontWeight: '700', flexShrink: 1 },
   listedByRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
+    maxWidth: '100%',
   },
   listedByText: {
     fontSize: 13,

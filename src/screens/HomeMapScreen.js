@@ -853,15 +853,13 @@ export default function HomeMapScreen({ navigation }) {
                   { backgroundColor: colors.surface, borderColor: colors.border },
                 ]}
               >
-                {/* Message on one line, Show all under it. Side by side, the
-                    16pt Arabic message and the button didn't both fit on a
-                    phone, and the message was cut to "لا توجد عقارات في هـ…". */}
-                <View style={styles.mapAreaBannerMessage}>
-                  <Ionicons name="location-outline" size={19} color={colors.textMuted} />
-                  <Text style={[styles.mapAreaBannerText, { color: colors.text }]}>
-                    {t('mapNoListingsHere')}
-                  </Text>
-                </View>
+                {/* 13pt, side by side with Show all. At 16pt the two didn't fit
+                    on a phone and the message was cut off; no numberOfLines, so
+                    a narrow screen wraps it instead of truncating. */}
+                <Ionicons name="location-outline" size={16} color={colors.textMuted} />
+                <Text style={[styles.mapAreaBannerText, { color: colors.text }]}>
+                  {t('mapNoListingsHere')}
+                </Text>
                 <Pressable
                   onPress={showAllOnMap}
                   hitSlop={8}
@@ -1463,22 +1461,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   mapAreaBannerCard: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     maxWidth: '100%',
-    borderRadius: 26,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 13,
-    paddingHorizontal: 18,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
-  mapAreaBannerMessage: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  mapAreaBannerText: { flexShrink: 1, fontSize: 16, fontWeight: '600', textAlign: 'center' },
-  mapAreaBannerAction: { fontSize: 16, fontWeight: '800' },
+  mapAreaBannerText: { flexShrink: 1, fontSize: 13, fontWeight: '600' },
+  mapAreaBannerAction: { fontSize: 13, fontWeight: '800' },
   mapEmptyOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
