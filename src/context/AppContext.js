@@ -640,7 +640,6 @@ export function AppProvider({ children }) {
     const { data: sessionData } = await supabase.auth.getSession();
     const uid = sessionData.session?.user.id;
     if (!uid) throw new Error('NO_SESSION');
-    const oldPhone = auth.phone;
     const { data: row, error } = await supabase
       .from('profiles')
       .update({ phone: newPhone })
@@ -688,10 +687,12 @@ export function AppProvider({ children }) {
       // this codebase just spent a commit removing from profile saves. The
       // errors go somewhere they can be read instead.
       console.warn('Phone change: some rows kept the old number', failures);
+      // Counts and Postgres codes only. Not the numbers, and not the error
+      // messages either — a constraint violation's message quotes the
+      // conflicting value, which here would be a phone number.
       reportError(new Error('Phone change left rows on the old number'), {
-        failures: failures.map((failure) => failure.message),
-        oldPhone,
-        newPhone,
+        failedTables: failures.length,
+        codes: failures.map((failure) => failure.code),
       });
     }
 

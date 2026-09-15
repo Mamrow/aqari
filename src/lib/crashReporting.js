@@ -35,15 +35,52 @@ export function initCrashReporting() {
     attachScreenshot: false,
     attachViewHierarchy: false,
     sendDefaultPii: false,
+    // Breadcrumbs are where personal data actually got out. sendDefaultPii
+    // doesn't touch them, and a real event from build 22 carried request
+    // URLs like `favorites?user_id=eq.+218…` and `profiles?phone=eq.+218…` —
+    // Supabase puts the filter, phone number included, in the query string.
+    // The privacy label declares crash data as not linked to anyone, so the
+    // query string goes, and so do console breadcrumbs, whose messages are
+    // whatever an error happened to print.
+    beforeBreadcrumb(breadcrumb) {
+      if (breadcrumb.category === 'console') return null;
+      return scrubBreadcrumb(breadcrumb);
+    },
     beforeSend(event) {
       // Belt and braces: the SDK doesn't collect these by default, but a
       // future upgrade changing that default shouldn't quietly start
       // shipping user data.
       delete event.user;
       delete event.request;
+      // `extra` is free-form, filled by reportError's callers. Only keys
+      // known to carry no personal data survive, so a future caller can't
+      // leak a phone number by passing it along as context.
+      if (event.extra) {
+        event.extra = Object.fromEntries(
+          Object.entries(event.extra).filter(([key]) => SAFE_EXTRA_KEYS.has(key))
+        );
+      }
+      if (event.breadcrumbs) {
+        event.breadcrumbs = event.breadcrumbs
+          .filter((breadcrumb) => breadcrumb.category !== 'console')
+          .map(scrubBreadcrumb);
+      }
       return event;
     },
   });
+}
+
+const SAFE_EXTRA_KEYS = new Set(['componentStack', 'screen', 'failedTables', 'codes']);
+
+const stripQuery = (url) => (typeof url === 'string' ? url.split('?')[0] : url);
+
+function scrubBreadcrumb(breadcrumb) {
+  if (!breadcrumb.data) return breadcrumb;
+  const data = { ...breadcrumb.data };
+  delete data['http.query'];
+  delete data['http.fragment'];
+  if ('url' in data) data.url = stripQuery(data.url);
+  return { ...breadcrumb, data };
 }
 
 /**
