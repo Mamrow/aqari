@@ -726,13 +726,28 @@ export default function HomeMapScreen({ navigation }) {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
-      const position = await Location.getCurrentPositionAsync({
-        // The default is Balanced (roughly city-block accuracy). Request the
-        // best available fix so the native user-location marker and initial
-        // map center use the device's precise GPS position when the OS allows it.
-        accuracy: Location.Accuracy.Highest,
-        mayShowUserSettingsDialog: true,
-      });
+      // Getting a fix can fail even with permission granted — indoors, in a
+      // basement, with location services briefly unavailable. iOS reports
+      // that as kCLErrorDomain error 0, and uncaught it went to Sentry as an
+      // unhandled rejection on ordinary launches. It isn't an error from the
+      // user's point of view: the map just opens on its default area.
+      //
+      // The last known position is the fallback before giving up. It's
+      // usually there, and slightly stale is fine for choosing where the map
+      // opens.
+      let position = null;
+      try {
+        position = await Location.getCurrentPositionAsync({
+          // The default is Balanced (roughly city-block accuracy). Request the
+          // best available fix so the native user-location marker and initial
+          // map center use the device's precise GPS position when the OS allows it.
+          accuracy: Location.Accuracy.Highest,
+          mayShowUserSettingsDialog: true,
+        });
+      } catch {
+        position = await Location.getLastKnownPositionAsync().catch(() => null);
+      }
+      if (!position) return;
       const { latitude, longitude } = position.coords;
       const isInLibya =
         latitude >= LIBYA_BOUNDS.minLat &&
