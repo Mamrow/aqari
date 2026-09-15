@@ -355,12 +355,19 @@ const styles = StyleSheet.create({
     direction: 'ltr',
     alignItems: 'flex-end',
     paddingRight: 20,
-    paddingLeft: '24%',
+    // Where the Arabic copy must stop: the photo's diagonal edge crosses the
+    // text line at roughly a third of the way in from the left, and a title
+    // running past it sits on top of the picture.
+    paddingLeft: '34%',
     zIndex: 6,
   },
-  // Shrinks to its content and sits at the band's right edge; title and body
-  // share that edge by construction rather than by coincidence.
+  // Fills the band rather than shrinking to its content. Shrink-to-fit let
+  // the title measure itself as one unbroken line and push past the band's
+  // left padding, so "تواصل مع أصحاب العقار" ran across the photo instead of
+  // wrapping. With a definite width the text wraps at the padding. Title and
+  // body still share the right edge.
   copyBlockInner: {
+    width: '100%',
     alignItems: 'flex-end',
   },
   title: {
