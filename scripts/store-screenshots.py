@@ -207,7 +207,11 @@ def hero(captures, lang, logo_path):
     draw = ImageDraw.Draw(scene)
 
     margin = 110
-    text_x = CANVAS[0] - margin if rtl else margin
+    # The copy keeps to a column on the left of the first panel; the phone
+    # needs the rest. Arabic still aligns right, but to the right edge of
+    # that column rather than of the panel, or it ends up under the device.
+    column = 600
+    text_x = margin + column if rtl else margin
     y = 300
 
     logo = Image.open(logo_path).convert("RGBA").resize((132, 132), Image.LANCZOS)
@@ -241,21 +245,83 @@ def hero(captures, lang, logo_path):
     sub = font("semibold", 46, lang)
     draw_text(draw, (text_x, y), shape(copy["sub"], lang), sub, INK_MUTED, lang, anchor_right=rtl)
 
-    # Two phones, the front one crossing the seam so the pair reads as one
-    # picture when someone swipes between the first two screenshots.
-    back = with_shadow(tilt(phone(captures[1], 860), lean=0.075))
-    front = with_shadow(tilt(phone(captures[0], 940)))
-    # Anchored off the finished sizes rather than fixed pixels: the tilt and
-    # shadow both change the image's bounds, and a hand-tuned y put the front
-    # phone half off the bottom of the panel.
-    front_x = CANVAS[0] - front.width // 2 + 300
-    front_y = CANVAS[1] - front.height + 90
-    scene.alpha_composite(back, (front_x + 600, max(front_y - 320, 300)))
-    scene.alpha_composite(front, (front_x, front_y))
+    # One phone, straddling the seam: its left half lands in the first
+    # screenshot and its right half in the second, so swiping between them
+    # carries the device across rather than showing two of it.
+    device = with_shadow(tilt(phone(captures[0], 1080)))
+    # Roughly a third of it in the first panel and the rest in the second:
+    # enough on the left to read as continuing, without crowding the copy.
+    device_x = CANVAS[0] - round(device.width * 0.34)
+    device_y = (CANVAS[1] - device.height) // 2 + 150
+    scene.alpha_composite(device, (device_x, device_y))
 
     left = scene.crop((0, 0, CANVAS[0], CANVAS[1])).convert("RGB")
     right = scene.crop((CANVAS[0], 0, CANVAS[0] * 2, CANVAS[1])).convert("RGB")
     return [left, right]
+
+
+def solo(captures, lang, logo_path):
+    """One panel holding the whole thing: wordmark, headline, two tilted
+    phones below it — the layout on a store tile, rather than a scene split
+    across two screenshots."""
+    copy = COPY[lang]
+    rtl = lang == "ar"
+    panel = gradient(CANVAS, GROUND_TOP, GROUND_BOTTOM).convert("RGBA")
+    draw = ImageDraw.Draw(panel)
+
+    margin = 96
+    text_x = CANVAS[0] - margin if rtl else margin
+    y = 170
+
+    logo = Image.open(logo_path).convert("RGBA").resize((104, 104), Image.LANCZOS)
+    logo.putalpha(rounded_mask(logo.size, 24))
+    panel.alpha_composite(logo, (text_x - 104 if rtl else text_x, y))
+    draw_text(
+        draw,
+        (text_x - 130 if rtl else text_x + 130, y + 12),
+        shape(copy["wordmark"], lang),
+        font("bold", 72, lang),
+        INK,
+        lang,
+        anchor_right=rtl,
+    )
+
+    y += 190
+    headline = font("bold", 88, lang)
+    for line in copy["headline"]:
+        draw_text(draw, (text_x, y), shape(line, lang), headline, INK, lang, anchor_right=rtl)
+        y += 108
+
+    y += 34
+    draw.rounded_rectangle(
+        [text_x - 130, y, text_x, y + 10] if rtl else [text_x, y, text_x + 130, y + 10],
+        5,
+        fill=AMBER,
+    )
+    y += 58
+    draw_text(
+        draw, (text_x, y), shape(copy["sub"], lang), font("semibold", 40, lang), INK_MUTED, lang,
+        anchor_right=rtl
+    )
+
+    # Both phones inside this one panel, so they have to be smaller than the
+    # two-panel version and sit low enough to clear the copy above.
+    # Big, and deliberately running off the panel: a phone cropped by the
+    # edge reads as a photograph of a device, where one floating fully inside
+    # the frame reads as a sticker. Mirrored for Arabic, so the phones sit
+    # under the end of the copy rather than across it.
+    back = with_shadow(tilt(phone(captures[1], 760), lean=0.075))
+    front = with_shadow(tilt(phone(captures[0], 840)))
+    front_y = CANVAS[1] - round(front.height * 0.86)
+    if rtl:
+        front_x = round(-front.width * 0.16)
+        back_x = front_x + round(front.width * 0.52)
+    else:
+        front_x = CANVAS[0] - round(front.width * 0.84)
+        back_x = front_x - round(front.width * 0.52)
+    panel.alpha_composite(back, (back_x, front_y - 250))
+    panel.alpha_composite(front, (front_x, front_y))
+    return panel.convert("RGB")
 
 
 def plain(capture, caption, lang):
@@ -280,6 +346,11 @@ def main():
     parser.add_argument("--dir", required=True, help="folder holding the raw captures")
     parser.add_argument("--lang", choices=["ar", "en"], required=True)
     parser.add_argument("--logo", default="assets/icon.png")
+    parser.add_argument(
+        "--solo",
+        action="store_true",
+        help="put the whole scene on one panel instead of splitting it across two",
+    )
     args = parser.parse_args()
 
     captures = sorted(
@@ -298,7 +369,7 @@ def main():
     out_dir = os.path.join(args.dir, "out")
     os.makedirs(out_dir, exist_ok=True)
 
-    panels = hero(captures[:2], args.lang, args.logo)
+    panels = [solo(captures[:2], args.lang, args.logo)] if args.solo else hero(captures[:2], args.lang, args.logo)
     captions = COPY[args.lang]["captions"]
     for index, capture in enumerate(captures[2:] if captures[0] != captures[1] else []):
         panels.append(plain(capture, captions[min(index + 2, len(captions) - 1)], args.lang))
