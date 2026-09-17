@@ -857,15 +857,13 @@ export default function HomeMapScreen({ navigation }) {
                     on a phone and the message was cut off; no numberOfLines, so
                     a narrow screen wraps it instead of truncating. */}
                 <Ionicons name="location-outline" size={16} color={colors.textMuted} />
-                {/* Wrapped lines start at the reading edge, not centred: in
-                    Arabic this reads from the right, so a centred second line
-                    ("المنطقة" under the middle of the first) looks like a
-                    stray word. */}
+                {/* textAlign 'left' rather than a branch on isRTL: Yoga
+                    mirrors it under RTL, so 'left' is the reading edge in
+                    both languages — right in Arabic, left in English. The
+                    intuitive-looking isRTL ? 'right' : 'left' renders
+                    backwards here (see the RTL note in CLAUDE.md). */}
                 <Text
-                  style={[
-                    styles.mapAreaBannerText,
-                    { color: colors.text, textAlign: isRTL ? 'right' : 'left' },
-                  ]}
+                  style={[styles.mapAreaBannerText, { color: colors.text, textAlign: 'left' }]}
                 >
                   {t('mapNoListingsHere')}
                 </Text>
@@ -1473,7 +1471,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    maxWidth: '100%',
+    // Takes the width it's given instead of shrinking to its text. The
+    // Arabic message then fits on one line on a phone, and on a narrower
+    // screen the wrap at least happens against a predictable edge.
+    alignSelf: 'stretch',
+    maxWidth: 420,
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     paddingVertical: 9,
