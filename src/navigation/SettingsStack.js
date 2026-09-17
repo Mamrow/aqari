@@ -15,18 +15,14 @@ export default function SettingsStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        // The back button carries the word, not just the chevron: an arrow
-        // alone is ambiguous in an RTL layout, where it points the way the
-        // reading runs rather than the way iOS normally draws "back". iOS
-        // would otherwise label it with the previous screen's title, or with
-        // the system's own localised "Back" in the *device's* language,
-        // which isn't necessarily the language the app is running in.
+        // The plain system back button, no custom back title.
         //
-        // iOS-only, by the platform's own convention: Android's back
-        // affordance is an unlabelled arrow throughout the OS, and
-        // react-native-screens renders no label there.
-        headerBackTitle: t('back'),
-        headerBackButtonDisplayMode: 'default',
+        // headerBackTitle: t('back') drew the word — and on iOS 26 the
+        // resulting glass capsule stopped responding to taps app-wide. Back
+        // only worked by swiping, which is a worse trade than losing the
+        // word: the arrow is what most people reach for, and iOS 26 draws it
+        // on the correct side in Arabic by itself.
+        headerBackButtonDisplayMode: 'minimal',
       }}
     >
       {/* Every screen below SettingsHome uses the native stack header. It

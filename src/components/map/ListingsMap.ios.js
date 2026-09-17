@@ -95,7 +95,10 @@ const ListingsMap = forwardRef(function ListingsMap(
        * to half of Africa and Europe, because the map fills the height too.
        */
       showListings(padding) {
-        const bounds = boundsOfListings(listings);
+        const bounds = boundsOfListings(listings, {
+          latitude: region.latitude,
+          longitude: region.longitude,
+        });
         if (!bounds) return;
         const [west, south, east, north] = bounds;
         mapRef.current?.fitToCoordinates(

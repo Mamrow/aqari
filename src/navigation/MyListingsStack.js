@@ -12,8 +12,8 @@ export default function MyListingsStack() {
 
   return (
     <Stack.Navigator
-      // Labelled back button — see SettingsStack.js for why.
-      screenOptions={{ headerBackTitle: t('back'), headerBackButtonDisplayMode: 'default' }}
+      // Plain system back button — see SettingsStack.js for why.
+      screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}
     >
       <Stack.Screen
         name="MyListingsHome"

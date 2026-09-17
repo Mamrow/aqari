@@ -331,7 +331,7 @@ export const translations = {
     homeEmptyFilteredSubtitle: 'لا يوجد عقار يطابق الفلاتر المحددة.',
     clearFiltersButton: 'مسح الفلاتر',
     mapNoListingsHere: 'لا توجد عقارات في هذه المنطقة',
-    mapShowAllButton: 'عرض الكل',
+    mapShowAllButton: 'عرض الأقرب',
 
     settingsHeading: 'الإعدادات',
     legalSupportLabel: 'القانوني والدعم',
@@ -849,7 +849,7 @@ export const translations = {
     homeEmptyFilteredSubtitle: 'No property matches the filters you picked.',
     clearFiltersButton: 'Clear filters',
     mapNoListingsHere: 'No listings in this area',
-    mapShowAllButton: 'Show all',
+    mapShowAllButton: 'Show nearest',
 
     settingsHeading: 'Settings',
     legalSupportLabel: 'Legal & support',

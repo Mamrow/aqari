@@ -117,7 +117,11 @@ const ListingsMap = forwardRef(function ListingsMap(
      * to half of Africa and Europe, because the map fills the height too.
      */
     showListings(padding) {
-      const bounds = boundsOfListings(listings);
+      const [west, south, east, north] = mapBounds;
+      const bounds = boundsOfListings(listings, {
+        latitude: (south + north) / 2,
+        longitude: (west + east) / 2,
+      });
       if (!bounds) return;
       // MapLibre takes [west, south, east, north] directly — the same order
       // boundsOfListings returns, so no conversion.

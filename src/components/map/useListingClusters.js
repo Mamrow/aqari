@@ -139,15 +139,32 @@ export function useListingsById(listings) {
 // the listings are", it's a rooftop.
 const MIN_FIT_SPAN = 0.05;
 
+// How many listings "show the nearest ones" pulls into view. Three is
+// enough to prove there are listings in this direction without zooming out
+// to the whole country to do it.
+const NEAREST_COUNT = 3;
+
 /**
- * [west, south, east, north] around every listing with coordinates, widened
- * to at least MIN_FIT_SPAN each way. Null when there's nothing to fit.
+ * [west, south, east, north] around the listings nearest `center`, and around
+ * `center` itself so the view opens out from where you were rather than
+ * jumping somewhere else. Widened to at least MIN_FIT_SPAN each way. Null
+ * when there's nothing to fit.
+ *
+ * Distance is plain squared degrees, not great-circle: over the few hundred
+ * kilometres between Libyan cities the ordering is the same, and this runs on
+ * every tap.
  */
-export function boundsOfListings(listings) {
-  const points = listings.filter(
+export function boundsOfListings(listings, center) {
+  let points = listings.filter(
     (listing) => Number.isFinite(listing.latitude) && Number.isFinite(listing.longitude)
   );
   if (points.length === 0) return null;
+  if (center && Number.isFinite(center.latitude) && Number.isFinite(center.longitude)) {
+    const distance = (listing) =>
+      (listing.latitude - center.latitude) ** 2 + (listing.longitude - center.longitude) ** 2;
+    points = [...points].sort((a, b) => distance(a) - distance(b)).slice(0, NEAREST_COUNT);
+    points.push(center);
+  }
   let west = Infinity;
   let south = Infinity;
   let east = -Infinity;
