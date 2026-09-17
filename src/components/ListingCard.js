@@ -111,6 +111,10 @@ export default function ListingCard({
                   { color: colors.text, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
                 ]}
                 numberOfLines={1}
+                // Spelled out rather than left to the default: a long Arabic
+                // title was reaching the edge of the card and stopping, with
+                // no "…" to say it had been cut.
+                ellipsizeMode="tail"
               >
                 {listing.title}
               </Text>
@@ -127,6 +131,7 @@ export default function ListingCard({
                   { color: colors.textMuted, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
                 ]}
                 numberOfLines={1}
+                ellipsizeMode="tail"
               >
                 {[
                   listing.rooms ? `${listing.rooms} ${t('roomsSuffix')}` : null,
