@@ -330,7 +330,7 @@ export const translations = {
     homeEmptySubtitle: 'جرّب تغيير الفلاتر أو عد لاحقًا',
     homeEmptyFilteredSubtitle: 'لا يوجد عقار يطابق الفلاتر المحددة.',
     clearFiltersButton: 'مسح الفلاتر',
-    mapNoListingsHere: 'لا توجد عقارات في هذه المنطقة',
+    mapNoListingsHere: 'لا توجد عقارات هنا',
     mapShowAllButton: 'عرض الأقرب',
 
     settingsHeading: 'الإعدادات',
@@ -848,7 +848,7 @@ export const translations = {
     homeEmptySubtitle: 'Try different filters or check back later',
     homeEmptyFilteredSubtitle: 'No property matches the filters you picked.',
     clearFiltersButton: 'Clear filters',
-    mapNoListingsHere: 'No listings in this area',
+    mapNoListingsHere: 'No listings here',
     mapShowAllButton: 'Show nearest',
 
     settingsHeading: 'Settings',

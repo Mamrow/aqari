@@ -235,6 +235,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    // minWidth on this row as well as on `info` inside it. Yoga gives every
+    // flex item an automatic minimum the size of its content, so one row
+    // shrinking isn't enough — the row above it grows instead, and the
+    // title still has no width to truncate against.
+    minWidth: 0,
   },
   image: {
     width: 72,
