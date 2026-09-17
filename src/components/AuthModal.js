@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -484,6 +485,31 @@ export default function AuthModal() {
               )}
             </Pressable>
 
+            {/* Shown on sign-up only, because that's the moment someone
+                agrees to anything. App Review expects an app whose users
+                post listings to say so before the account exists, not
+                bury it in Settings.
+
+                It opens the published Terms page rather than the in-app
+                screen: this modal lives outside the navigator (see App.js),
+                so it has no way to push a route. */}
+            {step === STEPS.SIGN_UP && (
+              <Text style={[styles.termsText, { color: colors.textMuted }]}>
+                {t('authTermsPrefix')}{' '}
+                <Text
+                  style={[styles.termsLink, { color: colors.accent }]}
+                  onPress={() =>
+                    Linking.openURL('https://lyaqari.netlify.app/terms/').catch((error) =>
+                      console.warn('Could not open the terms page', error)
+                    )
+                  }
+                  accessibilityRole="link"
+                >
+                  {t('authTermsLink')}
+                </Text>
+              </Text>
+            )}
+
             {/* Anything past the first screen gets a way back that doesn't
                 mean "close the modal and lose what I typed". */}
             <Pressable onPress={() => (showTabs ? handleClose() : goToStep(STEPS.SIGN_IN))}>
@@ -630,5 +656,15 @@ const styles = StyleSheet.create({
   cancelText: {
     textAlign: 'center',
     fontWeight: '600',
+  },
+  termsText: {
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 12,
+  },
+  termsLink: {
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });
