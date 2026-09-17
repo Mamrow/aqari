@@ -8,7 +8,10 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/ba30e803-8e75-435f-83de-2b953025a60f"
+      "url": "https://u.expo.dev/ba30e803-8e75-435f-83de-2b953025a60f",
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
     },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
