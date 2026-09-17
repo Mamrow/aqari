@@ -34,6 +34,7 @@ export default function SettingsScreen({ navigation }) {
     updateProfile,
     updateNotificationPrefs,
     isAdmin,
+    blockedSellers,
     listings,
     saved,
     getMyId,
@@ -479,7 +480,12 @@ export default function SettingsScreen({ navigation }) {
           )}
 
 
-          {auth.loggedIn && !isAdmin && (
+          {/* Only once there's something in it. Blocking is rare — most
+              people never block anyone — so for almost everyone this is a
+              row that leads to an empty page. It has to exist, though:
+              blocked sellers' listings are hidden from browsing, so this
+              screen is the only place a block can be undone. */}
+          {auth.loggedIn && !isAdmin && blockedSellers.length > 0 && (
             <Row
                 icon="person-remove-outline"
               label={t('blockedSellersRow')}
