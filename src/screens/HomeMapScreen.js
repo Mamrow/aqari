@@ -1471,11 +1471,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    // Takes the width it's given instead of shrinking to its text. The
-    // Arabic message then fits on one line on a phone, and on a narrower
-    // screen the wrap at least happens against a predictable edge.
-    alignSelf: 'stretch',
-    maxWidth: 420,
+    // Back to shrinking around its text now that the message is short
+    // enough for one line. Stretched, it left a band of empty card beyond
+    // the end of the sentence.
+    maxWidth: '100%',
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     paddingVertical: 9,
