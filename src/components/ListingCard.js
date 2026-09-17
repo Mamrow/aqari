@@ -247,6 +247,12 @@ const styles = StyleSheet.create({
   },
   info: {
     flex: 1,
+    // Without minWidth, a flex child is allowed to grow to fit its content,
+    // so a long title made this column wider than the card instead of
+    // staying inside it — and a Text that is never narrower than its text
+    // has nothing to truncate, which is why no ellipsis appeared. The title
+    // was simply being clipped by the card's edge.
+    minWidth: 0,
     marginStart: 12,
     gap: 2,
   },
@@ -256,9 +262,11 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14,
+    flexShrink: 1,
   },
   area: {
     fontSize: 12,
+    flexShrink: 1,
   },
   badge: {
     fontSize: 11,
