@@ -287,15 +287,20 @@ def main():
         for name in os.listdir(args.dir)
         if name.lower().startswith(args.lang) and name.lower().endswith((".png", ".jpg", ".jpeg"))
     )
-    if len(captures) < 2:
-        sys.exit(f"Need at least two captures named {args.lang}-1.png, {args.lang}-2.png in {args.dir}")
+    if not captures:
+        sys.exit(f"No captures named {args.lang}-1.png in {args.dir}")
+    # One capture is enough: both phones in the scene show it. Two different
+    # screens look better, but a single hero panel shouldn't need a second
+    # screenshot to exist.
+    if len(captures) == 1:
+        captures = captures * 2
 
     out_dir = os.path.join(args.dir, "out")
     os.makedirs(out_dir, exist_ok=True)
 
     panels = hero(captures[:2], args.lang, args.logo)
     captions = COPY[args.lang]["captions"]
-    for index, capture in enumerate(captures[2:]):
+    for index, capture in enumerate(captures[2:] if captures[0] != captures[1] else []):
         panels.append(plain(capture, captions[min(index + 2, len(captions) - 1)], args.lang))
 
     for index, panel in enumerate(panels, start=1):
