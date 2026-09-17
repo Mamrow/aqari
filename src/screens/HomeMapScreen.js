@@ -857,7 +857,16 @@ export default function HomeMapScreen({ navigation }) {
                     on a phone and the message was cut off; no numberOfLines, so
                     a narrow screen wraps it instead of truncating. */}
                 <Ionicons name="location-outline" size={16} color={colors.textMuted} />
-                <Text style={[styles.mapAreaBannerText, { color: colors.text }]}>
+                {/* Wrapped lines start at the reading edge, not centred: in
+                    Arabic this reads from the right, so a centred second line
+                    ("المنطقة" under the middle of the first) looks like a
+                    stray word. */}
+                <Text
+                  style={[
+                    styles.mapAreaBannerText,
+                    { color: colors.text, textAlign: isRTL ? 'right' : 'left' },
+                  ]}
+                >
                   {t('mapNoListingsHere')}
                 </Text>
                 <Pressable
