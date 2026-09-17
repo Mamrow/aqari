@@ -16,6 +16,29 @@ const SOCIALS = [
   { key: 'tiktok', icon: 'logo-tiktok', label: 'TikTok', url: null },
 ];
 
+/**
+ * What's actually running: the version from app.json, plus a short id for the
+ * over-the-air update if one has been applied. "(base)" means the app is
+ * running the JavaScript it shipped with — which is the one thing you can't
+ * tell by looking, and the question every "did my update arrive?" comes down
+ * to.
+ *
+ * Required lazily and guarded: expo-updates is a native module, and a build
+ * made before it was added would otherwise throw at import time and take the
+ * whole screen down.
+ */
+function updateLabel() {
+  try {
+    const Updates = require('expo-updates');
+    if (Updates.isEmbeddedLaunch || !Updates.updateId) return ' (base)';
+    return ` (${Updates.updateId.slice(0, 8)})`;
+  } catch {
+    return '';
+  }
+}
+
+const buildLabel = updateLabel();
+
 const SECTIONS = [
   ['aboutWhatTitle', 'aboutWhatBody'],
   ['aboutListTitle', 'aboutListBody'],
@@ -52,6 +75,7 @@ export default function AboutScreen({ navigation }) {
               beside it. */}
           <Text style={[styles.version, { color: colors.textMuted }]}>
             {t('appVersionLabel')} {appConfig.expo.version}
+            {buildLabel}
           </Text>
         </View>
 
