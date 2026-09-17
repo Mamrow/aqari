@@ -5,7 +5,7 @@
     "scheme": "aqari",
     "version": "1.0.0",
     "runtimeVersion": {
-      "policy": "fingerprint"
+      "policy": "appVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/ba30e803-8e75-435f-83de-2b953025a60f"

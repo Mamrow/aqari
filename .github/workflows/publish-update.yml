@@ -3,17 +3,21 @@
 # Manual only, like the iOS build. Phones pick the update up the next time
 # the app is opened, and apply it on the launch after that.
 #
-# Safe against native mismatches by construction: app.json's runtimeVersion
-# uses the "fingerprint" policy, a hash of everything native — dependencies,
-# config plugins, app config. A change that needs a new build (a new native
-# library, an SDK upgrade) produces a different fingerprint, and installed
-# builds simply don't take that update. They keep running what they have.
-# That's the difference between this and build 17, which crashed on launch.
+# An update reaches a build when both carry the same runtimeVersion, which
+# app.json ties to the app's version number. So every 1.0.0 build accepts
+# every update published while the version reads 1.0.0.
 #
-# Publish from here rather than from a Windows machine. The fingerprint hashes
-# files like app.json, and a Windows checkout turns their line endings into
-# CRLF — so an update published from Windows gets a different fingerprint
-# from the build it's meant for, and silently reaches nobody.
+# That means the version number is a manual safety catch: when something
+# native changes — a new native library, an SDK upgrade, a new icon or splash
+# — bump `expo.version` in app.json in the same commit. Builds on the old
+# version then ignore updates built for the new one, instead of taking JS that
+# calls native code they don't have and crashing on launch, the way build 17
+# did.
+#
+# The "fingerprint" policy automates exactly that check, and was what this
+# used until it turned out to hash differently on every OS: Windows, Linux and
+# the macOS build runner each produced a different value for identical code,
+# so updates silently reached nobody.
 
 name: Publish update
 
