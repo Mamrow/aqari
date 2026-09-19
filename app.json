@@ -3,7 +3,7 @@
     "name": "aqari",
     "slug": "aqari",
     "scheme": "aqari",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -19,7 +19,7 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/aqari-splash.png",
-      "resizeMode": "contain",
+      "resizeMode": "cover",
       "backgroundColor": "#0066FF"
     },
     "ios": {
