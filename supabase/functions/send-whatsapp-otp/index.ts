@@ -30,6 +30,19 @@
 //   WHATSAPP_TEMPLATE_NAME    an approved Authentication-category template
 //   WHATSAPP_TEMPLATE_LANG    its language code, e.g. ar / en_US  (default ar)
 //   WHATSAPP_API_VERSION      optional, defaults below
+//   WHATSAPP_PLAIN_TEXT       optional, "true" only while testing — see below
+//
+// Testing without an approved template: creating an authentication template
+// needs a payment method on the WhatsApp Business account, which can take a
+// while to sort out in some countries. WhatsApp also allows plain, non-template
+// messages for 24 hours after a person messages the business first, so with
+// WHATSAPP_PLAIN_TEXT=true the code goes out as ordinary text to anyone inside
+// that window. It exercises the entire chain — Supabase hook, this function,
+// Meta, and the app's verify step — while the template is still pending.
+//
+// Never leave it on in production: outside that 24-hour window Meta rejects
+// the send, so real sign-ups from people who have never messaged the business
+// would silently fail.
 
 const GRAPH_HOST = 'https://graph.facebook.com';
 const DEFAULT_API_VERSION = 'v21.0';
@@ -88,7 +101,9 @@ Deno.serve(async (req) => {
   const templateLang = Deno.env.get('WHATSAPP_TEMPLATE_LANG') ?? DEFAULT_TEMPLATE_LANG;
   const apiVersion = Deno.env.get('WHATSAPP_API_VERSION') ?? DEFAULT_API_VERSION;
 
-  if (!hookSecret || !token || !phoneNumberId || !templateName) {
+  const plainText = Deno.env.get('WHATSAPP_PLAIN_TEXT') === 'true';
+
+  if (!hookSecret || !token || !phoneNumberId || (!templateName && !plainText)) {
     console.error('send-whatsapp-otp: missing required secrets');
     return jsonError('Verification is not configured on the server.', 500);
   }
@@ -117,24 +132,33 @@ Deno.serve(async (req) => {
   // text, once for the copy-code button. Meta rejects the send outright if
   // the button component is missing, which reads as a confusing template
   // mismatch error rather than anything about buttons.
-  const message = {
-    messaging_product: 'whatsapp',
-    to,
-    type: 'template',
-    template: {
-      name: templateName,
-      language: { code: templateLang },
-      components: [
-        { type: 'body', parameters: [{ type: 'text', text: otp }] },
-        {
-          type: 'button',
-          sub_type: 'url',
-          index: '0',
-          parameters: [{ type: 'text', text: otp }],
+  const message = plainText
+    ? {
+        messaging_product: 'whatsapp',
+        to,
+        type: 'text',
+        text: { body: `رمز التحقق الخاص بك في عقاري: ${otp}
+
+Your Aqari verification code: ${otp}` },
+      }
+    : {
+        messaging_product: 'whatsapp',
+        to,
+        type: 'template',
+        template: {
+          name: templateName,
+          language: { code: templateLang },
+          components: [
+            { type: 'body', parameters: [{ type: 'text', text: otp }] },
+            {
+              type: 'button',
+              sub_type: 'url',
+              index: '0',
+              parameters: [{ type: 'text', text: otp }],
+            },
+          ],
         },
-      ],
-    },
-  };
+      };
 
   const response = await fetch(`${GRAPH_HOST}/${apiVersion}/${phoneNumberId}/messages`, {
     method: 'POST',
