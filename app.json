@@ -3,7 +3,7 @@
     "name": "aqari",
     "slug": "aqari",
     "scheme": "aqari",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "runtimeVersion": {
       "policy": "appVersion"
     },
