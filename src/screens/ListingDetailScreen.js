@@ -45,6 +45,7 @@ export default function ListingDetailScreen({ route, navigation }) {
     theme,
     getMyId,
     reportListing,
+    fetchListingContact,
     isAdmin,
     agents,
     fetchSellerProfile,
@@ -127,14 +128,36 @@ export default function ListingDetailScreen({ route, navigation }) {
     Alert.alert(t('contactErrorTitle'), t('contactErrorMessage'));
   };
 
+  /**
+   * The seller's number, which this screen may not have.
+   *
+   * A signed-out visitor's copy of the listing carries no phone at all — the
+   * database withholds it from `anon`, which is what makes "sign in before
+   * you can contact a seller" a rule rather than a courtesy (see
+   * supabase/migration_hide_seller_phone_from_anon.sql). requireAuth signs
+   * them in and replays the tap against this same object, so the number is
+   * fetched here, at the moment it's needed, instead of being read off stale
+   * state that will never have it.
+   */
+  const resolveContact = async () => {
+    if (listing.agentPhone) return { agentPhone: listing.agentPhone, agentId: listing.agentId };
+    return fetchListingContact(listing.id);
+  };
+
   const handleCall = () => {
-    requireAuth(() => callAgent(listing.agentPhone, handleContactError));
+    requireAuth(async () => {
+      const contact = await resolveContact();
+      // callAgent's own empty-phone guard fires the error for us if the read
+      // came back with nothing.
+      callAgent(contact?.agentPhone, handleContactError);
+    });
   };
 
   const handleWhatsapp = () => {
-    requireAuth(() => {
+    requireAuth(async () => {
+      const contact = await resolveContact();
       const message = t('whatsappMessageTemplate').replace('{title}', listing.title);
-      whatsappAgent(listing.agentPhone, message, handleContactError);
+      whatsappAgent(contact?.agentPhone, message, handleContactError);
     });
   };
 
@@ -150,11 +173,19 @@ export default function ListingDetailScreen({ route, navigation }) {
   };
 
   const handleToggleBlock = () => {
+    // Blocking is keyed on the seller's phone, which is the same thing the
+    // Call button needs and is missing for the same reason — resolve it
+    // rather than sending an undefined phone to the block list.
     if (isBlocked) {
       unblockSeller(listing.agentId);
       return;
     }
-    requireAuth(() => {
+    requireAuth(async () => {
+      const contact = await resolveContact();
+      if (!contact?.agentId) {
+        handleContactError();
+        return;
+      }
       Alert.alert(
         t('blockSellerConfirmTitle'),
         t('blockSellerConfirmMessage'),
@@ -163,7 +194,7 @@ export default function ListingDetailScreen({ route, navigation }) {
           {
             text: t('blockSellerButton'),
             style: 'destructive',
-            onPress: () => blockSeller(listing.agentId),
+            onPress: () => blockSeller(contact.agentId),
           },
         ]
       );
@@ -380,10 +411,12 @@ export default function ListingDetailScreen({ route, navigation }) {
       )}
 
       {/* A listing whose seller deleted their account has an empty
-          agentPhone (see supabase/functions/delete-account) — showing Call/
+          agent_phone (see supabase/functions/delete-account) — showing Call/
           WhatsApp buttons that are guaranteed to fail is worse than not
-          showing them at all. */}
-      {isOwner || listing.agentPhone ? (
+          showing them at all. Read from hasContact, not the number itself:
+          a signed-out visitor is never sent the number, and would otherwise
+          see every listing as having no seller. */}
+      {isOwner || listing.hasContact ? (
         <View style={styles.actionRow}>
           {isOwner ? (
             <ActionButton

@@ -12,6 +12,7 @@ import { LANGUAGE_STORAGE_KEY, ONBOARDING_SEEN_KEY } from '../i18n/constants';
 import { supabase } from '../lib/supabase';
 import { reportError } from '../lib/crashReporting';
 import {
+  LISTING_PUBLIC_COLUMNS,
   listingFromRow,
   listingToRow,
   agentFromRow,
@@ -185,18 +186,65 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  // Signed out, the seller's phone number isn't ours to read: `anon` has no
+  // SELECT privilege on agent_phone or agent_id, and Postgres rejects the
+  // whole query for `select('*')` rather than leaving those two out. So the
+  // anonymous read names its columns (LISTING_PUBLIC_COLUMNS) and a signed-in
+  // one still takes the full row, exactly as before — which is what keeps My
+  // Listings, the edit form and every admin screen unchanged.
+  //
+  // Re-runs on sign-in and sign-out, because authUid is in its dependencies
+  // and the effect below re-calls it: the same listings come back with, or
+  // without, the contact columns.
   const fetchListings = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('listings')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const read = (columns) =>
+      supabase.from('listings').select(columns).order('created_at', { ascending: false });
+
+    let { data, error } = await read(authUid ? '*' : LISTING_PUBLIC_COLUMNS);
+
+    // Ordering safety net. LISTING_PUBLIC_COLUMNS names has_contact, which
+    // only exists once migration_hide_seller_phone_from_anon.sql has run —
+    // and an `eas update` reaches phones in minutes, so a JS release landing
+    // before that migration would otherwise give every signed-out visitor an
+    // error screen instead of a marketplace. Against a database without the
+    // migration, `anon` still has full SELECT, so `*` simply works and the
+    // app behaves exactly as it did before. Harmless once the migration is
+    // applied: the first read succeeds and this never runs.
+    if (error && !authUid) {
+      console.warn('listings public column read failed, retrying with *', error);
+      ({ data, error } = await read('*'));
+    }
+
     if (error) {
       recordDataError('listings', error);
       return;
     }
     clearDataError('listings');
     setListings((data ?? []).map(listingFromRow));
-  }, [clearDataError, recordDataError]);
+  }, [authUid, clearDataError, recordDataError]);
+
+  /**
+   * The seller's number for one listing, read as the signed-in account.
+   *
+   * Needed because a listing already in state may have been loaded while
+   * signed out, and so carries no phone at all. Tapping Call signs the person
+   * in and then replays the tap against that same stale object — this fetches
+   * what it's missing, rather than dialling nothing. Returns null if the read
+   * fails or the row is gone.
+   */
+  const fetchListingContact = useCallback(async (listingId) => {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('agent_phone, agent_id')
+      .eq('id', listingId)
+      .maybeSingle();
+    if (error) {
+      console.warn('fetchListingContact error', error);
+      return null;
+    }
+    if (!data) return null;
+    return { agentPhone: data.agent_phone, agentId: data.agent_id };
+  }, []);
 
   const fetchFavorites = useCallback(async (uid) => {
     if (!uid) {
@@ -1244,6 +1292,7 @@ export function AppProvider({ children }) {
     markListingSold,
     markListingAvailable,
     fetchListings,
+    fetchListingContact,
     fetchFavorites,
     fetchAgents,
     fetchBlockedSellers,

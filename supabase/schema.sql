@@ -2,12 +2,15 @@
 -- Run this once in your project's SQL Editor (Supabase dashboard → SQL Editor → New query → paste → Run).
 --
 -- Auth note: accounts are phone + password on Supabase's native phone
--- provider. A one-time code (SMS or WhatsApp, delivered through Twilio —
--- credentials live in the Supabase dashboard, never in the app) proves the
--- number at sign-up and again for "forgot password"; day-to-day sign-in is
--- password only, so the per-message cost stays off the common path. No email
--- address is collected anywhere. auth.uid() is a real, stable per-account
--- identity — RLS below enforces against it.
+-- provider. A one-time code proves the number at sign-up and again for
+-- "forgot password"; day-to-day sign-in is password only, so the per-message
+-- cost stays off the common path. Delivery is not Twilio: a Send SMS Hook
+-- hands every code to the send-whatsapp-otp Edge Function, which sends it
+-- over WhatsApp via Meta's Cloud API — no messaging credentials in the app.
+-- No email address is used for auth or recovery anywhere (profiles.email
+-- further down is an optional contact field the user types in themselves).
+-- auth.uid() is a real, stable per-account identity — RLS below enforces
+-- against it.
 
 create extension if not exists pgcrypto;
 
@@ -138,6 +141,45 @@ create table if not exists profiles (
   push_token text
 );
 
+-- Columns added after the first version of this file — kept here so a fresh
+-- project built from schema.sql alone matches what the app actually reads.
+-- (Sources: migration_profile_email_optional.sql,
+-- migration_new_listing_alerts.sql, migration_new_listing_alert_districts.sql.)
+--
+-- email is an OPTIONAL contact address the account types in itself (Settings →
+-- Personal info). It is not an auth identity and nothing is ever mailed to it
+-- — but it IS collected, so "Email Address" has to be declared in App Store
+-- Connect → App Privacy and Play's Data safety form.
+alter table profiles add column if not exists email text;
+-- New-listing alerts. Off by default: both stores treat a push about someone
+-- else's listing as promotional, so it has to be opted into.
+alter table profiles add column if not exists notify_new_listings boolean not null default false;
+alter table profiles add column if not exists notify_cities text[] not null default '{}';
+-- "city:district" composite keys — district keys aren't unique across cities,
+-- and this is the form notify-new-listing matches on.
+alter table profiles add column if not exists notify_districts text[] not null default '{}';
+
+create index if not exists profiles_notify_new_listings_idx
+  on profiles (notify_new_listings)
+  where notify_new_listings;
+
+-- "Block seller" (App Store Guideline 1.2 UGC safety: report + block), from
+-- migration_blocked_sellers.sql. Keyed on the real account like favorites,
+-- and on the seller's phone rather than a FK to agents — a phone stays
+-- blockable after its directory entry is gone.
+create table if not exists blocked_sellers (
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  blocked_phone text not null,
+  created_at timestamptz not null default now(),
+  primary key (owner_id, blocked_phone)
+);
+
+alter table blocked_sellers enable row level security;
+
+create policy "own account manages blocked sellers" on blocked_sellers for all
+  using (owner_id = auth.uid())
+  with check (owner_id = auth.uid());
+
 alter table listings enable row level security;
 alter table favorites enable row level security;
 alter table agents enable row level security;
@@ -146,7 +188,17 @@ alter table profiles enable row level security;
 -- Listings: publicly readable (buyers browse without signing in), but writes
 -- require a real session, and only the owning session (or an admin) can
 -- change/remove a listing that already exists.
-create policy "anyone can read listings" on listings for select using (true);
+-- Approved listings are the public marketplace; a row still in moderation, or
+-- rejected by it, is visible only to the account that owns it and to admin.
+-- See migration_listings_read_approved_only.sql — this replaced a
+-- `using (true)` policy that published pending and rejected listings, seller
+-- phone number included, to anyone holding the anon key.
+create policy "approved listings are public" on listings for select
+  using (
+    status = 'approved'
+    or owner_id = auth.uid()
+    or private.is_admin()
+  );
 -- Any signed-in account may submit a listing — buyer/agent is no longer a
 -- distinct, gated account type (see profiles.role: kept in the schema for
 -- possible future use, but unused for gating as of this policy).
@@ -196,8 +248,13 @@ create policy "can update own profile" on profiles for update
 
 -- Storage bucket for listing photos/videos (public read, so media renders
 -- without signed URLs; writes require a real session).
-insert into storage.buckets (id, name, public)
-values ('listing-photos', 'listing-photos', true)
+-- Size and type ceilings, because the insert policy below has to be "any
+-- signed-in session" (Storage can't check owner_id on a row that doesn't
+-- exist yet) — without them this is an open, publicly-served file host for
+-- anyone with an account. 50 MB matches MAX_VIDEO_BYTES in
+-- src/utils/uploadImage.js; see migration_listing_media_limits.sql.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('listing-photos', 'listing-photos', true, 52428800, array['image/*', 'video/*'])
 on conflict (id) do nothing;
 
 -- Storage's own upload API auto-stamps owner_id with the uploading account's
@@ -281,6 +338,28 @@ grant update (
   rooms, images, latitude, longitude, agent_id, amenities, audience_target,
   district, city
 ) on listings to authenticated;
+
+-- Seller phone numbers are for signed-in accounts only — see
+-- migration_hide_seller_phone_from_anon.sql. RLS hides rows, never fields, so
+-- this is column privileges: revoke SELECT on the table from anon (a
+-- column-level revoke alone is ignored while a table-level grant stands, the
+-- same trap as the INSERT/UPDATE lockdown above), then grant back everything
+-- except agent_phone and agent_id — both of which hold a phone number.
+-- `authenticated` keeps the full row. Because `select *` then fails outright
+-- for anon rather than dropping the forbidden columns, the app's signed-out
+-- query names its columns: LISTING_PUBLIC_COLUMNS in src/lib/mappers.js, which
+-- must stay in step with the grant below.
+alter table listings add column if not exists has_contact boolean
+  generated always as (agent_phone is not null and agent_phone <> '') stored;
+
+revoke select on listings from anon;
+
+grant select (
+  id, title, price, area, description, listing_type, property_type, rooms,
+  images, amenities, audience_target, city, district, latitude, longitude,
+  status, owner_id, created_at, is_featured, listing_state, expires_at,
+  renewed_at, featured_until, has_contact
+) on listings to anon;
 
 -- Free renewal — resets the 30-day clock and clears 'expired' back to
 -- 'active'. security definer so it can touch the now-locked-down columns;
@@ -503,3 +582,13 @@ end;
 $$;
 
 grant execute on function public.admin_set_agent_verified(text, boolean) to authenticated;
+
+-- ── RPCs defined in their own migrations, not repeated here ───────────────
+-- public.get_seller_profile(uuid)  — migration_seller_profiles.sql
+--     The public seller page (name, photo, verified, join month). Exists
+--     because profiles rows stay unreadable to other accounts.
+-- public.admin_push_tokens()       — migration_admin_review_notifications.sql
+--     Service-role-only; how notify-admin-review reaches the admin devices
+--     without exposing private.admins.
+-- Run supabase/check_migrations.sql against a project to see which of the
+-- migration_*.sql files it has and hasn't had applied.

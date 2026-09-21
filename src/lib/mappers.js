@@ -1,5 +1,45 @@
 // Convert between this app's camelCase shape and Supabase/Postgres's snake_case columns.
 
+/**
+ * The columns a signed-out visitor is allowed to read, named explicitly.
+ *
+ * agent_phone and agent_id are missing on purpose — both hold a seller's
+ * phone number, and `anon` has no SELECT privilege on either
+ * (supabase/migration_hide_seller_phone_from_anon.sql). Postgres refuses the
+ * whole query rather than dropping a forbidden column, so `select('*')` would
+ * fail outright for anyone not signed in; this list is what replaces it.
+ *
+ * Keep it in step with the GRANT in that migration. A column granted there
+ * but missing here is merely unused; one named here but not granted breaks
+ * anonymous browsing entirely.
+ */
+export const LISTING_PUBLIC_COLUMNS = [
+  'id',
+  'title',
+  'price',
+  'area',
+  'description',
+  'listing_type',
+  'property_type',
+  'rooms',
+  'images',
+  'amenities',
+  'audience_target',
+  'city',
+  'district',
+  'latitude',
+  'longitude',
+  'status',
+  'owner_id',
+  'created_at',
+  'is_featured',
+  'listing_state',
+  'expires_at',
+  'renewed_at',
+  'featured_until',
+  'has_contact',
+].join(', ');
+
 export function listingFromRow(row) {
   return {
     id: row.id,
@@ -25,6 +65,13 @@ export function listingFromRow(row) {
     // send owner_id on every edit — a column the owner has no UPDATE grant
     // on, so saving an edited listing would be denied.
     sellerId: row.owner_id,
+    // Is there a number to call at all? A listing whose seller deleted their
+    // account has none (delete-account blanks it), and a signed-out visitor
+    // can't see agent_phone to work that out for themselves — hence the
+    // generated column. The fallback keeps a client running against a
+    // database without that column working: a signed-in read still has the
+    // real phone to look at.
+    hasContact: row.has_contact ?? Boolean(row.agent_phone),
     isFeatured: row.is_featured ?? false,
     listingState: row.listing_state,
     expiresAt: row.expires_at,
