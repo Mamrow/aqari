@@ -55,11 +55,17 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ skipped: true, reason: 'no push token' }), { status: 200 });
   }
 
+  // Both languages in one message, same as notify-new-listing and
+  // notify-admin-review: Expo's servers deliver this and know nothing about
+  // the recipient's in-app language, and Arabic is the app's default — an
+  // English-only "Listing approved" was the odd one out here.
   const isApproved = record.status === 'approved';
-  const title = isApproved ? 'Listing approved' : 'Listing rejected';
+  const title = isApproved
+    ? 'تمت الموافقة على إعلانك · Listing approved'
+    : 'تم رفض إعلانك · Listing rejected';
   const body = isApproved
-    ? `"${record.title}" is now live for buyers to see.`
-    : `"${record.title}" was rejected. Check the app for details.`;
+    ? `"${record.title}" — ظهر الآن للمشترين / is now live for buyers to see.`
+    : `"${record.title}" — افتح التطبيق لمعرفة السبب / open the app for details.`;
 
   const expoRes = await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',

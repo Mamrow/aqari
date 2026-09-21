@@ -79,17 +79,26 @@ Deno.serve(async (req) => {
   }
 
   if (payload.event === 'payment.paid') {
-    const featuredUntil = new Date(
-      Date.now() + session.duration_days * 24 * 60 * 60 * 1000
-    ).toISOString();
-    await adminClient
-      .from('listings')
-      .update({ is_featured: true, featured_until: featuredUntil })
-      .eq('id', session.listing_id);
-    await adminClient
+    // Claim the session before crediting anything — see the same pattern in
+    // verify-boost-payment. The status check above is a read, and this
+    // function can run at the same moment as that one for the same payment;
+    // without the conditional write both could extend featured_until.
+    const { data: claimed } = await adminClient
       .from('boost_payment_sessions')
       .update({ status: 'paid', completed_at: new Date().toISOString() })
-      .eq('dpay_session_id', sessionId);
+      .eq('dpay_session_id', sessionId)
+      .eq('status', 'pending')
+      .select('id')
+      .maybeSingle();
+    if (claimed) {
+      const featuredUntil = new Date(
+        Date.now() + session.duration_days * 24 * 60 * 60 * 1000
+      ).toISOString();
+      await adminClient
+        .from('listings')
+        .update({ is_featured: true, featured_until: featuredUntil })
+        .eq('id', session.listing_id);
+    }
   } else if (payload.event === 'payment.failed' || payload.event === 'payment.voided') {
     await adminClient
       .from('boost_payment_sessions')

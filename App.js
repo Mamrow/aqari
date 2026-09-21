@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { I18nManager } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { initCrashReporting } from './src/lib/crashReporting';
@@ -12,6 +17,10 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import OnboardingScreen from './src/components/OnboardingScreen';
 import { LANGUAGE_STORAGE_KEY } from './src/i18n/constants';
 import { lightColors, darkColors } from './src/theme/colors';
+import {
+  addNotificationTapListener,
+  configureForegroundNotifications,
+} from './src/lib/notifications';
 import * as Sentry from '@sentry/react-native';
 
 // Before any component mounts, so a crash during the very first render is
@@ -24,6 +33,15 @@ import * as Sentry from '@sentry/react-native';
 // records the screen), and console logs, in a product whose screens are full
 // of people's phone numbers.
 initCrashReporting();
+
+// Also before any component mounts: a notification can arrive (or have
+// launched the app) before the first render, and without a handler set by
+// then it is never presented. No-op in Expo Go — see src/lib/notifications.js.
+configureForegroundNotifications();
+
+// Notification taps arrive outside React's tree, so the navigator is reached
+// through a ref rather than a screen's own navigation prop.
+const navigationRef = createNavigationContainerRef();
 
 function buildNavigationTheme(theme) {
   const base = theme === 'dark' ? DarkTheme : DefaultTheme;
@@ -42,7 +60,41 @@ function buildNavigationTheme(theme) {
 }
 
 function AppShell() {
-  const { theme, language, hydrated, showOnboarding, completeOnboarding } = useAppContext();
+  const { theme, language, hydrated, showOnboarding, completeOnboarding, isAdmin } = useAppContext();
+
+  // Read through a ref so the tap handler below stays referentially stable.
+  // Re-subscribing would re-run the cold-start check in
+  // addNotificationTapListener and open the same listing a second time the
+  // moment the admin check comes back from the server.
+  const isAdminRef = useRef(isAdmin);
+  useEffect(() => {
+    isAdminRef.current = isAdmin;
+  }, [isAdmin]);
+
+  // A tap that launched the app resolves before the navigator exists, so it's
+  // parked here and replayed from onReady below.
+  const pendingListingIdRef = useRef(null);
+
+  const goToListing = useCallback((listingId) => {
+    if (!navigationRef.isReady()) {
+      pendingListingIdRef.current = listingId;
+      return;
+    }
+    // ListingDetail exists in both tab trees, under a different parent in
+    // each (see HomeStack / AdminApprovalsStack).
+    navigationRef.navigate(isAdminRef.current ? 'Approvals' : 'Home', {
+      screen: 'ListingDetail',
+      params: { listingId },
+    });
+  }, []);
+
+  useEffect(() => addNotificationTapListener(goToListing), [goToListing]);
+
+  const handleNavigationReady = useCallback(() => {
+    const listingId = pendingListingIdRef.current;
+    pendingListingIdRef.current = null;
+    if (listingId) goToListing(listingId);
+  }, [goToListing]);
 
   // Onboarding lives inside AppProvider (it needs theme + translations) but
   // outside NavigationContainer — it's a pre-app gate, not a route, so it
@@ -70,6 +122,8 @@ function AppShell() {
           snapshot; the app's language is the thing that's actually true right
           now, so drive it from that. Arabic is the only RTL language here. */}
       <NavigationContainer
+        ref={navigationRef}
+        onReady={handleNavigationReady}
         theme={buildNavigationTheme(theme)}
         direction={language === 'ar' ? 'rtl' : 'ltr'}
       >

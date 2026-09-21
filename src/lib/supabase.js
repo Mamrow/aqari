@@ -26,12 +26,6 @@ if (typeof globalThis.crypto.subtle === 'undefined') {
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Missing EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY — set them in a local .env file (see .env.example).'
-  );
-}
-
 // Supabase's official React Native pattern (SecureStore alone can't hold a
 // session — its underlying platform storage rejects values much over ~2KB,
 // and a session blob with both tokens + user metadata routinely exceeds

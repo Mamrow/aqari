@@ -254,7 +254,9 @@ export default function AddListingScreen({ navigation, route }) {
         );
       } catch (uploadError) {
         console.warn('Photo upload failed', uploadError);
-        setSubmitError(friendlyErrorMessage(uploadError, t));
+        setSubmitError(
+          friendlyErrorMessage(uploadError, t, { VIDEO_TOO_LARGE: 'videoTooLargeMessage' })
+        );
         return;
       } finally {
         setUploadProgress(null);

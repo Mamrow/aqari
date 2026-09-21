@@ -81,7 +81,20 @@ async function isSignatureValid(secret: string, headers: Headers, body: string):
   return signatureHeader
     .split(' ')
     .map((part) => part.split(',')[1])
-    .some((candidate) => candidate === expected);
+    .some((candidate) => timingSafeEqual(candidate ?? '', expected));
+}
+
+// Comparison that doesn't return early on the first differing byte — the
+// same one dpay-webhook uses. `===` on a signature leaks, through timing,
+// how much of a guess was right, and a valid call here sends a real
+// (chargeable) WhatsApp message.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
 }
 
 function jsonError(message: string, httpCode: number) {

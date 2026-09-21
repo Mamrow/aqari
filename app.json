@@ -14,6 +14,11 @@
       }
     },
     "orientation": "portrait",
+    "//locales": "iOS permission prompts, per device language. The expo-location / expo-image-picker plugin strings below are Arabic only, so an English-locale iPhone was shown an Arabic system prompt; these files override them per language and the plugin strings stay as the fallback. iOS only — Android permission dialogs carry no app-supplied text.",
+    "locales": {
+      "en": "./assets/locales/en.json",
+      "ar": "./assets/locales/ar.json"
+    },
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

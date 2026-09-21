@@ -45,6 +45,7 @@ export default function ListingDetailScreen({ route, navigation }) {
     theme,
     getMyId,
     reportListing,
+    isAdmin,
     agents,
     fetchSellerProfile,
     blockedSellers,
@@ -94,6 +95,21 @@ export default function ListingDetailScreen({ route, navigation }) {
   // normally happen — submitListing always upserts one) just shows no name.
   const listingAgent = agents.find((agent) => agent.phone === listing.agentId);
   const isBlocked = blockedSellers.includes(listing.agentId);
+
+  // Reachable from Favorites, a push tap and a shared link, none of which
+  // re-check what the map already filters on — so the check lives here too,
+  // at the one screen every one of those routes lands on. A listing that is
+  // pending, rejected, expired or sold is not something a buyer can act on,
+  // and showing it with working Call/WhatsApp buttons quietly undid the
+  // admin's moderation decision. The owner still sees their own listing in
+  // every state (that's how they reach Edit/Resubmit), and so does an admin.
+  const isViewable =
+    listing.status === 'approved' &&
+    listing.listingState !== 'expired' &&
+    listing.listingState !== 'sold';
+  if (!isViewable && !isOwner && !isAdmin) {
+    return <PlaceholderScreen title={t('listingNotFoundTitle')} subtitle={t('listingNotFoundSubtitle')} />;
+  }
 
   // This screen is reachable from three different stacks (Home, Favorites,
   // My Listings) — 'AddListing' only actually exists inside MyListingsStack,

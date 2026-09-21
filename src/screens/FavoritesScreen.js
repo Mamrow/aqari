@@ -13,8 +13,19 @@ export default function FavoritesScreen({ navigation }) {
     useAppContext();
   const t = useT();
   const colors = useThemeColors();
+  // Saved is a bookmark, not an exemption: a listing only stays visible here
+  // while it's still something a buyer could act on anywhere else in the app.
+  // Without the status/state checks, a listing an admin rejected (as a scam,
+  // say) stayed in everyone's Favorites as a normal card with live Call and
+  // WhatsApp buttons — the moderation decision only ever reached the map.
+  // Same three conditions HomeMapScreen and SellerProfileScreen apply.
   const savedListings = listings.filter(
-    (listing) => saved.includes(listing.id) && !blockedSellers.includes(listing.agentId)
+    (listing) =>
+      saved.includes(listing.id) &&
+      !blockedSellers.includes(listing.agentId) &&
+      listing.status === 'approved' &&
+      listing.listingState !== 'expired' &&
+      listing.listingState !== 'sold'
   );
   const readError = dataErrors.favorites ?? dataErrors.listings;
   const retry = () => Promise.all([fetchListings(), fetchFavorites(auth.phone)]);

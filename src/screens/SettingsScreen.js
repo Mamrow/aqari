@@ -21,6 +21,7 @@ import { uploadAvatarImage } from '../utils/uploadImage';
 import appConfig from '../../app.json';
 import { BOOST_PURCHASES_ENABLED } from '../config/features';
 import { pressedStyle } from '../theme/press';
+import { friendlyErrorMessage } from '../utils/friendlyError';
 
 export default function SettingsScreen({ navigation }) {
   const {
@@ -130,10 +131,19 @@ export default function SettingsScreen({ navigation }) {
 
   const alertDistricts = auth.notifyDistricts ?? [];
 
+  // updateNotificationPrefs throws when the write is refused and rolls its own
+  // optimistic state back, so every caller needs to say so — otherwise the
+  // switch flicks back with no explanation at all.
+  const saveAlertPrefs = (patch) => {
+    updateNotificationPrefs(patch).catch((error) => {
+      Alert.alert(t('errorGenericTitle'), friendlyErrorMessage(error, t));
+    });
+  };
+
   const toggleAlertCity = (key) => {
     const adding = !alertCities.includes(key);
     const next = adding ? [...alertCities, key] : alertCities.filter((city) => city !== key);
-    updateNotificationPrefs({
+    saveAlertPrefs({
       notifyCities: next,
       // Unfollowing a city drops the districts picked inside it. Leaving them
       // behind would mean a stale narrowing springs back the day that city is
@@ -149,7 +159,7 @@ export default function SettingsScreen({ navigation }) {
     const next = alertDistricts.includes(composite)
       ? alertDistricts.filter((d) => d !== composite)
       : [...alertDistricts, composite];
-    updateNotificationPrefs({ notifyDistricts: next });
+    saveAlertPrefs({ notifyDistricts: next });
   };
 
   const handleLogout = () => {
@@ -417,7 +427,7 @@ export default function SettingsScreen({ navigation }) {
               <Pressable
                 style={({ pressed }) => [styles.switchRow, pressed && pressedStyle]}
                 onPress={() =>
-                  updateNotificationPrefs({ notifyNewListings: !auth.notifyNewListings })
+                  saveAlertPrefs({ notifyNewListings: !auth.notifyNewListings })
                 }
                 accessibilityRole="switch"
                 accessibilityState={{ checked: auth.notifyNewListings }}
@@ -428,7 +438,7 @@ export default function SettingsScreen({ navigation }) {
                 <Switch
                   value={auth.notifyNewListings}
                   onValueChange={(value) =>
-                    updateNotificationPrefs({ notifyNewListings: value })
+                    saveAlertPrefs({ notifyNewListings: value })
                   }
                   trackColor={{ true: colors.accent, false: colors.inputBorder }}
                 />

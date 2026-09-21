@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -584,7 +584,11 @@ export default function HomeMapScreen({ navigation }) {
   // Buyer-facing map/list only ever shows admin-approved listings, filtered by
   // purpose + type — featured ones are pinned to the top of that same list
   // (not a separate section) via the sort below.
-  const filteredListings = listings
+  // Memoized because this runs the whole table through a filter and a sort,
+  // and the screen re-renders on every keystroke in the search box, every map
+  // region change and every context update. The dependency list is exactly
+  // the inputs below it.
+  const filteredListings = useMemo(() => listings
     .filter((listing) => {
       if (listing.status !== 'approved' || listing.listingType !== listingType) return false;
       if (blockedSellers.includes(listing.agentId)) return false;
@@ -622,7 +626,21 @@ export default function HomeMapScreen({ navigation }) {
         default:
           return 0;
       }
-    });
+    }), [
+    listings,
+    listingType,
+    blockedSellers,
+    selectedPropertyTypes,
+    minPrice,
+    maxPrice,
+    priceRange,
+    cityFilter,
+    districtFilter,
+    showAudienceFilter,
+    audienceFilter,
+    searchQuery,
+    sortBy,
+  ]);
 
   // Panned somewhere with nothing in it, while listings do exist elsewhere.
   // Distinct from emptyState above, and deliberately quieter: panning across
@@ -645,13 +663,17 @@ export default function HomeMapScreen({ navigation }) {
   // filters above, same as the list view's featured-first sort.
   // Matches the currently selected Sale/Rent tab — mixing both together in
   // the same carousel made it unclear which purpose a featured card was for.
-  const featuredListings = listings.filter(
-    (listing) =>
-      listing.status === 'approved' &&
-      listing.listingState !== 'expired' &&
-      listing.listingState !== 'sold' &&
-      listing.isFeatured &&
-      listing.listingType === listingType
+  const featuredListings = useMemo(
+    () =>
+      listings.filter(
+        (listing) =>
+          listing.status === 'approved' &&
+          listing.listingState !== 'expired' &&
+          listing.listingState !== 'sold' &&
+          listing.isFeatured &&
+          listing.listingType === listingType
+      ),
+    [listings, listingType]
   );
   const featuredListRef = useRef(null);
   // Rendered 2x back-to-back — the minimum that keeps the wrap seamless

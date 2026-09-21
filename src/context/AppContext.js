@@ -21,6 +21,7 @@ import {
 } from '../lib/mappers';
 import { OTP_CHANNEL } from '../utils/otp';
 import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
+import { removeListingMedia } from '../utils/uploadImage';
 
 const STORAGE_KEY = '@aqari/app_state';
 
@@ -547,6 +548,11 @@ export function AppProvider({ children }) {
   const updateNotificationPrefs = useCallback(
     async ({ notifyNewListings, notifyCities, notifyDistricts }) => {
       if (!auth.phone) return;
+      const previous = {
+        notifyNewListings: auth.notifyNewListings,
+        notifyCities: auth.notifyCities,
+        notifyDistricts: auth.notifyDistricts,
+      };
       setAuth((prev) => ({
         ...prev,
         ...(notifyNewListings !== undefined ? { notifyNewListings } : {}),
@@ -558,9 +564,17 @@ export function AppProvider({ children }) {
       if (notifyCities !== undefined) row.notify_cities = notifyCities;
       if (notifyDistricts !== undefined) row.notify_districts = notifyDistricts;
       const { error } = await supabase.from('profiles').upsert(row);
-      if (error) console.warn('updateNotificationPrefs error', error);
+      if (error) {
+        // Roll the switch back rather than leaving it showing a preference
+        // the server never stored — the same "the save looked like it worked"
+        // lie updateProfile below was rewritten to stop telling. Thrown so
+        // the caller can say so; every caller here is a toggle in Settings.
+        console.warn('updateNotificationPrefs error', error);
+        setAuth((prev) => ({ ...prev, ...previous }));
+        throw error;
+      }
     },
-    [auth.phone]
+    [auth.phone, auth.notifyNewListings, auth.notifyCities, auth.notifyDistricts]
   );
 
   /**
@@ -1080,6 +1094,10 @@ export function AppProvider({ children }) {
         if (previousListing) setListings((prev) => (prev.some((item) => item.id === listingId) ? prev : [previousListing, ...prev]));
         throw error;
       }
+      // Only once the row is actually gone, and deliberately not awaited into
+      // the caller's success path — the listing is deleted either way, and a
+      // storage hiccup shouldn't turn a completed delete into an error alert.
+      removeListingMedia(previousListing?.images);
     },
     [listings]
   );

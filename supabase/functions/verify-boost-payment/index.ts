@@ -66,21 +66,36 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Idempotent update guarded by the 'pending' check above — safe even if
-  // the webhook also lands and races this same update.
-  const featuredUntil = new Date(Date.now() + session.duration_days * 24 * 60 * 60 * 1000).toISOString();
-  const { error: featureError } = await adminClient
-    .from('listings')
-    .update({ is_featured: true, featured_until: featuredUntil })
-    .eq('id', session.listing_id);
-  if (featureError) {
-    console.error('verify-boost-payment: failed to flip is_featured', featureError);
-  }
-
-  await adminClient
+  // Claim the session first, in one conditional write. The read above is not
+  // a lock: dpay-webhook can confirm the same payment concurrently, and with
+  // both paths doing read-then-write they could each pass the 'pending' check
+  // and then each add duration_days to featured_until — the seller pays for
+  // three days and gets six. `.eq('status', 'pending')` makes exactly one of
+  // the two writers win, and the loser sees no row returned.
+  const { data: claimed, error: claimError } = await adminClient
     .from('boost_payment_sessions')
     .update({ status: 'paid', completed_at: new Date().toISOString() })
-    .eq('dpay_session_id', session_id);
+    .eq('dpay_session_id', session_id)
+    .eq('status', 'pending')
+    .select('id')
+    .maybeSingle();
+  if (claimError) {
+    console.error('verify-boost-payment: failed to finalize session', claimError);
+    return new Response(JSON.stringify({ error: 'Internal error' }), { status: 500 });
+  }
+
+  const featuredUntil = new Date(Date.now() + session.duration_days * 24 * 60 * 60 * 1000).toISOString();
+  if (claimed) {
+    const { error: featureError } = await adminClient
+      .from('listings')
+      .update({ is_featured: true, featured_until: featuredUntil })
+      .eq('id', session.listing_id);
+    if (featureError) {
+      console.error('verify-boost-payment: failed to flip is_featured', featureError);
+    }
+  }
+  // Not claimed means the webhook already applied this exact payment — the
+  // listing is featured either way, so this still reports success.
 
   return new Response(JSON.stringify({ success: true, featured_until: featuredUntil }), {
     headers: { 'Content-Type': 'application/json' },

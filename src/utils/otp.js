@@ -2,14 +2,17 @@
 // reset. Every call site reads this constant — nothing hardcodes a channel
 // string — so switching the whole app over is a one-line edit here.
 //
-// Starting on SMS because that's all a Twilio account can do out of the box.
-// WhatsApp isn't a config change: it needs a WhatsApp sender on the Messaging
-// Service, a Meta-verified WhatsApp Business Account, and an approved
-// authentication template — days to weeks. The WhatsApp Sandbox isn't a
-// substitute, since every recipient has to message a join code to Twilio's
-// sandbox number first.
+// 'sms' here does NOT mean the code arrives by SMS. It names one of
+// Supabase's own providers, and the project doesn't use any of them: a Send
+// SMS Hook (Authentication -> Hooks) intercepts every code and hands it to
+// the send-whatsapp-otp Edge Function, which delivers it over WhatsApp via
+// Meta's Cloud API. So this constant only has to stay a value the API
+// accepts, and verifyOtp's `type: 'sms'` is correct for the same reason —
+// Supabase has no separate WhatsApp verify type.
 //
-// Worth revisiting once that clears: SMS delivery to Libyan carriers over
-// international A2P routes is genuinely unreliable, and WhatsApp rides on
-// data instead. See docs/phone-auth-setup.md.
+// Why WhatsApp and not Twilio: Twilio needs a paid account before it will
+// send to Libya at all, and international A2P SMS routes there are
+// unreliable in the first place. WhatsApp rides on data instead. See
+// supabase/functions/send-whatsapp-otp/index.ts and
+// docs/phone-auth-setup.md.
 export const OTP_CHANNEL = 'sms';
