@@ -10,6 +10,7 @@ import { tabIcon } from './tabIcon';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { useAppContext } from '../context/AppContext';
+import { pressedStyle } from '../theme/press';
 
 const Tab = createBottomTabNavigator();
 
@@ -27,7 +28,11 @@ function AddListingTabButton({ children, onPress, onLongPress, accessibilityStat
         onLongPress={onLongPress}
         accessibilityState={accessibilityState}
         testID={testID}
-        style={[styles.addButton, { backgroundColor: colors.accent }]}
+        style={({ pressed }) => [
+          styles.addButton,
+          { backgroundColor: colors.accent },
+          pressed && pressedStyle,
+        ]}
       >
         {children}
       </Pressable>

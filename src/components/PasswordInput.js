@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useT } from '../i18n/useT';
+import { pressedStyle } from '../theme/press';
 
 // Drop-in replacement for a plain `<TextInput secureTextEntry />` password
 // field, with a show/hide eye toggle. `style` is expected to be the same
@@ -25,18 +26,41 @@ export default function PasswordInput({
 
   return (
     <View style={[styles.row, { borderColor: colors.inputBorder }, style]}>
-      <TextInput
-        style={[styles.input, { color: colors.text }]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={placeholderTextColor}
-        autoFocus={autoFocus}
-        secureTextEntry={!visible}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
+      {/* The placeholder is drawn as our own <Text> rather than handed to the
+          TextInput. iOS substitutes its own font on a secureTextEntry field
+          and renders the native placeholder with wide tracking —
+          "P a s s w o r d" instead of "Password" — and RN can't style that
+          away, because placeholder text ignores letterSpacing on iOS
+          (facebook/react-native#19002). Drawing it ourselves takes iOS's
+          placeholder rendering out of the picture entirely.
+
+          No textAlign anywhere in here on purpose: both the Text and the
+          TextInput default to 'auto', so each follows the writing direction
+          and neither needs an RTL branch. */}
+      <View style={styles.field}>
+        <TextInput
+          style={[styles.input, { color: colors.text }]}
+          value={value}
+          onChangeText={onChangeText}
+          placeholderTextColor={placeholderTextColor}
+          autoFocus={autoFocus}
+          secureTextEntry={!visible}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {!value && (
+          <View pointerEvents="none" style={styles.placeholderLayer}>
+            <Text
+              numberOfLines={1}
+              style={[styles.placeholderText, { color: placeholderTextColor }]}
+            >
+              {placeholder}
+            </Text>
+          </View>
+        )}
+      </View>
       <Pressable
+        style={({ pressed }) => pressed && pressedStyle}
         onPress={() => setVisible((prev) => !prev)}
         hitSlop={8}
         accessibilityRole="button"
@@ -58,8 +82,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  input: {
+  // Takes the width the TextInput used to take; the TextInput now sizes the
+  // height and the placeholder layer is measured against this box.
+  field: {
     flex: 1,
+  },
+  input: {
+    fontSize: 15,
+  },
+  placeholderLayer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+  },
+  placeholderText: {
     fontSize: 15,
   },
 });

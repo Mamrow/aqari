@@ -11,6 +11,7 @@ import PlaceholderScreen from '../components/PlaceholderScreen';
 import LoadingView from '../components/LoadingView';
 import StatusScreen from '../components/StatusScreen';
 import { friendlyErrorMessage } from '../utils/friendlyError';
+import { pressedStyle } from '../theme/press';
 
 const STATUS_COLORS = {
   paid: '#2E8B57',
@@ -132,6 +133,7 @@ export default function PaymentHistoryScreen({ navigation }) {
                         : t('featuredLabel')}
                     </Text>
                     <Pressable
+                      style={({ pressed }) => pressed && pressedStyle}
                       onPress={() => {
                         // Two calls, not one: navigating straight to
                         // 'ListingDetail' the first time the My Listings tab

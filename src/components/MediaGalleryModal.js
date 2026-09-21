@@ -5,6 +5,7 @@ import { useT } from '../i18n/useT';
 import { isVideoUrl } from '../utils/media';
 import GalleryVideoItem from './GalleryVideoItem';
 import SkeletonImage from './SkeletonImage';
+import { pressedStyle } from '../theme/press';
 
 // The modal is a full-black background, not a themed screen — a fixed dark
 // skeleton (rather than useThemeColors' light-mode colors.border) is what
@@ -93,7 +94,11 @@ export default function MediaGalleryModal({ visible, media, initialIndex, onClos
           accessibilityRole="button"
           accessibilityLabel={t('a11yCloseGallery')}
           testID="gallery-close"
-          style={[styles.closeButton, { top: topInset + 16 }]}
+          style={({ pressed }) => [
+            styles.closeButton,
+            { top: topInset + 16 },
+            pressed && pressedStyle,
+          ]}
           onPress={onClose}
           hitSlop={16}
         >

@@ -42,6 +42,7 @@ import PhoneInput, { fromE164, isValidPhone, toE164 } from '../components/PhoneI
 import { isRemoteMediaUrl, uploadListingImage, uploadListingVideo } from '../utils/uploadImage';
 import { toEnglishDigits } from '../utils/digits';
 import { isVideoUrl } from '../utils/media';
+import { pressedStyle } from '../theme/press';
 
 const INITIAL_REGION = {
   ...TRIPOLI_CENTER,
@@ -537,7 +538,11 @@ export default function AddListingScreen({ navigation, route }) {
                       setPropertyType(type);
                       setPropertyTypePickerVisible(false);
                     }}
-                    style={[styles.pickerOption, active && { backgroundColor: `${colors.accent}22` }]}
+                    style={({ pressed }) => [
+                      styles.pickerOption,
+                      active && { backgroundColor: `${colors.accent}22` },
+                      pressed && pressedStyle,
+                    ]}
                   >
                     <Text
                       style={[
@@ -606,7 +611,7 @@ export default function AddListingScreen({ navigation, route }) {
                 <Pressable
                   onPress={() => setLocationPickerStep('city')}
                   hitSlop={10}
-                  style={styles.pickerModalBackButton}
+                  style={({ pressed }) => [styles.pickerModalBackButton, pressed && pressedStyle]}
                 >
                   <Ionicons
                     name={language === 'ar' ? 'chevron-forward' : 'chevron-back'}
@@ -629,7 +634,11 @@ export default function AddListingScreen({ navigation, route }) {
                       <Pressable
                         key={item.key}
                         onPress={() => handleCityChange(item.key)}
-                        style={[styles.pickerOption, active && { backgroundColor: `${colors.accent}22` }]}
+                        style={({ pressed }) => [
+                          styles.pickerOption,
+                          active && { backgroundColor: `${colors.accent}22` },
+                          pressed && pressedStyle,
+                        ]}
                       >
                         <Text
                           style={[
@@ -653,7 +662,11 @@ export default function AddListingScreen({ navigation, route }) {
                       <Pressable
                         key={key}
                         onPress={() => handleDistrictChange(key === 'skip' ? null : key)}
-                        style={[styles.pickerOption, active && { backgroundColor: `${colors.accent}22` }]}
+                        style={({ pressed }) => [
+                          styles.pickerOption,
+                          active && { backgroundColor: `${colors.accent}22` },
+                          pressed && pressedStyle,
+                        ]}
                       >
                         <Text
                           style={[
@@ -750,7 +763,11 @@ export default function AddListingScreen({ navigation, route }) {
                 <Ionicons name="play-circle" size={28} color={colors.text} />
               </View>
               <Pressable
-                style={[styles.removePhotoButton, { backgroundColor: colors.danger }]}
+                style={({ pressed }) => [
+                  styles.removePhotoButton,
+                  { backgroundColor: colors.danger },
+                  pressed && pressedStyle,
+                ]}
                 onPress={() => removeImage(uri)}
                 accessibilityRole="button"
                 accessibilityLabel={t('a11yRemoveMedia')}
@@ -764,7 +781,11 @@ export default function AddListingScreen({ navigation, route }) {
             <View key={uri} style={styles.photoThumbWrapper}>
               <Image source={{ uri }} style={styles.photoThumb} />
               <Pressable
-                style={[styles.removePhotoButton, { backgroundColor: colors.danger }]}
+                style={({ pressed }) => [
+                  styles.removePhotoButton,
+                  { backgroundColor: colors.danger },
+                  pressed && pressedStyle,
+                ]}
                 onPress={() => removeImage(uri)}
                 accessibilityRole="button"
                 accessibilityLabel={t('a11yRemoveMedia')}
@@ -778,7 +799,11 @@ export default function AddListingScreen({ navigation, route }) {
         )}
         {images.length < MAX_PHOTOS && (
           <Pressable
-            style={[styles.addPhotoButton, { borderColor: colors.accent }]}
+            style={({ pressed }) => [
+              styles.addPhotoButton,
+              { borderColor: colors.accent },
+              pressed && pressedStyle,
+            ]}
             onPress={handlePickImage}
             accessibilityRole="button"
             accessibilityLabel={t('a11yAddMedia')}
@@ -848,7 +873,11 @@ function ModalCloseButton({ onPress, colors, label, isRTL }) {
     <Pressable
       onPress={onPress}
       hitSlop={10}
-      style={[styles.pickerModalCloseButton, isRTL ? styles.pickerModalCloseButtonRTL : styles.pickerModalCloseButtonLTR]}
+      style={({ pressed }) => [
+        styles.pickerModalCloseButton,
+        isRTL ? styles.pickerModalCloseButtonRTL : styles.pickerModalCloseButtonLTR,
+        pressed && pressedStyle,
+      ]}
       accessibilityRole="button"
       accessibilityLabel={label}
     >

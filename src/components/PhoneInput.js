@@ -14,6 +14,7 @@ import { COUNTRIES, DEFAULT_COUNTRY, flagEmoji } from '../data/countries';
 import { toEnglishDigits } from '../utils/digits';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
+import { pressedStyle } from '../theme/press';
 
 const COUNTRY_BY_CODE = Object.fromEntries(COUNTRIES.map((c) => [c.code, c]));
 
@@ -91,7 +92,11 @@ export default function PhoneInput({
     <View style={styles.wrapper}>
       <View style={[styles.row, { direction: 'ltr' }]}>
         <Pressable
-          style={[styles.countryButton, { borderColor: colors.inputBorder }]}
+          style={({ pressed }) => [
+            styles.countryButton,
+            { borderColor: colors.inputBorder },
+            pressed && pressedStyle,
+          ]}
           onPress={() => onChangeCountry && setPickerOpen(true)}
           disabled={!onChangeCountry}
           accessibilityRole="button"
@@ -191,7 +196,12 @@ function CountryPicker({ visible, selected, colors, onSelect, onClose }) {
           <Text style={[styles.pickerTitle, { color: colors.heading }]}>
             {t('countryPickerTitle')}
           </Text>
-          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button">
+          <Pressable
+            style={({ pressed }) => pressed && pressedStyle}
+            onPress={onClose}
+            hitSlop={10}
+            accessibilityRole="button"
+          >
             <Ionicons name="close" size={22} color={colors.textMuted} />
           </Pressable>
         </View>
@@ -217,7 +227,11 @@ function CountryPicker({ visible, selected, colors, onSelect, onClose }) {
             const isSelected = item.code === selected;
             return (
               <Pressable
-                style={[styles.countryRow, isSelected && { backgroundColor: colors.border }]}
+                style={({ pressed }) => [
+                  styles.countryRow,
+                  isSelected && { backgroundColor: colors.border },
+                  pressed && pressedStyle,
+                ]}
                 onPress={() => onSelect(item.code)}
               >
                 <Text style={styles.flag}>{flagEmoji(item.code)}</Text>

@@ -10,6 +10,7 @@ import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { WHATSAPP_GREEN } from '../theme/colors';
 import { callAgent, whatsappAgent } from '../utils/contactActions';
+import { pressedStyle } from '../theme/press';
 
 // Reached by tapping a row in AdminAgentsScreen ("Registered Sellers") —
 // same approve/reject/call/whatsapp/delete actions as the main approvals
@@ -64,13 +65,21 @@ export default function AdminSellerListingsScreen({ navigation, route }) {
             {item.status === 'pending' && (
               <View style={styles.actions}>
                 <Pressable
-                  style={[styles.actionButton, { backgroundColor: colors.accent }]}
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    { backgroundColor: colors.accent },
+                    pressed && pressedStyle,
+                  ]}
                   onPress={() => approveListing(item.id)}
                 >
                   <Text style={[styles.actionText, { color: colors.accentText }]}>{t('approve')}</Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.actionButton, { backgroundColor: colors.danger }]}
+                  style={({ pressed }) => [
+                    styles.actionButton,
+                    { backgroundColor: colors.danger },
+                    pressed && pressedStyle,
+                  ]}
                   onPress={() => rejectListing(item.id)}
                 >
                   <Text style={[styles.actionText, { color: colors.accentText }]}>{t('reject')}</Text>
@@ -80,14 +89,22 @@ export default function AdminSellerListingsScreen({ navigation, route }) {
 
             <View style={styles.actions}>
               <Pressable
-                style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  pressed && pressedStyle,
+                ]}
                 onPress={() => callAgent(item.agentPhone)}
               >
                 <Ionicons name="call" size={16} color={colors.text} />
                 <Text style={[styles.iconButtonText, { color: colors.text }]}>{t('callButton')}</Text>
               </Pressable>
               <Pressable
-                style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: WHATSAPP_GREEN }]}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  { backgroundColor: colors.surface, borderColor: WHATSAPP_GREEN },
+                  pressed && pressedStyle,
+                ]}
                 onPress={() => handleWhatsapp(item)}
               >
                 <Ionicons name="logo-whatsapp" size={16} color={WHATSAPP_GREEN} />
@@ -96,7 +113,11 @@ export default function AdminSellerListingsScreen({ navigation, route }) {
                 </Text>
               </Pressable>
               <Pressable
-                style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.danger }]}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  { backgroundColor: colors.surface, borderColor: colors.danger },
+                  pressed && pressedStyle,
+                ]}
                 onPress={() => handleDelete(item)}
               >
                 <Ionicons name="trash" size={16} color={colors.danger} />

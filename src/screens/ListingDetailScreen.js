@@ -33,6 +33,7 @@ import { callAgent, whatsappAgent } from '../utils/contactActions';
 import { isVideoUrl } from '../utils/media';
 import MediaGalleryModal from '../components/MediaGalleryModal';
 import GalleryImageItem from '../components/GalleryImageItem';
+import { pressedStyle } from '../theme/press';
 
 export default function ListingDetailScreen({ route, navigation }) {
   const { listingId } = route.params;
@@ -187,6 +188,7 @@ export default function ListingDetailScreen({ route, navigation }) {
           keyExtractor={(uri) => uri}
           renderItem={({ item: uri, index }) => (
             <Pressable
+              style={({ pressed }) => pressed && pressedStyle}
               onPress={() => setGalleryIndex(index)}
               accessibilityRole="imagebutton"
               accessibilityLabel={`${index + 1} / ${listing.images.length}`}
@@ -221,6 +223,7 @@ export default function ListingDetailScreen({ route, navigation }) {
         </Text>
         <View style={styles.headerActions}>
           <Pressable
+            style={({ pressed }) => pressed && pressedStyle}
             onPress={handleShare}
             hitSlop={12}
             accessibilityRole="button"
@@ -230,6 +233,7 @@ export default function ListingDetailScreen({ route, navigation }) {
             <Ionicons name="share-social-outline" size={24} color={colors.text} />
           </Pressable>
           <Pressable
+            style={({ pressed }) => pressed && pressedStyle}
             onPress={() => toggleSave(listing.id)}
             hitSlop={12}
             accessibilityRole="button"
@@ -403,7 +407,7 @@ export default function ListingDetailScreen({ route, navigation }) {
       {!isOwner && (
         <View style={styles.safetyRow}>
           <Pressable
-            style={styles.reportLink}
+            style={({ pressed }) => [styles.reportLink, pressed && pressedStyle]}
             onPress={openReportModal}
             hitSlop={8}
             accessibilityRole="button"
@@ -416,7 +420,7 @@ export default function ListingDetailScreen({ route, navigation }) {
             </Text>
           </Pressable>
           <Pressable
-            style={styles.reportLink}
+            style={({ pressed }) => [styles.reportLink, pressed && pressedStyle]}
             onPress={handleToggleBlock}
             hitSlop={8}
             accessibilityRole="button"
@@ -461,7 +465,11 @@ export default function ListingDetailScreen({ route, navigation }) {
                 <Pressable
                   key={reason}
                   onPress={() => setReportReason(reason)}
-                  style={[styles.reportOption, active && { backgroundColor: `${colors.accent}22` }]}
+                  style={({ pressed }) => [
+                    styles.reportOption,
+                    active && { backgroundColor: `${colors.accent}22` },
+                    pressed && pressedStyle,
+                  ]}
                 >
                   <Text
                     style={[
@@ -488,9 +496,10 @@ export default function ListingDetailScreen({ route, navigation }) {
             />
 
             <Pressable
-              style={[
+              style={({ pressed }) => [
                 styles.reportSubmitButton,
                 { backgroundColor: reportReason ? colors.accent : colors.disabled },
+                pressed && pressedStyle,
               ]}
               disabled={!reportReason || reportSubmitting}
               onPress={handleSubmitReport}
@@ -510,7 +519,11 @@ export default function ListingDetailScreen({ route, navigation }) {
 function ActionButton({ icon, label, colors, backgroundColor, onPress, accessibilityLabel, testID }) {
   return (
     <Pressable
-      style={[styles.actionButton, { backgroundColor: backgroundColor ?? colors.accent }]}
+      style={({ pressed }) => [
+        styles.actionButton,
+        { backgroundColor: backgroundColor ?? colors.accent },
+        pressed && pressedStyle,
+      ]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}

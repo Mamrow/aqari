@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
+import { pressedStyle } from '../theme/press';
 
 const PUBLIC_PAGE_URLS = {
   privacy: 'https://lyaqari.netlify.app/privacy/',
@@ -124,7 +125,11 @@ export default function LegalInfoScreen({ route }) {
 
         <Pressable
           onPress={handleOpenPublicPage}
-          style={[styles.publicLinkButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+          style={({ pressed }) => [
+            styles.publicLinkButton,
+            { borderColor: colors.border, backgroundColor: colors.surface },
+            pressed && pressedStyle,
+          ]}
           accessibilityRole="link"
           accessibilityLabel={t('viewOnlineLabel')}
         >
@@ -147,7 +152,11 @@ export default function LegalInfoScreen({ route }) {
             </View>
             <Pressable
               onPress={handleEmailSupport}
-              style={[styles.contactButton, { backgroundColor: colors.accent }]}
+              style={({ pressed }) => [
+                styles.contactButton,
+                { backgroundColor: colors.accent },
+                pressed && pressedStyle,
+              ]}
               accessibilityRole="button"
               accessibilityLabel={t('supportEmailAction')}
             >

@@ -19,6 +19,7 @@ import PhoneInput, { fromE164, isValidPhone, toE164 } from '../components/PhoneI
 import PasswordInput from '../components/PasswordInput';
 
 const OTP_LENGTH = 6;
+const OTP_PLACEHOLDER = '·'.repeat(OTP_LENGTH);
 
 /**
  * Everything about the account in one place, instead of three inline editors
@@ -215,7 +216,10 @@ export default function PersonalInfoScreen() {
                 maxLength={OTP_LENGTH}
                 autoComplete="sms-otp"
                 textContentType="oneTimeCode"
-                placeholder={t('authOtpPlaceholder')}
+                // Dots, not the words — same reason as AuthModal's code
+                // field: letterSpacing 6 spaces the placeholder text out and
+                // clips it. The FieldLabel right above already names it.
+                placeholder={OTP_PLACEHOLDER}
                 placeholderTextColor={colors.placeholderText}
               />
               <SaveButton

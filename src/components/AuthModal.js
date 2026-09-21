@@ -19,12 +19,23 @@ import { toEnglishDigits } from '../utils/digits';
 import { OTP_CHANNEL } from '../utils/otp';
 import PhoneInput, { DEFAULT_COUNTRY, isValidPhone, toE164 } from './PhoneInput';
 import PasswordInput from './PasswordInput';
+import { pressedStyle } from '../theme/press';
 
 // Codes are 6 digits everywhere Supabase's phone provider is concerned.
 const OTP_LENGTH = 6;
-// Long enough that a slow SMS still lands before the button lights up again,
-// short enough not to feel punitive when the first message never arrives.
-const RESEND_COOLDOWN_SECONDS = 60;
+// Six dots rather than the words "Verification code". The code field is 22pt
+// bold with letterSpacing 6 so the digits land in an even row, and iOS applies
+// that same tracking to placeholder text — the label came out spaced apart and
+// clipped mid-word. The hint line directly above already says what to type, so
+// the placeholder only has to show the shape of what goes in.
+const OTP_PLACEHOLDER = '·'.repeat(OTP_LENGTH);
+// Every resend is a WhatsApp message we pay for, so this is a billing control
+// as much as a UX one: long enough that nobody taps it out of impatience while
+// a message is still in flight, short enough that someone whose code genuinely
+// never arrived isn't stuck. Supabase enforces its own minimum interval per
+// number on top of this — the countdown only stops the request being made, it
+// doesn't decide whether a code goes out.
+const RESEND_COOLDOWN_SECONDS = 180;
 
 // Three flows, and the two that involve a code have a second screen. Keeping
 // them in one enum rather than a pile of booleans is what makes the "which
@@ -139,6 +150,12 @@ export default function AuthModal() {
     }
     if (message.includes('For security purposes') || message.includes('rate limit')) {
       return t('authErrorRateLimit');
+    }
+    // Leaked-password protection (Authentication → Password security) checks
+    // the chosen password against HaveIBeenPwned and rejects a match. Without
+    // this branch an Arabic user gets Supabase's English sentence verbatim.
+    if (message.includes('known to be weak') || message.includes('pwned')) {
+      return t('authErrorWeakPassword');
     }
     if (message === 'NO_PROFILE') return t('authErrorNoProfile');
     return message || t('authErrorGeneric');
@@ -270,7 +287,11 @@ export default function AuthModal() {
             <Pressable
               onPress={handleClose}
               hitSlop={10}
-              style={[styles.closeButton, isRTL ? styles.closeButtonRTL : styles.closeButtonLTR]}
+              style={({ pressed }) => [
+                styles.closeButton,
+                isRTL ? styles.closeButtonRTL : styles.closeButtonLTR,
+                pressed && pressedStyle,
+              ]}
               accessibilityRole="button"
               accessibilityLabel={t('close')}
             >
@@ -405,7 +426,7 @@ export default function AuthModal() {
                     styles.codeInput,
                     { borderColor: colors.inputBorder, color: colors.text },
                   ]}
-                  placeholder={t('authOtpPlaceholder')}
+                  placeholder={OTP_PLACEHOLDER}
                   placeholderTextColor={colors.placeholderText}
                   keyboardType="number-pad"
                   maxLength={OTP_LENGTH}
@@ -445,7 +466,7 @@ export default function AuthModal() {
                 <Pressable
                   onPress={handleResend}
                   disabled={cooldown > 0 || submitting}
-                  style={styles.resendRow}
+                  style={({ pressed }) => [styles.resendRow, pressed && pressedStyle]}
                   hitSlop={8}
                 >
                   <Text
@@ -463,7 +484,12 @@ export default function AuthModal() {
             )}
 
             {step === STEPS.SIGN_IN && (
-              <Pressable onPress={() => goToStep(STEPS.RESET_PHONE)} style={styles.forgotRow} hitSlop={8}>
+              <Pressable
+                onPress={() => goToStep(STEPS.RESET_PHONE)}
+                hitSlop={8}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.forgotRow, pressed && pressedStyle]}
+              >
                 <Text style={[styles.linkText, { color: colors.accent }]}>
                   {t('forgotPasswordLink')}
                 </Text>
@@ -471,9 +497,10 @@ export default function AuthModal() {
             )}
 
             <Pressable
-              style={[
+              style={({ pressed }) => [
                 styles.submitButton,
                 { backgroundColor: canSubmit ? colors.accent : colors.disabled },
+                pressed && pressedStyle,
               ]}
               onPress={handleSubmit}
               disabled={!canSubmit || submitting}
@@ -493,26 +520,52 @@ export default function AuthModal() {
                 It opens the published Terms page rather than the in-app
                 screen: this modal lives outside the navigator (see App.js),
                 so it has no way to push a route. */}
+            {/* A row of two elements rather than one Text with a nested
+                pressable Text. Nested-Text presses draw their highlight from
+                the parent's layout box, which under RTL lands beside the
+                words instead of on them — visible as a grey rectangle to the
+                left of the link. A real Pressable carries its own box, so the
+                feedback sits exactly where the words are, in both
+                directions. */}
             {step === STEPS.SIGN_UP && (
-              <Text style={[styles.termsText, { color: colors.textMuted }]}>
-                {t('authTermsPrefix')}{' '}
-                <Text
-                  style={[styles.termsLink, { color: colors.accent }]}
+              <View style={styles.termsRow}>
+                <Text style={[styles.termsText, { color: colors.textMuted }]}>
+                  {t('authTermsPrefix')}{' '}
+                </Text>
+                <Pressable
                   onPress={() =>
                     Linking.openURL('https://lyaqari.netlify.app/terms/').catch((error) =>
                       console.warn('Could not open the terms page', error)
                     )
                   }
+                  hitSlop={6}
                   accessibilityRole="link"
+                  style={({ pressed }) => pressed && pressedStyle}
                 >
-                  {t('authTermsLink')}
-                </Text>
-              </Text>
+                  <Text style={[styles.termsText, styles.termsLink, { color: colors.accent }]}>
+                    {t('authTermsLink')}
+                  </Text>
+                </Pressable>
+              </View>
             )}
 
             {/* Anything past the first screen gets a way back that doesn't
-                mean "close the modal and lose what I typed". */}
-            <Pressable onPress={() => (showTabs ? handleClose() : goToStep(STEPS.SIGN_IN))}>
+                mean "close the modal and lose what I typed". Styled as an
+                outlined button the same size as the submit button above it:
+                as a bare line of red text it read as a warning label rather
+                than something to tap. */}
+            <Pressable
+              onPress={() => (showTabs ? handleClose() : goToStep(STEPS.SIGN_IN))}
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.cancelButton,
+                // The theme's `border` is #eeeeee — invisible against the
+                // card. Outlining it in the same red as its label is what
+                // makes it read as a button at a glance.
+                { borderColor: colors.danger },
+                pressed && pressedStyle,
+              ]}
+            >
               <Text style={[styles.cancelText, { color: colors.danger }]}>
                 {showTabs ? t('authCancel') : t('authBack')}
               </Text>
@@ -530,7 +583,15 @@ function MismatchNote({ colors, text }) {
 
 function Tab({ label, active, colors, onPress }) {
   return (
-    <Pressable style={[styles.tab, active && { backgroundColor: colors.accent }]} onPress={onPress}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.tab,
+        active && { backgroundColor: colors.accent },
+        pressed && pressedStyle,
+      ]}
+    >
       <Text style={[styles.tabText, { color: active ? colors.accentText : colors.accent }]}>
         {label}
       </Text>
@@ -653,15 +714,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 15,
   },
+  cancelButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
   cancelText: {
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  // flexDirection row mirrors itself under RTL, so the prefix and the link
+  // stay in reading order in both languages without a branch. flexWrap is
+  // there for the longer Arabic sentence on a narrow phone.
+  termsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+    // Clear of the Cancel button below, which has no margin of its own.
+    marginBottom: 16,
   },
   termsText: {
-    textAlign: 'center',
     fontSize: 12,
     lineHeight: 18,
-    marginTop: 12,
   },
   termsLink: {
     fontWeight: '700',

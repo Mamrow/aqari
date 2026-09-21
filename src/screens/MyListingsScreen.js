@@ -12,6 +12,7 @@ import { dayWord } from '../i18n/pluralDays';
 import { useThemeColors } from '../theme/useThemeColors';
 import { friendlyErrorMessage } from '../utils/friendlyError';
 import StatusScreen from '../components/StatusScreen';
+import { pressedStyle } from '../theme/press';
 
 // Only the last day gets a banner — a 30-day-out countdown nagging on every
 // approved listing was more noise than signal.
@@ -202,7 +203,11 @@ export default function MyListingsScreen({ navigation }) {
                                 </Text>
                               </View>
                               <Pressable
-                                style={[styles.markAvailableButton, { borderColor: colors.accent }]}
+                                style={({ pressed }) => [
+                                  styles.markAvailableButton,
+                                  { borderColor: colors.accent },
+                                  pressed && pressedStyle,
+                                ]}
                                 onPress={() => handleMarkAvailable(item)}
                               >
                                 <Text style={[styles.markAvailableButtonText, { color: colors.accent }]}>
@@ -227,7 +232,11 @@ export default function MyListingsScreen({ navigation }) {
                                           .replace('{daysWord}', dayWord(daysLeft, language))}
                                   </Text>
                                   <Pressable
-                                    style={[styles.renewButton, { backgroundColor: colors.accent }]}
+                                    style={({ pressed }) => [
+                                      styles.renewButton,
+                                      { backgroundColor: colors.accent },
+                                      pressed && pressedStyle,
+                                    ]}
                                     onPress={() => handleRenew(item)}
                                   >
                                     <Text style={[styles.renewButtonText, { color: colors.accentText }]}>
@@ -237,7 +246,11 @@ export default function MyListingsScreen({ navigation }) {
                                 </View>
                               )}
                               <Pressable
-                                style={[styles.markSoldButton, { borderColor: colors.inputBorder }]}
+                                style={({ pressed }) => [
+                                  styles.markSoldButton,
+                                  { borderColor: colors.inputBorder },
+                                  pressed && pressedStyle,
+                                ]}
                                 onPress={() => handleMarkSold(item)}
                               >
                                 <Text style={[styles.markSoldButtonText, { color: colors.textMuted }]}>
@@ -261,7 +274,11 @@ export default function MyListingsScreen({ navigation }) {
       )}
 
       <Pressable
-        style={[styles.addButton, { backgroundColor: colors.accent }]}
+        style={({ pressed }) => [
+          styles.addButton,
+          { backgroundColor: colors.accent },
+          pressed && pressedStyle,
+        ]}
         onPress={() => requireAuth(() => navigation.navigate('AddListing'))}
       >
         <Text style={[styles.addButtonText, { color: colors.accentText }]}>

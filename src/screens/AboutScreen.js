@@ -5,6 +5,7 @@ import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import appConfig from '../../app.json';
+import { pressedStyle } from '../theme/press';
 
 // The accounts don't exist yet. They're real buttons rather than nothing at
 // all so the row's spacing is settled now, and turning one on later is a
@@ -117,6 +118,7 @@ export default function AboutScreen({ navigation }) {
 
         <View style={[styles.legalRow, { borderTopColor: colors.border }]}>
           <Pressable
+            style={({ pressed }) => pressed && pressedStyle}
             onPress={() => navigation.navigate('PrivacyPolicy')}
             hitSlop={8}
             accessibilityRole="button"
@@ -125,6 +127,7 @@ export default function AboutScreen({ navigation }) {
           </Pressable>
           <Text style={[styles.legalSeparator, { color: colors.border }]}>|</Text>
           <Pressable
+            style={({ pressed }) => pressed && pressedStyle}
             onPress={() => navigation.navigate('TermsOfService')}
             hitSlop={8}
             accessibilityRole="button"

@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
+import { pressedStyle } from '../theme/press';
 
 export default function SearchBar({ value, onChangeText, placeholder, colors, style, testID }) {
   const t = useT();
@@ -36,6 +37,7 @@ export default function SearchBar({ value, onChangeText, placeholder, colors, st
       />
       {value.length > 0 && (
         <Pressable
+          style={({ pressed }) => pressed && pressedStyle}
           onPress={() => onChangeText('')}
           hitSlop={12}
           accessibilityRole="button"

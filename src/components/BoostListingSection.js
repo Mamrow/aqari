@@ -13,6 +13,7 @@ import EdfaliLogo from '../../assets/edfali.svg';
 import MoamalatLogo from '../../assets/moamalat.svg';
 import SadadLogo from '../../assets/sadad.svg';
 import MasrefyPayLogo from '../../assets/masrefypay.svg';
+import { pressedStyle } from '../theme/press';
 
 const DURATIONS = [3, 7, 14];
 // Display only — create-boost-payment looks up the real price server-side
@@ -191,7 +192,11 @@ export default function BoostListingSection({ listing, colors }) {
             </Text>
           </View>
           <Pressable
-            style={[styles.renewChip, { borderColor: FEATURED_GOLD }]}
+            style={({ pressed }) => [
+              styles.renewChip,
+              { borderColor: FEATURED_GOLD },
+              pressed && pressedStyle,
+            ]}
             onPress={() => setModalVisible(true)}
           >
             <Text style={[styles.renewChipText, { color: FEATURED_GOLD }]}>
@@ -201,7 +206,11 @@ export default function BoostListingSection({ listing, colors }) {
         </View>
       ) : (
         <Pressable
-          style={[styles.requestButton, { backgroundColor: FEATURED_GOLD }]}
+          style={({ pressed }) => [
+            styles.requestButton,
+            { backgroundColor: FEATURED_GOLD },
+            pressed && pressedStyle,
+          ]}
           onPress={() => setModalVisible(true)}
         >
           <Ionicons name="star" size={16} color="#fff" />
@@ -277,10 +286,11 @@ export default function BoostListingSection({ listing, colors }) {
                       <Pressable
                         key={days}
                         onPress={() => setDuration(days)}
-                        style={[
+                        style={({ pressed }) => [
                           styles.optionChip,
                           { borderColor: colors.accent },
                           duration === days && { backgroundColor: colors.accent },
+                          pressed && pressedStyle,
                         ]}
                       >
                         <Text
@@ -298,10 +308,11 @@ export default function BoostListingSection({ listing, colors }) {
                     ))}
                   </View>
                   <Pressable
-                    style={[
+                    style={({ pressed }) => [
                       styles.nextButton,
                       { backgroundColor: colors.accent },
                       !duration && styles.disabledButton,
+                      pressed && pressedStyle,
                     ]}
                     disabled={!duration}
                     onPress={() => setStep('gateway')}
@@ -326,10 +337,11 @@ export default function BoostListingSection({ listing, colors }) {
                         <Pressable
                           key={method}
                           onPress={() => setGateway(method)}
-                          style={[
+                          style={({ pressed }) => [
                             styles.gatewayRow,
                             { borderColor: active ? colors.accent : colors.inputBorder },
                             active && { backgroundColor: `${colors.accent}15` },
+                            pressed && pressedStyle,
                           ]}
                         >
                           <View style={styles.gatewayLogoBox}>
@@ -346,10 +358,11 @@ export default function BoostListingSection({ listing, colors }) {
                     })}
                   </View>
                   <Pressable
-                    style={[
+                    style={({ pressed }) => [
                       styles.nextButton,
                       { backgroundColor: colors.accent },
                       !gateway && styles.disabledButton,
+                      pressed && pressedStyle,
                     ]}
                     disabled={!gateway}
                     onPress={() => setStep(gateway === 'moamalat' ? 'review' : 'details')}
@@ -410,10 +423,11 @@ export default function BoostListingSection({ listing, colors }) {
                     </>
                   )}
                   <Pressable
-                    style={[
+                    style={({ pressed }) => [
                       styles.nextButton,
                       { backgroundColor: colors.accent },
                       !detailsValid && styles.disabledButton,
+                      pressed && pressedStyle,
                     ]}
                     disabled={!detailsValid}
                     onPress={() => setStep('review')}
@@ -485,7 +499,11 @@ export default function BoostListingSection({ listing, colors }) {
                     </View>
                   </View>
                   <Pressable
-                    style={[styles.payButton, { backgroundColor: FEATURED_GOLD }]}
+                    style={({ pressed }) => [
+                      styles.payButton,
+                      { backgroundColor: FEATURED_GOLD },
+                      pressed && pressedStyle,
+                    ]}
                     onPress={handleOpenSession}
                   >
                     <Ionicons name="lock-closed" size={15} color="#fff" />
@@ -528,10 +546,11 @@ export default function BoostListingSection({ listing, colors }) {
                     onChangeText={(text) => setOtp(toEnglishDigits(text))}
                   />
                   <Pressable
-                    style={[
+                    style={({ pressed }) => [
                       styles.payButton,
                       { backgroundColor: FEATURED_GOLD },
                       !otp.trim() && styles.disabledButton,
+                      pressed && pressedStyle,
                     ]}
                     disabled={!otp.trim()}
                     onPress={handleVerify}

@@ -2,6 +2,7 @@ import { Component } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { reportError } from '../lib/crashReporting';
+import { pressedStyle } from '../theme/press';
 
 // Catches any render-time crash below it (a bad API response shaped
 // unexpectedly, a null where a listing was assumed to exist, etc.) and
@@ -40,7 +41,10 @@ export default class ErrorBoundary extends Component {
             Sorry about that — please try again. If it keeps happening, restarting the app usually
             helps.
           </Text>
-          <Pressable style={styles.button} onPress={this.handleReset}>
+          <Pressable
+            style={({ pressed }) => [styles.button, pressed && pressedStyle]}
+            onPress={this.handleReset}
+          >
             <Text style={styles.buttonText}>Try again</Text>
           </Pressable>
         </View>

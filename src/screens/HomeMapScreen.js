@@ -45,6 +45,7 @@ import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { FEATURED_GOLD } from '../theme/colors';
 import { BOOST_PURCHASES_ENABLED } from '../config/features';
+import { pressedStyle } from '../theme/press';
 
 const FEATURED_CARD_WIDTH = 160;
 const FEATURED_CARD_GAP = 12;
@@ -126,7 +127,11 @@ function OptionRow({ label, active, colors, filterAccent, onPress }) {
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
-      style={[styles.pickerOption, active && { backgroundColor: `${filterAccent}22` }]}
+      style={({ pressed }) => [
+        styles.pickerOption,
+        active && { backgroundColor: `${filterAccent}22` },
+        pressed && pressedStyle,
+      ]}
     >
       <Text
         style={[
@@ -180,7 +185,11 @@ function ModalCloseButton({ onPress, colors, label, isRTL }) {
     <Pressable
       onPress={onPress}
       hitSlop={10}
-      style={[styles.pickerModalCloseButton, isRTL ? styles.pickerModalCloseButtonRTL : styles.pickerModalCloseButtonLTR]}
+      style={({ pressed }) => [
+        styles.pickerModalCloseButton,
+        isRTL ? styles.pickerModalCloseButtonRTL : styles.pickerModalCloseButtonLTR,
+        pressed && pressedStyle,
+      ]}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
@@ -265,7 +274,11 @@ function PriceRangeSection({ minPrice, maxPrice, range, onApply, onDragStart, on
         </View>
         <View style={styles.priceButtonRow}>
           <Pressable
-            style={[styles.priceClearButton, { borderColor: colors.inputBorder }]}
+            style={({ pressed }) => [
+              styles.priceClearButton,
+              { borderColor: colors.inputBorder },
+              pressed && pressedStyle,
+            ]}
             onPress={() => {
               setDraftMin(range.min);
               setDraftMax(range.max);
@@ -276,7 +289,11 @@ function PriceRangeSection({ minPrice, maxPrice, range, onApply, onDragStart, on
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
+            style={({ pressed }) => [
+              styles.priceApplyButton,
+              { backgroundColor: colors.accent },
+              pressed && pressedStyle,
+            ]}
             // onApply is what closes this page — there is no onClose here.
             // The modal this section was extracted from had one, and the
             // leftover call to it was a ReferenceError: undefined identifier,
@@ -868,6 +885,7 @@ export default function HomeMapScreen({ navigation }) {
                   {t('mapNoListingsHere')}
                 </Text>
                 <Pressable
+                  style={({ pressed }) => pressed && pressedStyle}
                   onPress={showAllOnMap}
                   hitSlop={8}
                   accessibilityRole="button"
@@ -971,7 +989,11 @@ export default function HomeMapScreen({ navigation }) {
             return (
               <Pressable
                 key={type}
-                style={[styles.segment, active && { backgroundColor: colors.accent }]}
+                style={({ pressed }) => [
+                  styles.segment,
+                  active && { backgroundColor: colors.accent },
+                  pressed && pressedStyle,
+                ]}
                 onPress={() => handleListingTypeChange(type)}
                 accessibilityRole="tab"
                 accessibilityLabel={t(LISTING_TYPE_LABEL_KEYS[type])}
@@ -1090,7 +1112,7 @@ export default function HomeMapScreen({ navigation }) {
                   <Pressable
                     onPress={goBackInSheet}
                     hitSlop={10}
-                    style={styles.pickerModalBackButton}
+                    style={({ pressed }) => [styles.pickerModalBackButton, pressed && pressedStyle]}
                     accessibilityRole="button"
                     accessibilityLabel={t('back')}
                   >
@@ -1301,7 +1323,11 @@ export default function HomeMapScreen({ navigation }) {
               {sheetPage === 'menu' ? (
                 <View style={styles.filterSheetFooter}>
                   <Pressable
-                    style={[styles.priceClearButton, { borderColor: colors.inputBorder }]}
+                    style={({ pressed }) => [
+                      styles.priceClearButton,
+                      { borderColor: colors.inputBorder },
+                      pressed && pressedStyle,
+                    ]}
                     onPress={clearAllFilters}
                     disabled={activeFilterCount === 0}
                   >
@@ -1315,7 +1341,11 @@ export default function HomeMapScreen({ navigation }) {
                     </Text>
                   </Pressable>
                   <Pressable
-                    style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
+                    style={({ pressed }) => [
+                      styles.priceApplyButton,
+                      { backgroundColor: colors.accent },
+                      pressed && pressedStyle,
+                    ]}
                     onPress={closeFilterSheet}
                   >
                     <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
@@ -1329,7 +1359,11 @@ export default function HomeMapScreen({ navigation }) {
                 sheetPage !== 'price' && (
                   <View style={styles.filterSheetFooter}>
                     <Pressable
-                      style={[styles.priceApplyButton, { backgroundColor: colors.accent }]}
+                      style={({ pressed }) => [
+                        styles.priceApplyButton,
+                        { backgroundColor: colors.accent },
+                        pressed && pressedStyle,
+                      ]}
                       onPress={() => setSheetPage('menu')}
                     >
                       <Text style={[styles.priceApplyButtonText, { color: colors.accentText }]}>
@@ -1391,7 +1425,10 @@ export default function HomeMapScreen({ navigation }) {
             normalizeFeaturedScroll(event.nativeEvent.contentOffset.x);
           }}
           renderItem={({ item }) => (
-            <Pressable style={styles.featuredMiniCard} onPress={() => openDetail(item.id)}>
+            <Pressable
+              style={({ pressed }) => [styles.featuredMiniCard, pressed && pressedStyle]}
+              onPress={() => openDetail(item.id)}
+            >
               <Animated.View
                 style={[
                   styles.featuredMiniCardInner,
@@ -1418,7 +1455,7 @@ export default function HomeMapScreen({ navigation }) {
 
       <View style={styles.fab}>
       <Pressable
-        style={styles.fabInner}
+        style={({ pressed }) => [styles.fabInner, pressed && pressedStyle]}
         onPress={toggleViewMode}
         accessibilityRole="button"
         accessibilityLabel={viewMode === 'map' ? t('showList') : t('showMap')}

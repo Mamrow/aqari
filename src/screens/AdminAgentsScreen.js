@@ -8,6 +8,7 @@ import { callAgent } from '../utils/contactActions';
 import LoadingView from '../components/LoadingView';
 import StatusScreen from '../components/StatusScreen';
 import { friendlyErrorMessage } from '../utils/friendlyError';
+import { pressedStyle } from '../theme/press';
 
 export default function AdminAgentsScreen({ navigation }) {
   const { agents, removeAgent, setAgentVerified, agentsLoading, dataErrors, fetchAgents, language } =
@@ -72,7 +73,7 @@ export default function AdminAgentsScreen({ navigation }) {
       renderItem={({ item }) => (
         <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Pressable
-            style={styles.info}
+            style={({ pressed }) => [styles.info, pressed && pressedStyle]}
             onPress={() => navigation.navigate('AdminSellerListings', { phone: item.phone, name: item.name })}
           >
             <View style={styles.nameRow}>
@@ -86,7 +87,11 @@ export default function AdminAgentsScreen({ navigation }) {
             <Text style={[styles.phone, rtlText, { color: colors.textMuted }]}>{item.phone}</Text>
           </Pressable>
           <Pressable
-            style={[styles.iconButton, { borderColor: colors.accent }]}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { borderColor: colors.accent },
+              pressed && pressedStyle,
+            ]}
             onPress={async () => {
               try {
                 await setAgentVerified(item.phone, !item.verified);
@@ -107,7 +112,11 @@ export default function AdminAgentsScreen({ navigation }) {
             />
           </Pressable>
           <Pressable
-            style={[styles.iconButton, { borderColor: colors.border }]}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { borderColor: colors.border },
+              pressed && pressedStyle,
+            ]}
             onPress={() => callAgent(item.phone)}
             accessibilityRole="button"
             accessibilityLabel={t('a11yCallSellerNamed').replace('{name}', item.name)}
@@ -116,7 +125,11 @@ export default function AdminAgentsScreen({ navigation }) {
             <Ionicons name="call" size={18} color={colors.accent} />
           </Pressable>
           <Pressable
-            style={[styles.iconButton, { borderColor: colors.danger }]}
+            style={({ pressed }) => [
+              styles.iconButton,
+              { borderColor: colors.danger },
+              pressed && pressedStyle,
+            ]}
             onPress={() => handleRemove(item)}
             accessibilityRole="button"
             accessibilityLabel={t('a11yRemoveSeller')}

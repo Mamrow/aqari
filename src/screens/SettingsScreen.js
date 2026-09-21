@@ -20,6 +20,7 @@ import Avatar from '../components/Avatar';
 import { uploadAvatarImage } from '../utils/uploadImage';
 import appConfig from '../../app.json';
 import { BOOST_PURCHASES_ENABLED } from '../config/features';
+import { pressedStyle } from '../theme/press';
 
 export default function SettingsScreen({ navigation }) {
   const {
@@ -209,7 +210,7 @@ export default function SettingsScreen({ navigation }) {
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Pressable
             onPress={() => setShowDeleteAccount(false)}
-            style={styles.backRow}
+            style={({ pressed }) => [styles.backRow, pressed && pressedStyle]}
             hitSlop={8}
             disabled={deletingAccount}
           >
@@ -223,7 +224,12 @@ export default function SettingsScreen({ navigation }) {
           </Text>
 
           <Pressable
-            style={[styles.card, styles.deleteConfirmButton, { backgroundColor: colors.danger }]}
+            style={({ pressed }) => [
+              styles.card,
+              styles.deleteConfirmButton,
+              { backgroundColor: colors.danger },
+              pressed && pressedStyle,
+            ]}
             onPress={handleDeleteAccount}
             disabled={deletingAccount}
           >
@@ -251,7 +257,10 @@ export default function SettingsScreen({ navigation }) {
             which pushed the account's own name below the fold. */}
         {auth.loggedIn && (
         <View style={styles.profileHeader}>
-          <Pressable onPress={handlePickAvatar} style={styles.avatarWrapper}>
+          <Pressable
+            onPress={handlePickAvatar}
+            style={({ pressed }) => [styles.avatarWrapper, pressed && pressedStyle]}
+          >
             <Avatar uri={auth.avatarUrl} name={auth.name} size={64} colors={colors} />
             <View
               style={[styles.editBadge, { backgroundColor: colors.accent, borderColor: colors.background }]}
@@ -406,7 +415,7 @@ export default function SettingsScreen({ navigation }) {
           {auth.loggedIn && alertsOpen && (
             <View style={styles.expanded}>
               <Pressable
-                style={styles.switchRow}
+                style={({ pressed }) => [styles.switchRow, pressed && pressedStyle]}
                 onPress={() =>
                   updateNotificationPrefs({ notifyNewListings: !auth.notifyNewListings })
                 }

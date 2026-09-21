@@ -10,6 +10,7 @@ import { STATUS_LABEL_KEYS, getStatusColor } from '../data/listingStatus';
 import { isVideoUrl } from '../utils/media';
 import SkeletonImage from './SkeletonImage';
 import { BOOST_PURCHASES_ENABLED } from '../config/features';
+import { pressedStyle } from '../theme/press';
 
 // The flashing/pulsing treatment for Featured lives only in the map view's
 // bottom carousel (HomeMapScreen.js's own Animated mini-cards) — everywhere
@@ -76,7 +77,11 @@ export default function ListingCard({
         )}
         <View style={[styles.contentRow, { direction: isRTL ? 'rtl' : 'ltr' }]}>
           <Pressable
-            style={[styles.body, { direction: isRTL ? 'rtl' : 'ltr' }]}
+            style={({ pressed }) => [
+              styles.body,
+              { direction: isRTL ? 'rtl' : 'ltr' },
+              pressed && pressedStyle,
+            ]}
             onPress={onPress}
             disabled={!onPress}
             accessibilityRole={onPress ? 'button' : undefined}
@@ -161,7 +166,7 @@ export default function ListingCard({
           {showSaveButton && (
             <Pressable
               onPress={() => toggleSave(listing.id)}
-              style={styles.saveButton}
+              style={({ pressed }) => [styles.saveButton, pressed && pressedStyle]}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={isSaved ? t('a11yUnsaveListing') : t('a11ySaveListing')}
@@ -178,7 +183,7 @@ export default function ListingCard({
           {onDelete && (
             <Pressable
               onPress={onDelete}
-              style={styles.saveButton}
+              style={({ pressed }) => [styles.saveButton, pressed && pressedStyle]}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={t('a11yDeleteListing')}

@@ -4,6 +4,7 @@ import { useAppContext } from '../context/AppContext';
 import PlaceholderScreen from '../components/PlaceholderScreen';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
+import { pressedStyle } from '../theme/press';
 
 // Reached from Settings. Names come from the same registered-sellers
 // directory (agents) ListingDetailScreen/AdminAgentsScreen use — a blocked
@@ -44,7 +45,11 @@ export default function BlockedSellersScreen() {
               )}
             </View>
             <Pressable
-              style={[styles.iconButton, { borderColor: colors.accent }]}
+              style={({ pressed }) => [
+                styles.iconButton,
+                { borderColor: colors.accent },
+                pressed && pressedStyle,
+              ]}
               onPress={() => unblockSeller(phone)}
               accessibilityRole="button"
               accessibilityLabel={t('a11yUnblockSeller')}

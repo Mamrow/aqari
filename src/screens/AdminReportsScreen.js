@@ -9,6 +9,7 @@ import { callAgent } from '../utils/contactActions';
 import LoadingView from '../components/LoadingView';
 import StatusScreen from '../components/StatusScreen';
 import { friendlyErrorMessage } from '../utils/friendlyError';
+import { pressedStyle } from '../theme/press';
 
 // Open reports first (need triage), then reviewed/dismissed trailing behind
 // in their existing chronological order — same "most-actionable first"
@@ -87,7 +88,11 @@ export default function AdminReportsScreen({ navigation }) {
         <Pressable
           disabled={!item.listingId}
           onPress={() => navigation.navigate('ListingDetail', { listingId: item.listingId })}
-          style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          style={({ pressed }) => [
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+            pressed && pressedStyle,
+          ]}
         >
           <View style={styles.headerRow}>
             <Text style={[styles.listingTitle, rtlText, { color: colors.text }]} numberOfLines={1}>
@@ -110,7 +115,11 @@ export default function AdminReportsScreen({ navigation }) {
           <View style={styles.actions}>
             {item.listingAgentPhone && (
               <Pressable
-                style={[styles.iconButton, { borderColor: colors.border }]}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  { borderColor: colors.border },
+                  pressed && pressedStyle,
+                ]}
                 onPress={() => callAgent(item.listingAgentPhone)}
               >
                 <Ionicons name="call" size={16} color={colors.accent} />
@@ -119,7 +128,11 @@ export default function AdminReportsScreen({ navigation }) {
             )}
             {item.status !== 'reviewed' && (
               <Pressable
-                style={[styles.iconButton, { borderColor: colors.accent }]}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  { borderColor: colors.accent },
+                  pressed && pressedStyle,
+                ]}
                 onPress={async () => {
                   try {
                     await updateReportStatus(item.id, 'reviewed');
@@ -136,7 +149,11 @@ export default function AdminReportsScreen({ navigation }) {
             )}
             {item.status !== 'dismissed' && (
               <Pressable
-                style={[styles.iconButton, { borderColor: colors.textMuted }]}
+                style={({ pressed }) => [
+                  styles.iconButton,
+                  { borderColor: colors.textMuted },
+                  pressed && pressedStyle,
+                ]}
                 onPress={async () => {
                   try {
                     await updateReportStatus(item.id, 'dismissed');
@@ -152,7 +169,11 @@ export default function AdminReportsScreen({ navigation }) {
               </Pressable>
             )}
             <Pressable
-              style={[styles.iconButton, { borderColor: colors.danger }]}
+              style={({ pressed }) => [
+                styles.iconButton,
+                { borderColor: colors.danger },
+                pressed && pressedStyle,
+              ]}
               onPress={() => handleDelete(item)}
             >
               <Ionicons name="trash" size={16} color={colors.danger} />

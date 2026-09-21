@@ -13,6 +13,7 @@ import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { WHATSAPP_GREEN } from '../theme/colors';
 import { callAgent, whatsappAgent } from '../utils/contactActions';
+import { pressedStyle } from '../theme/press';
 
 export default function AdminApprovalsScreen({ navigation }) {
   const {
@@ -95,7 +96,11 @@ export default function AdminApprovalsScreen({ navigation }) {
       <Text style={[styles.heading, rtlText, { color: colors.heading }]}>{t('adminHeading')}</Text>
 
       <Pressable
-        style={[styles.agentsLink, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        style={({ pressed }) => [
+          styles.agentsLink,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+          pressed && pressedStyle,
+        ]}
         onPress={() => navigation.navigate('AdminAgents')}
       >
         <Text style={[styles.agentsLinkText, { color: colors.text }]}>
@@ -111,7 +116,11 @@ export default function AdminApprovalsScreen({ navigation }) {
       {/* Open count, not total — a screen full of already-resolved reports
           isn't what needs surfacing here at a glance. */}
       <Pressable
-        style={[styles.agentsLink, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        style={({ pressed }) => [
+          styles.agentsLink,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+          pressed && pressedStyle,
+        ]}
         onPress={() => navigation.navigate('AdminReports')}
       >
         <Text style={[styles.agentsLinkText, { color: colors.text }]}>
@@ -169,7 +178,11 @@ export default function AdminApprovalsScreen({ navigation }) {
               {item.status === 'pending' && (
                 <View style={styles.actions}>
                   <Pressable
-                    style={[styles.actionButton, { backgroundColor: colors.accent }]}
+                    style={({ pressed }) => [
+                      styles.actionButton,
+                      { backgroundColor: colors.accent },
+                      pressed && pressedStyle,
+                    ]}
                     onPress={async () => {
                       try {
                         await approveListing(item.id);
@@ -184,7 +197,11 @@ export default function AdminApprovalsScreen({ navigation }) {
                     </Text>
                   </Pressable>
                   <Pressable
-                    style={[styles.actionButton, { backgroundColor: colors.danger }]}
+                    style={({ pressed }) => [
+                      styles.actionButton,
+                      { backgroundColor: colors.danger },
+                      pressed && pressedStyle,
+                    ]}
                     onPress={async () => {
                       try {
                         await rejectListing(item.id);
@@ -203,14 +220,22 @@ export default function AdminApprovalsScreen({ navigation }) {
 
               <View style={styles.actions}>
                 <Pressable
-                  style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  style={({ pressed }) => [
+                    styles.iconButton,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    pressed && pressedStyle,
+                  ]}
                   onPress={() => callAgent(item.agentPhone)}
                 >
                   <Ionicons name="call" size={16} color={colors.text} />
                   <Text style={[styles.iconButtonText, { color: colors.text }]}>{t('callButton')}</Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: WHATSAPP_GREEN }]}
+                  style={({ pressed }) => [
+                    styles.iconButton,
+                    { backgroundColor: colors.surface, borderColor: WHATSAPP_GREEN },
+                    pressed && pressedStyle,
+                  ]}
                   onPress={() => handleWhatsapp(item)}
                 >
                   <Ionicons name="logo-whatsapp" size={16} color={WHATSAPP_GREEN} />
@@ -219,7 +244,11 @@ export default function AdminApprovalsScreen({ navigation }) {
                   </Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.danger }]}
+                  style={({ pressed }) => [
+                    styles.iconButton,
+                    { backgroundColor: colors.surface, borderColor: colors.danger },
+                    pressed && pressedStyle,
+                  ]}
                   onPress={() => handleDelete(item)}
                 >
                   <Ionicons name="trash" size={16} color={colors.danger} />
