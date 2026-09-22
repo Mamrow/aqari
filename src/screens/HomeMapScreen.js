@@ -46,6 +46,8 @@ import { useThemeColors } from '../theme/useThemeColors';
 import { FEATURED_GOLD } from '../theme/colors';
 import { BOOST_PURCHASES_ENABLED } from '../config/features';
 import { pressedStyle } from '../theme/press';
+import PermissionPrimer from '../components/PermissionPrimer';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const FEATURED_CARD_WIDTH = 160;
 const FEATURED_CARD_GAP = 12;
@@ -105,6 +107,11 @@ const SORT_LABEL_KEYS = {
 // position when it falls inside this box is what stops the map opening on a
 // user's actual location if they're browsing from genuinely overseas.
 const LIBYA_BOUNDS = { minLat: 19.5, maxLat: 33.2, minLon: 9.3, maxLon: 25.2 };
+
+// Remembers a "not now" on the location explainer, so it's asked once rather
+// than at every launch. Deliberately separate from the OS permission state,
+// which this never touches.
+const LOCATION_PRIMER_DECLINED_KEY = '@aqari/location_primer_declined';
 
 // Shared by every filter modal below (and mirrored in AuthModal) — "end",
 // not "right", so it lands top-right in English and top-left in Arabic on
@@ -342,6 +349,7 @@ export default function HomeMapScreen({ navigation }) {
   // Libya — stays off for denied permission, a fix outside Libya, or before
   // the one-time location effect below has resolved.
   const [showsUserLocation, setShowsUserLocation] = useState(false);
+  const [locationPrimerVisible, setLocationPrimerVisible] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [listingType, setListingType] = useState('sale');
   const [selectedPropertyTypes, setSelectedPropertyTypes] = useState([]);
@@ -761,46 +769,91 @@ export default function HomeMapScreen({ navigation }) {
     return () => loop.stop();
   }, [featuredListings.length, featuredFlashAnim]);
 
+  // Centres the map on the device, once permission actually exists. Split out
+  // of the effect below so the "ask first" path and the "already granted"
+  // path can both reach it.
+  const centerOnDeviceLocation = useCallback(async () => {
+  // Getting a fix can fail even with permission granted — indoors, in a
+  // basement, with location services briefly unavailable. iOS reports
+  // that as kCLErrorDomain error 0, and uncaught it went to Sentry as an
+  // unhandled rejection on ordinary launches. It isn't an error from the
+  // user's point of view: the map just opens on its default area.
+  //
+  // The last known position is the fallback before giving up. It's
+  // usually there, and slightly stale is fine for choosing where the map
+  // opens.
+  let position = null;
+  try {
+    position = await Location.getCurrentPositionAsync({
+      // The default is Balanced (roughly city-block accuracy). Request the
+      // best available fix so the native user-location marker and initial
+      // map center use the device's precise GPS position when the OS allows it.
+      accuracy: Location.Accuracy.Highest,
+      mayShowUserSettingsDialog: true,
+    });
+  } catch {
+    position = await Location.getLastKnownPositionAsync().catch(() => null);
+  }
+  if (!position) return;
+  const { latitude, longitude } = position.coords;
+  const isInLibya =
+    latitude >= LIBYA_BOUNDS.minLat &&
+    latitude <= LIBYA_BOUNDS.maxLat &&
+    longitude >= LIBYA_BOUNDS.minLon &&
+    longitude <= LIBYA_BOUNDS.maxLon;
+  // Outside Libya (e.g. browsing from genuinely overseas): keep the
+  // default Tripoli-centered camera instead of zooming to wherever the
+  // device actually is, and don't show the native blue dot either — it
+  // would just be sitting off in another country, out of context.
+  if (!isInLibya) return;
+  setShowsUserLocation(true);
+  mapRef.current?.centerOn(latitude, longitude);
+  }, []);
+
+  // Ask in our own words before the system asks in its.
+  //
+  // This used to call requestForegroundPermissionsAsync() directly from a
+  // mount effect, so the OS dialog appeared the instant the app opened —
+  // before anyone had seen what the app is for. On Android that's expensive
+  // in a way it isn't on iOS: the dialog carries no explanation of ours (the
+  // system writes that copy), and two refusals make the refusal permanent,
+  // with no way back except the system settings screen. A reflexive "Deny"
+  // in the first two seconds costs the feature for good.
+  //
+  // So: ask the OS what it already knows, and only interrupt when a real
+  // answer is still available.
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      // Getting a fix can fail even with permission granted — indoors, in a
-      // basement, with location services briefly unavailable. iOS reports
-      // that as kCLErrorDomain error 0, and uncaught it went to Sentry as an
-      // unhandled rejection on ordinary launches. It isn't an error from the
-      // user's point of view: the map just opens on its default area.
-      //
-      // The last known position is the fallback before giving up. It's
-      // usually there, and slightly stale is fine for choosing where the map
-      // opens.
-      let position = null;
-      try {
-        position = await Location.getCurrentPositionAsync({
-          // The default is Balanced (roughly city-block accuracy). Request the
-          // best available fix so the native user-location marker and initial
-          // map center use the device's precise GPS position when the OS allows it.
-          accuracy: Location.Accuracy.Highest,
-          mayShowUserSettingsDialog: true,
-        });
-      } catch {
-        position = await Location.getLastKnownPositionAsync().catch(() => null);
+      const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
+      // Already granted — nothing to ask, just use it.
+      if (status === 'granted') {
+        centerOnDeviceLocation();
+        return;
       }
-      if (!position) return;
-      const { latitude, longitude } = position.coords;
-      const isInLibya =
-        latitude >= LIBYA_BOUNDS.minLat &&
-        latitude <= LIBYA_BOUNDS.maxLat &&
-        longitude >= LIBYA_BOUNDS.minLon &&
-        longitude <= LIBYA_BOUNDS.maxLon;
-      // Outside Libya (e.g. browsing from genuinely overseas): keep the
-      // default Tripoli-centered camera instead of zooming to wherever the
-      // device actually is, and don't show the native blue dot either — it
-      // would just be sitting off in another country, out of context.
-      if (!isInLibya) return;
-      setShowsUserLocation(true);
-      mapRef.current?.centerOn(latitude, longitude);
+      // Already refused for good. The map opens on its default area and says
+      // nothing about it; a prompt that can't lead anywhere is just nagging.
+      if (!canAskAgain) return;
+      // Asked once and declined: don't ask again on every launch. The primer
+      // is a one-time explanation, not a recurring interruption.
+      const declined = await AsyncStorage.getItem(LOCATION_PRIMER_DECLINED_KEY);
+      if (declined === 'true') return;
+      setLocationPrimerVisible(true);
     })();
+  }, [centerOnDeviceLocation]);
+
+  const handleAllowLocation = useCallback(async () => {
+    setLocationPrimerVisible(false);
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === 'granted') centerOnDeviceLocation();
+  }, [centerOnDeviceLocation]);
+
+  const handleDeclineLocation = useCallback(async () => {
+    setLocationPrimerVisible(false);
+    // Remembered so the next launch doesn't re-open it. Note this never
+    // reaches the OS — the system prompt is untouched and still available
+    // from the device's own settings, so saying "not now" here forecloses
+    // nothing.
+    await AsyncStorage.setItem(LOCATION_PRIMER_DECLINED_KEY, 'true');
   }, []);
 
   const toggleViewMode = useCallback(() => {
@@ -1492,6 +1545,15 @@ export default function HomeMapScreen({ navigation }) {
       </Pressable>
       </View>
 
+      <PermissionPrimer
+        visible={locationPrimerVisible}
+        icon="location-outline"
+        title={t('locationPrimerTitle')}
+        message={t('locationPrimerMessage')}
+        confirmLabel={t('locationPrimerAllow')}
+        onConfirm={handleAllowLocation}
+        onDismiss={handleDeclineLocation}
+      />
     </View>
   );
 }
