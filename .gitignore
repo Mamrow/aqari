@@ -63,3 +63,8 @@ graphify-out/
 .expo-bundle-check/
 
 .env.local
+
+# Google Play service account key — the credential `eas submit --platform
+# android` authenticates with. Real secret, never committed; see
+# docs/android-first-release.md for how to create one.
+play-service-account.json
