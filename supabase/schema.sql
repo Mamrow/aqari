@@ -339,6 +339,27 @@ grant update (
   district, city
 ) on listings to authenticated;
 
+-- A listing has to carry enough media to be worth browsing, and the floor
+-- depends on what is being sold — see migration_listing_min_photos.sql, and
+-- MIN_PHOTOS_BY_PROPERTY_TYPE in src/data/propertyTypes.js, which this must
+-- stay in step with. The app disables its own submit button below the
+-- minimum; this is what stops a direct REST insert ignoring that.
+--
+-- coalesce() because array_length() on an empty array is NULL, and a CHECK
+-- passes on NULL — without it, a listing with no photos at all would sail
+-- through the one constraint written to prevent exactly that.
+alter table listings drop constraint if exists listings_min_photos;
+alter table listings
+  add constraint listings_min_photos check (
+    coalesce(array_length(images, 1), 0) >= case property_type
+      when 'land' then 1
+      when 'office' then 3
+      when 'shop' then 3
+      when 'semi_finished' then 3
+      else 5
+    end
+  );
+
 -- Seller phone numbers are for signed-in accounts only — see
 -- migration_hide_seller_phone_from_anon.sql. RLS hides rows, never fields, so
 -- this is column privileges: revoke SELECT on the table from anon (a

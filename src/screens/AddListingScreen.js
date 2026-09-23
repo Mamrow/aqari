@@ -306,7 +306,13 @@ export default function AddListingScreen({ navigation, route }) {
       }
     } catch (error) {
       console.warn('Listing save failed', error);
-      setSubmitError(friendlyErrorMessage(error, t));
+      // The submit button is disabled below the minimum, so the database's
+      // own listings_min_photos constraint should never fire — but if it
+      // does (a client running against a newer rule than it knows about),
+      // say which rule was broken instead of "something went wrong".
+      setSubmitError(
+        friendlyErrorMessage(error, t, { listings_min_photos: 'photosMinimumErrorMessage' })
+      );
     } finally {
       setSubmitting(false);
     }
