@@ -31,12 +31,14 @@ import {
   AMENITIES,
   AUDIENCE_OPTIONS,
   CHALET_PROPERTY_TYPE,
+  minPhotosForPropertyType,
   LISTING_TYPE_LABEL_KEYS,
   PROPERTY_TYPE_LABEL_KEYS,
   AMENITY_LABEL_KEYS,
   AUDIENCE_LABEL_KEYS,
 } from '../data/propertyTypes';
 import { useT } from '../i18n/useT';
+import { photoWord } from '../i18n/pluralPhotos';
 import { useThemeColors } from '../theme/useThemeColors';
 import PhoneInput, { fromE164, isValidPhone, toE164 } from '../components/PhoneInput';
 import { isRemoteMediaUrl, uploadListingImage, uploadListingVideo } from '../utils/uploadImage';
@@ -52,7 +54,8 @@ const INITIAL_REGION = {
 
 const ROOM_OPTIONS = ['1', '2', '3', '4', '5+'];
 const ROOMS_APPLICABLE_TYPES = ['apartment', 'villa'];
-const MIN_PHOTOS = 5;
+// The floor varies by property type — see MIN_PHOTOS_BY_PROPERTY_TYPE in
+// src/data/propertyTypes.js. The ceiling doesn't.
 const MAX_PHOTOS = 15;
 // A one-word "nice" description shouldn't be enough to publish a listing —
 // 20 chars is low enough not to be annoying, high enough to rule out that.
@@ -180,13 +183,17 @@ export default function AddListingScreen({ navigation, route }) {
     );
   };
 
+  // Recomputed as the property type changes, so switching from Apartment to
+  // Land relaxes the requirement immediately rather than after a reload.
+  const minPhotos = minPhotosForPropertyType(propertyType);
+
   const canSubmit =
     title.trim().length > 0 &&
     Number(price) > 0 &&
     Number(area) > 0 &&
     isValidPhone(agentCountry, agentPhone.trim()) &&
     description.trim().length >= MIN_DESCRIPTION_LENGTH &&
-    images.length >= MIN_PHOTOS &&
+    images.length >= minPhotos &&
     images.length <= MAX_PHOTOS &&
     (!roomsRequired || rooms !== null) &&
     (!isChaletRental || audienceTarget !== null);
@@ -749,14 +756,17 @@ export default function AddListingScreen({ navigation, route }) {
       <RequiredLabel colors={colors} isRTL={isRTL} style={styles.sectionSpacing}>
         {t('photosLabel')}
       </RequiredLabel>
-      {images.length > 0 && (
-        <Text style={[styles.photosHint, rtlText, { color: colors.textMuted }]}>
-          {t('photosCountHint')
-            .replace('{count}', String(images.length))
-            .replace('{min}', String(MIN_PHOTOS))
-            .replace('{max}', String(MAX_PHOTOS))}
-        </Text>
-      )}
+      {/* Shown from zero photos, not just once one has been added: the
+          minimum now depends on the property type, so it's a requirement
+          worth reading before picking photos rather than a running total
+          discovered afterwards. */}
+      <Text style={[styles.photosHint, rtlText, { color: colors.textMuted }]}>
+        {t('photosCountHint')
+          .replace('{count}', String(images.length))
+          .replace('{min}', String(minPhotos))
+          .replace('{unit}', photoWord(minPhotos, language))
+          .replace('{max}', String(MAX_PHOTOS))}
+      </Text>
       <View style={styles.photoRow}>
         {images.map((uri) =>
           isVideoUrl(uri) ? (
