@@ -37,6 +37,7 @@ const PAGE_CONFIG = {
     sections: [
       ['termsOverviewTitle', 'termsOverview'],
       ['termsListingsTitle', 'termsListings'],
+      ['termsContentTitle', 'termsContent'],
       ['termsModerationTitle', 'termsModeration'],
       ['termsContactTitle', 'termsContact'],
       ['termsPrivacyTitle', 'termsPrivacy'],
