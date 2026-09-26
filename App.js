@@ -15,6 +15,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import AuthModal from './src/components/AuthModal';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import OnboardingScreen from './src/components/OnboardingScreen';
+import SplashView from './src/components/SplashView';
 import { LANGUAGE_STORAGE_KEY } from './src/i18n/constants';
 import { lightColors, darkColors } from './src/theme/colors';
 import {
@@ -99,8 +100,14 @@ function AppShell() {
   // Onboarding lives inside AppProvider (it needs theme + translations) but
   // outside NavigationContainer — it's a pre-app gate, not a route, so it
   // shouldn't end up in anyone's back stack.
+  //
+  // Hydration waits on the stored session and, when there is one, a profile
+  // read over the network — so on a slow connection this is seconds, not
+  // milliseconds. Rendering nothing meant the native splash handed over to
+  // an empty blue screen for that whole time. Keep the launch screen up
+  // instead: same image, no seam.
   if (!hydrated) {
-    return null;
+    return <SplashView />;
   }
 
   if (showOnboarding) {
@@ -176,8 +183,11 @@ export default Sentry.wrap(function App() {
     })();
   }, []);
 
+  // Same reasoning as AppShell below — this gate is brief (one AsyncStorage
+  // read) but it is the very first thing after the native splash, so
+  // rendering nothing here is what starts the blue gap.
   if (!ready) {
-    return null;
+    return <SplashView />;
   }
 
   return (
