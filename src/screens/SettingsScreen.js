@@ -535,20 +535,14 @@ export default function SettingsScreen({ navigation }) {
             colors={colors}
             onPress={() => navigation.navigate('Support')}
           />
-          <Row
-            icon="reader-outline"
-            label={t('termsOfServiceRow')}
-            colors={colors}
-            divider
-            onPress={() => navigation.navigate('TermsOfService')}
-          />
-          <Row
-            icon="document-text-outline"
-            label={t('privacyPolicyRow')}
-            colors={colors}
-            divider
-            onPress={() => navigation.navigate('PrivacyPolicy')}
-          />
+          {/* Terms and Privacy policy used to sit here as two more rows.
+              They live under About the app instead, which already links to
+              both in its footer — Settings is for things you change, and a
+              document you read once was pushing the rows that matter
+              (feedback, how it works, rate us) further down the list. Both
+              screens are still registered in SettingsStack and are one tap
+              away; nothing about their reachability for App Review or the
+              store listing changes. */}
           <Row
             icon="sparkles-outline"
             label={t('howItWorksRow')}
