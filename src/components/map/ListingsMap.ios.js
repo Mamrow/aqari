@@ -8,6 +8,7 @@ import { TRIPOLI_MAP_DEFAULT } from '../../data/constants';
 import {
   boundsOfListings,
   CLUSTER_MAX_ZOOM,
+  CLUSTERING_ENABLED,
   longitudeDeltaFromZoom,
   useListingClusters,
   useListingsById,
@@ -163,7 +164,42 @@ const ListingsMap = forwardRef(function ListingsMap(
       showsUserLocation={showsUserLocation}
       userInterfaceStyle={theme}
     >
-      {features.map((feature) => {
+      {/* Markers for every listing, not just the ones inside the viewport —
+          and that is a crash fix, not an oversight.
+
+          `features` is filtered to the current bbox, so zooming in used to
+          unmount every marker that fell outside the new viewport. On iOS
+          react-native-maps (1.20.1) ships no Fabric components at all — no
+          codegenConfig — so each Marker is a legacy view manager wrapped in
+          RCTLegacyViewManagerInteropComponentView, and tearing several of
+          those down inside one mounting transaction crashed the app in
+          -[RCTLegacyViewManagerInteropComponentView finalizeUpdates:] with
+          "object cannot be nil". A tester hit it simply by zooming in
+          (Sentry 7756774873, build 23, iOS 26.6.2).
+
+          Keeping every marker mounted means a zoom is a camera change and
+          nothing else: no mount, no unmount, no transaction to crash in.
+          `features` is still what feeds the visible-count banner below, so
+          "nothing here" keeps working off the real viewport.
+
+          The cost is that marker count now tracks the whole listing table
+          rather than the screen. That is fine at the current volume and is
+          the thing to revisit if it grows — by turning CLUSTERING_ENABLED
+          back on, which bounds the count by design. The clustered path below
+          is untouched and still viewport-driven, since a cluster only means
+          anything relative to what's on screen. */}
+      {!CLUSTERING_ENABLED &&
+        listings.map((listing) => (
+          <Marker
+            key={listing.id}
+            coordinate={{ latitude: listing.latitude, longitude: listing.longitude }}
+            onPress={() => onSelectListing(listing.id)}
+          >
+            <PricePin listing={listing} selected={selectedId === listing.id} colors={colors} />
+          </Marker>
+        ))}
+
+      {CLUSTERING_ENABLED && features.map((feature) => {
         const [longitude, latitude] = feature.geometry.coordinates;
 
         if (feature.properties.cluster) {
