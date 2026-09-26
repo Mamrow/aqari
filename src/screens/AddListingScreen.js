@@ -27,7 +27,7 @@ import { TRIPOLI_CENTER } from '../data/constants';
 import { CITIES, DISTRICTS, PRIORITY_CITY_KEYS } from '../data/districts';
 import {
   LISTING_TYPES,
-  PROPERTY_TYPES,
+  propertyTypesForListingType,
   AMENITIES,
   AUDIENCE_OPTIONS,
   CHALET_PROPERTY_TYPE,
@@ -185,6 +185,17 @@ export default function AddListingScreen({ navigation, route }) {
 
   // Recomputed as the property type changes, so switching from Apartment to
   // Land relaxes the requirement immediately rather than after a reload.
+  // Switching to Rent has to take the property type with it when that type
+  // is sale-only: leaving "semi-finished" selected would submit exactly the
+  // combination the picker no longer offers, and the database now refuses
+  // (migration_no_semi_finished_rentals.sql).
+  const handleListingTypeChange = (type) => {
+    setListingType(type);
+    if (!propertyTypesForListingType(type).includes(propertyType)) {
+      setPropertyType('apartment');
+    }
+  };
+
   const minPhotos = minPhotosForPropertyType(propertyType);
 
   const canSubmit =
@@ -495,7 +506,7 @@ export default function AddListingScreen({ navigation, route }) {
             label={t(LISTING_TYPE_LABEL_KEYS[type])}
             active={listingType === type}
             colors={colors}
-            onPress={() => setListingType(type)}
+            onPress={() => handleListingTypeChange(type)}
           />
         ))}
       </View>
@@ -544,7 +555,7 @@ export default function AddListingScreen({ navigation, route }) {
               {t('propertyTypeLabel')}
             </Text>
             <ScrollView>
-              {PROPERTY_TYPES.map((type) => {
+              {propertyTypesForListingType(listingType).map((type) => {
                 const active = propertyType === type;
                 return (
                   <Pressable

@@ -7,6 +7,21 @@ export const PROPERTY_TYPES = ['apartment', 'villa', 'office', 'land', 'shop', '
 
 export const CHALET_PROPERTY_TYPE = 'chalet';
 
+// Types that only make sense for one purpose.
+//
+// A semi-finished property ("نص تشطيب") is an unfinished building sold as
+// it stands, for the buyer to complete. Nobody rents one — there is nothing
+// to live in yet — so offering it under Rent is offering a category that
+// can never have listings in it, in the filter sheet and the listing form
+// alike. Enforced in the database too, so a direct API insert can't create
+// the combination either (supabase/migration_no_semi_finished_rentals.sql).
+export const SALE_ONLY_PROPERTY_TYPES = ['semi_finished'];
+
+export function propertyTypesForListingType(listingType) {
+  if (listingType === 'sale') return PROPERTY_TYPES;
+  return PROPERTY_TYPES.filter((type) => !SALE_ONLY_PROPERTY_TYPES.includes(type));
+}
+
 // How many photos a listing needs before it can be submitted, per type.
 //
 // One number for everything was 5, which is right for a home and wrong for

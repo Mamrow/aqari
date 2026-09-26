@@ -34,7 +34,7 @@ import MultiSlider from '@ptomasroos/react-native-multi-slider';
 import { CITIES, DISTRICTS, PRIORITY_CITY_KEYS } from '../data/districts';
 import {
   LISTING_TYPES,
-  PROPERTY_TYPES,
+  propertyTypesForListingType,
   AUDIENCE_OPTIONS,
   CHALET_PROPERTY_TYPE,
   LISTING_TYPE_LABEL_KEYS,
@@ -1278,7 +1278,12 @@ export default function HomeMapScreen({ navigation }) {
                 )}
 
                 {sheetPage === 'propertyType' &&
-                  ['all', ...PROPERTY_TYPES].map((type) => {
+                  // Sale-only types are absent under Rent rather than
+                  // greyed out — an option that can never match anything is
+                  // noise, not information. handleListingTypeChange already
+                  // clears the selection when the purpose changes, so there
+                  // is no stale filter left pointing at a hidden type.
+                  ['all', ...propertyTypesForListingType(listingType)].map((type) => {
                     const active =
                       type === 'all'
                         ? selectedPropertyTypes.length === 0

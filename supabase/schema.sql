@@ -360,6 +360,16 @@ alter table listings
     end
   );
 
+-- A semi-finished property ("نص تشطيب") is an unfinished building sold as it
+-- stands — there is nothing to rent yet. The app stops offering the pairing
+-- (propertyTypesForListingType in src/data/propertyTypes.js); this stops a
+-- direct REST insert making one. See migration_no_semi_finished_rentals.sql.
+alter table listings drop constraint if exists listings_semi_finished_is_sale;
+alter table listings
+  add constraint listings_semi_finished_is_sale check (
+    property_type <> 'semi_finished' or listing_type = 'sale'
+  );
+
 -- Seller phone numbers are for signed-in accounts only — see
 -- migration_hide_seller_phone_from_anon.sql. RLS hides rows, never fields, so
 -- this is column privileges: revoke SELECT on the table from anon (a
