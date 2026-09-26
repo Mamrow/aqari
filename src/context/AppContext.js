@@ -107,31 +107,62 @@ export function AppProvider({ children }) {
   // are always derived fresh from the account, never persisted locally
   // themselves, so they can't drift from what's actually true server-side
   // (e.g. an admin-changed role would otherwise show stale on next launch).
+  //
+  // Ordered by what the first frame actually needs. Everything above
+  // setHydrated blocks the launch screen; everything below it arrives while
+  // the app is already usable.
+  //
+  //   * Local preferences (theme, language, onboarding) decide what renders
+  //     at all, and they're three AsyncStorage reads — issued together
+  //     rather than one after another.
+  //   * getSession() is awaited because "is anyone signed in" decides
+  //     between MainTabs and AdminTabs, and it usually resolves from
+  //     encrypted local storage without touching the network.
+  //   * The profiles read is NOT awaited. It's a network round-trip that
+  //     took ~700ms on a good connection in a real trace (Sentry 7756774873)
+  //     and nothing on the first screen depends on it — the map is public.
+  //     Blocking on it is what made launch sit on the splash for seconds on
+  //     a slow link. Name and avatar simply fill in a moment later.
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
-      if (session) {
-        setAuthUid(session.user.id);
-        const { data: profileRow, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('auth_uid', session.user.id)
-          .maybeSingle();
-        if (!error && profileRow) {
-          applyProfile(profileRow);
+      try {
+        const [raw, storedLang, onboardingSeen] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEY),
+          AsyncStorage.getItem(LANGUAGE_STORAGE_KEY),
+          AsyncStorage.getItem(ONBOARDING_SEEN_KEY),
+        ]);
+        if (raw) {
+          const persisted = JSON.parse(raw);
+          setThemePreference(persisted.theme ?? initialState.theme);
         }
+        if (storedLang) setLanguageState(storedLang);
+        setShowOnboarding(onboardingSeen !== 'true');
+
+        const { data } = await supabase.auth.getSession();
+        const session = data.session;
+        if (session) setAuthUid(session.user.id);
+
+        // Render now.
+        setHydrated(true);
+
+        if (session) {
+          const { data: profileRow, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('auth_uid', session.user.id)
+            .maybeSingle();
+          if (!error && profileRow) applyProfile(profileRow);
+        }
+      } catch (error) {
+        // Nothing in here is allowed to strand the app on the launch
+        // screen. A corrupt preferences blob or an unreadable session used
+        // to mean setHydrated never ran and AppShell rendered nothing
+        // forever — survivable when that was a blank screen nobody could
+        // distinguish from loading, and now a splash that never leaves.
+        console.warn('hydrate failed, continuing with defaults', error);
+        reportError(error, { screen: 'hydrate' });
+        setHydrated(true);
       }
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const persisted = JSON.parse(raw);
-        setThemePreference(persisted.theme ?? initialState.theme);
-      }
-      const storedLang = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
-      if (storedLang) setLanguageState(storedLang);
-      const onboardingSeen = await AsyncStorage.getItem(ONBOARDING_SEEN_KEY);
-      setShowOnboarding(onboardingSeen !== 'true');
-      setHydrated(true);
     })();
   }, [applyProfile]);
 
@@ -152,8 +183,16 @@ export function AppProvider({ children }) {
   // Re-registering on every authUid change is deliberately cheap/idempotent
   // (same token comes back if nothing changed) rather than trying to track
   // "have we already registered this session."
+  // Guarded by the account it last ran for. authUid and auth.phone land in
+  // separate commits, so without this the effect fires twice on every cold
+  // start — a real launch trace showed the duplicate round-trips to
+  // exp.host and a second redundant PATCH of profiles.
+  const pushRegisteredForRef = useRef(null);
   useEffect(() => {
     if (!authUid || !auth.phone) return;
+    const account = `${authUid}:${auth.phone}`;
+    if (pushRegisteredForRef.current === account) return;
+    pushRegisteredForRef.current = account;
     (async () => {
       const token = await registerForPushNotificationsAsync();
       if (!token) return;
@@ -342,9 +381,18 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!hydrated) return;
     setDataLoading(true);
-    Promise.all([fetchListings(), fetchFavorites(auth.phone)]).finally(() => setDataLoading(false));
+    fetchListings().finally(() => setDataLoading(false));
     fetchAgents();
-  }, [hydrated, auth.phone, fetchListings, fetchFavorites, fetchAgents]);
+  }, [hydrated, fetchListings, fetchAgents]);
+
+  // Favorites are phone-scoped, so they have to wait for the profile —
+  // which now arrives after the first render rather than before it. Their
+  // own effect, because folding them back into the one above would refetch
+  // every listing a second time the moment the phone number landed.
+  useEffect(() => {
+    if (!hydrated) return;
+    fetchFavorites(auth.phone);
+  }, [hydrated, auth.phone, fetchFavorites]);
 
   // Keyed on authUid rather than auth.phone (see fetchBlockedSellers) — its
   // own effect since it changes on a different signal than the phone-scoped
