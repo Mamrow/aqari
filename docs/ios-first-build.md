@@ -113,7 +113,10 @@ surface on that first run:
   JS imports it (the native module is linked regardless of which platform's JS
   uses it). Harmless, but it's iOS native code this project has never compiled.
 - New Architecture (`newArchEnabled: true`) is proven on Android only.
-- Permission strings are Arabic-only (`expo-location`, `expo-image-picker`).
-  That's allowed — Apple doesn't require English — but an English-speaking
-  reviewer sees the Arabic string. Worth adding localized strings if a
-  rejection ever cites the purpose strings.
+- Permission strings and the home-screen name are localized through
+  `app.json`'s `locales` (`assets/locales/en.json`, `ar.json`): an
+  English-locale iPhone shows "Aqari" and English prompts, an Arabic one
+  "عقاري" and Arabic prompts. The Arabic strings in the `expo-location` /
+  `expo-image-picker` plugin config are only the fallback. iOS only — Android
+  permission dialogs carry no app-supplied text, and its launcher label is
+  `expo.name`.
