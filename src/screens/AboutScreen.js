@@ -7,14 +7,23 @@ import { useThemeColors } from '../theme/useThemeColors';
 import appConfig from '../../app.json';
 import { pressedStyle } from '../theme/press';
 
-// The accounts don't exist yet. They're real buttons rather than nothing at
-// all so the row's spacing is settled now, and turning one on later is a
-// one-line change: put the profile URL in `url` and the tap opens it
-// instead of saying "coming soon".
+// Live accounts. A null url still falls back to the "coming soon" alert
+// (see handleSocial), so adding a fourth platform before its page exists
+// costs nothing.
 const SOCIALS = [
-  { key: 'facebook', icon: 'logo-facebook', label: 'Facebook', url: null },
-  { key: 'instagram', icon: 'logo-instagram', label: 'Instagram', url: null },
-  { key: 'tiktok', icon: 'logo-tiktok', label: 'TikTok', url: null },
+  {
+    key: 'facebook',
+    icon: 'logo-facebook',
+    label: 'Facebook',
+    url: 'https://www.facebook.com/people/Aqari/61594618081214/',
+  },
+  {
+    key: 'instagram',
+    icon: 'logo-instagram',
+    label: 'Instagram',
+    url: 'https://www.instagram.com/aqari_ly/',
+  },
+  { key: 'tiktok', icon: 'logo-tiktok', label: 'TikTok', url: 'https://www.tiktok.com/@aqari.ly' },
 ];
 
 /**
