@@ -637,13 +637,20 @@ export function AppProvider({ children }) {
    * columns into it would mean every avatar change rewriting the city list
    * too.
    *
-   * Still an upsert keyed on phone, unlike updateProfile — if a save here
-   * ever reports an error while appearing to work, it's the same cause, and
-   * the same fix applies.
+   * An update keyed on auth_uid, for the reason updateProfile spells out
+   * below: an upsert has to satisfy the INSERT policy as well as the UPDATE
+   * one, and the row sent here has no auth_uid to satisfy it with, so RLS
+   * refused every write. This used to be an upsert keyed on phone, and the
+   * comment here predicted exactly this ("if a save here ever reports an
+   * error while appearing to work, it's the same cause, and the same fix
+   * applies") — it never reported anything, because the failure went to a
+   * console.warn nobody reads on a phone. New-listing alerts have therefore
+   * never once been saved: the switch moved, the row didn't, and the setting
+   * was back off at the next launch.
    */
   const updateNotificationPrefs = useCallback(
     async ({ notifyNewListings, notifyCities, notifyDistricts }) => {
-      if (!auth.phone) return;
+      if (!authUid) return;
       const previous = {
         notifyNewListings: auth.notifyNewListings,
         notifyCities: auth.notifyCities,
@@ -655,11 +662,22 @@ export function AppProvider({ children }) {
         ...(notifyCities !== undefined ? { notifyCities } : {}),
         ...(notifyDistricts !== undefined ? { notifyDistricts } : {}),
       }));
-      const row = { phone: auth.phone };
-      if (notifyNewListings !== undefined) row.notify_new_listings = notifyNewListings;
-      if (notifyCities !== undefined) row.notify_cities = notifyCities;
-      if (notifyDistricts !== undefined) row.notify_districts = notifyDistricts;
-      const { error } = await supabase.from('profiles').upsert(row);
+      const patch = {};
+      if (notifyNewListings !== undefined) patch.notify_new_listings = notifyNewListings;
+      if (notifyCities !== undefined) patch.notify_cities = notifyCities;
+      if (notifyDistricts !== undefined) patch.notify_districts = notifyDistricts;
+
+      // Returning the row is what proves it was written — a filter matching
+      // nothing is not an error in Postgres, so without this a no-op would
+      // report success, which is the failure mode this whole function just
+      // came out of.
+      const { data, error: writeError } = await supabase
+        .from('profiles')
+        .update(patch)
+        .eq('auth_uid', authUid)
+        .select('phone')
+        .maybeSingle();
+      const error = writeError ?? (data ? null : new Error('Profile row not found for this account'));
       if (error) {
         // Roll the switch back rather than leaving it showing a preference
         // the server never stored — the same "the save looked like it worked"
@@ -670,7 +688,7 @@ export function AppProvider({ children }) {
         throw error;
       }
     },
-    [auth.phone, auth.notifyNewListings, auth.notifyCities, auth.notifyDistricts]
+    [authUid, auth.notifyNewListings, auth.notifyCities, auth.notifyDistricts]
   );
 
   /**
