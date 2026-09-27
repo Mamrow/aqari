@@ -838,11 +838,25 @@ export function AppProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // Detach this device's push token before the session goes — RLS only lets
+    // the signed-in owner write their profile. Otherwise a signed-out phone
+    // keeps getting this account's listing notifications and alerts, and a
+    // second account signing in here would share the same token. Best-effort:
+    // a failed network call mustn't block signing out.
+    if (authUid) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ push_token: null })
+        .eq('auth_uid', authUid);
+      if (error) console.warn('push token clear error', error);
+    }
+    // So signing back in to the same account registers the token again.
+    pushRegisteredForRef.current = null;
     await supabase.auth.signOut();
     setAuth(initialState.auth);
     setAuthUid(null);
     setIsAdmin(false);
-  }, []);
+  }, [authUid]);
 
   // Actually deletes the account (not just local state) — the auth.users row
   // itself, via the delete-account Edge Function (see supabase/functions),
@@ -854,6 +868,7 @@ export function AppProvider({ children }) {
   const deleteAccount = useCallback(async () => {
     const { error } = await supabase.functions.invoke('delete-account');
     if (error) throw error;
+    pushRegisteredForRef.current = null;
     await supabase.auth.signOut();
     setAuth(initialState.auth);
     setAuthUid(null);
