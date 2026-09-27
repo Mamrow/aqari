@@ -95,8 +95,10 @@ export function storagePathFromUrl(url) {
  * stayed in a public bucket — still downloadable at their original URLs —
  * for every listing anyone ever deleted. Storage RLS only lets an account
  * remove objects it uploaded, so an admin deleting someone else's listing
- * legitimately can't clean up here; that case is swept server-side instead
- * (supabase/functions/lifecycle-cron). Never throws: the row is already
+ * legitimately can't clean up here. This is only the fast path: lifecycle-cron
+ * removes, once a day, any object no listing or profile references
+ * (migration_orphaned_media_sweep.sql), which covers the admin case and
+ * anything this call misses. Never throws: the row is already
  * gone by the time this runs, and failing the delete afterwards would be a
  * lie about what happened.
  */

@@ -25,6 +25,55 @@ function objectPathFromPublicUrl(value: unknown): string | null {
   }
 }
 
+// Removes objects nothing references. Two independent checks have to agree
+// before a file goes: the SQL function's (which parses URLs in SQL) and this
+// one's (objectPathFromPublicUrl, over every listing and profile read here).
+// A parsing mistake in either on its own would otherwise delete live photos,
+// and deletion can't be undone. Returns how many objects were removed.
+async function sweepOrphanedMedia(adminClient: ReturnType<typeof createClient>): Promise<number> {
+  const { data: orphans, error: orphanError } = await adminClient.rpc('orphaned_listing_media');
+  if (orphanError) {
+    console.error('lifecycle-cron: orphan lookup failed', orphanError);
+    return 0;
+  }
+  if (!orphans || orphans.length === 0) return 0;
+
+  const [{ data: listings, error: listingsError }, { data: profiles, error: profilesError }] =
+    await Promise.all([
+      adminClient.from('listings').select('images').range(0, 99999),
+      adminClient.from('profiles').select('avatar_url').not('avatar_url', 'is', null).range(0, 99999),
+    ]);
+  if (listingsError || profilesError) {
+    console.error('lifecycle-cron: reference read failed', { listingsError, profilesError });
+    return 0;
+  }
+
+  const inUse = new Set(
+    [
+      ...(listings ?? []).flatMap((row) => (Array.isArray(row.images) ? row.images : [])),
+      ...(profiles ?? []).map((row) => row.avatar_url),
+    ]
+      .map(objectPathFromPublicUrl)
+      .filter((path): path is string => Boolean(path))
+  );
+
+  const paths = (orphans as { name: string }[])
+    .map((row) => row.name)
+    .filter((name) => typeof name === 'string' && name && !inUse.has(name));
+
+  let removed = 0;
+  for (let index = 0; index < paths.length; index += 100) {
+    const batch = paths.slice(index, index + 100);
+    const { data, error } = await adminClient.storage.from(BUCKET).remove(batch);
+    if (error) {
+      console.error('lifecycle-cron: orphan cleanup failed', error);
+      break;
+    }
+    removed += data?.length ?? 0;
+  }
+  return removed;
+}
+
 Deno.serve(async (req) => {
   // pg_net's http_post carries the service-role key as a bearer token — this
   // just confirms it's actually that key, not a guessable public endpoint.
@@ -98,6 +147,14 @@ Deno.serve(async (req) => {
     .eq('is_featured', true)
     .lt('featured_until', now);
 
+  // Everything else that orphans media — an admin deleting someone's listing
+  // (storage RLS stops their client removing the files), photos dropped in an
+  // edit, a replaced avatar, a listing abandoned after its uploads, or the
+  // owner's own best-effort cleanup failing — is caught here: any object no
+  // listing or profile references, older than a day
+  // (migration_orphaned_media_sweep.sql). Best-effort like the purge above.
+  const orphanedMedia = await sweepOrphanedMedia(adminClient);
+
   const errors = [expireError, deleteError, unfeaturedError].filter(Boolean);
   if (errors.length > 0) {
     console.error('lifecycle-cron errors', errors);
@@ -109,6 +166,7 @@ Deno.serve(async (req) => {
       expired: expiredCount ?? 0,
       deleted: deletedCount ?? 0,
       purgedMedia,
+      orphanedMedia,
       unfeatured: unfeaturedCount ?? 0,
     }),
     { headers: { 'Content-Type': 'application/json' } }
