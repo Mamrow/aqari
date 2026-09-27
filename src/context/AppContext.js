@@ -847,9 +847,10 @@ export function AppProvider({ children }) {
   // Actually deletes the account (not just local state) — the auth.users row
   // itself, via the delete-account Edge Function (see supabase/functions),
   // since that requires the service_role key and can never be done directly
-  // from the app. profiles/favorites/agents cascade-delete and listings lose
-  // their owner_id automatically server-side (FKs in schema.sql); the local
-  // sign-out here is just cleaning up this device's now-dead session.
+  // from the app. The function deletes the account's listings and media;
+  // profiles/favorites/agents cascade-delete (FKs in schema.sql). The local
+  // sign-out here is just cleaning up this device's now-dead session, and the
+  // authUid change refetches listings so the deleted ones leave the map.
   const deleteAccount = useCallback(async () => {
     const { error } = await supabase.functions.invoke('delete-account');
     if (error) throw error;

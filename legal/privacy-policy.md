@@ -1,6 +1,6 @@
 # Aqari Privacy Policy
 
-_Last updated: September 15, 2026_
+_Last updated: September 27, 2026_
 
 This policy describes what information Aqari ("the app," "we," "us") collects, how it's used, and how you can control or delete it.
 
@@ -60,7 +60,7 @@ We do not use advertising SDKs, and we do not track you across other companies' 
 - You can delete individual saved listings or your own submitted listings at any time.
 - You can allow or disable push notifications through your device settings.
 - You can ask us to remove your stored push-notification token by contacting us at **aaqaaryy@gmail.com** or by deleting your account.
-- You can **permanently delete your account** at any time from Settings → Delete Account. This removes your profile, saved listings, and seller directory entry. Listings you've submitted are kept (so buyers who already contacted you aren't left with broken links) but are no longer tied to your account.
+- You can **permanently delete your account** at any time from Settings → Delete Account. This removes your profile, saved listings, seller directory entry, and every listing you've submitted, together with its photos and videos.
 
 ## Data Retention
 
@@ -68,7 +68,7 @@ We keep account information, saved listings, and push-notification tokens for as
 
 Crash reports are kept only as long as needed to investigate and fix problems, and are deleted automatically according to our crash-reporting provider's retention period.
 
-Public listing content may remain available after account deletion only if it has been detached from your account and is necessary to preserve marketplace records or existing user interactions. We do not retain contact details or other personal account information in a public listing after deletion. Where retention is not necessary, we delete the listing content and associated files.
+When you delete your account, your listings and the photos and videos uploaded with them are deleted too; none of them stay public.
 
 ## Children's Privacy
 
@@ -86,7 +86,7 @@ Questions about this policy or your data can be sent to: **aaqaaryy@gmail.com**
 
 # سياسة الخصوصية - عقاري
 
-_آخر تحديث: 15 سبتمبر 2026_
+_آخر تحديث: 27 سبتمبر 2026_
 
 توضح هذه السياسة المعلومات التي يجمعها تطبيق عقاري ("التطبيق"، "نحن")، وكيفية استخدامها، وكيف يمكنك التحكم بها أو حذفها.
 
@@ -146,7 +146,7 @@ _آخر تحديث: 15 سبتمبر 2026_
 - يمكنك حذف أي عقار محفوظ أو إعلان قمت بنشره في أي وقت.
 - يمكنك السماح بالإشعارات الفورية أو تعطيلها من إعدادات جهازك.
 - يمكنك طلب إزالة رمز الإشعارات الفورية المخزّن لدينا عبر التواصل معنا على **aaqaaryy@gmail.com** أو من خلال حذف حسابك.
-- يمكنك **حذف حسابك نهائيًا** في أي وقت من الإعدادات ← حذف الحساب. يؤدي ذلك إلى إزالة ملفك الشخصي وعقاراتك المحفوظة وإدراجك في دليل البائعين. تبقى الإعلانات التي نشرتها موجودة (حتى لا ينقطع التواصل مع المشترين الذين تواصلوا معك بالفعل) لكنها لن تكون مرتبطة بحسابك بعد الآن.
+- يمكنك **حذف حسابك نهائيًا** في أي وقت من الإعدادات ← حذف الحساب. يؤدي ذلك إلى إزالة ملفك الشخصي وعقاراتك المحفوظة وإدراجك في دليل البائعين، وكل إعلان نشرته مع صوره ومقاطع الفيديو الخاصة به.
 
 ## الاحتفاظ بالبيانات
 
@@ -154,7 +154,7 @@ _آخر تحديث: 15 سبتمبر 2026_
 
 نحتفظ بتقارير الأعطال فقط طالما لزم ذلك لفحص المشكلات وإصلاحها، وتُحذف تلقائيًا وفق مدة الاحتفاظ لدى مزود خدمة تقارير الأعطال.
 
-قد يظل محتوى الإعلان العام متاحًا بعد حذف الحساب فقط إذا تم فصله عن حسابك وكان الاحتفاظ به ضروريًا لحفظ سجلات السوق أو تفاعلات المستخدمين السابقة. لا نُبقي بيانات الاتصال أو غيرها من معلومات الحساب الشخصية ضمن إعلان عام بعد الحذف. وعندما لا يكون الاحتفاظ ضروريًا، نحذف محتوى الإعلان والملفات المرتبطة به.
+عند حذف حسابك، تُحذف إعلاناتك والصور ومقاطع الفيديو المرفوعة معها أيضًا، ولا يبقى أي منها منشورًا.
 
 ## خصوصية الأطفال
 

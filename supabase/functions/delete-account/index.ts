@@ -1,18 +1,16 @@
-// Deletes the authenticated caller's account and removes account-owned media
-// before deleting auth.users. The service-role key stays server-side.
+// Deletes the authenticated caller's account and everything it published:
+// avatar and listing media in Storage, the caller's listings, then auth.users.
+// The service-role key stays server-side.
 //
-// Database behavior after auth deletion is defined by schema.sql:
-// - profiles, favorites, and agents cascade-delete.
-// - listings.owner_id is set to NULL so public marketplace records can remain
-//   (buyers who already contacted a seller aren't left with a broken link).
-// This function removes the avatar and media URLs associated with the caller's
-// profile/listings before that owner relationship is removed, and — since
-// agent_phone/agent_id are plain text columns, not FKs, so nothing else
-// clears them — blanks those out on the caller's own listings too. Without
-// this, a deleted account's real phone number stays publicly dialable from
-// their old listings forever, which is exactly the personal data the privacy
-// policy's "no contact details in a public listing after deletion" line
-// promises is gone.
+// The listings have to be deleted here, explicitly. schema.sql's
+// listings.owner_id FK is `on delete set null`, so deleting the auth user alone
+// would leave every approved listing on the map — with its photos already
+// removed below and no seller to contact — until it expired. Deleting the rows
+// cascades to other users' favorites and to reports on them; boost payment
+// records keep their row with listing_id set to NULL.
+//
+// profiles, agents, blocked_sellers and the caller's own favorites/reports
+// cascade from the auth.users delete at the end.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const BUCKET = 'listing-photos';
@@ -109,19 +107,17 @@ Deno.serve(async (req) => {
     return json({ error: 'Could not remove account files. Please try again.' }, 500);
   }
 
-  // Blank the seller's real contact info on their own listings while owner_id
-  // still identifies them — after deleteUser() below, the FK sets owner_id to
-  // NULL and there'd be no way to find these rows again. '' rather than NULL:
-  // both columns are `not null`, and the app's contactActions.js /
-  // ListingDetailScreen already treat an empty phone as "no seller to
-  // contact" rather than trying to dial/WhatsApp it.
-  const { error: anonymizeError } = await adminClient
+  // Delete the caller's listings while owner_id still identifies them — after
+  // deleteUser() below, the FK sets owner_id to NULL and there'd be no way to
+  // find these rows again. If this fails, stop before touching the auth
+  // account so a retry can finish the job.
+  const { error: listingsDeleteError } = await adminClient
     .from('listings')
-    .update({ agent_phone: '', agent_id: '' })
+    .delete()
     .eq('owner_id', userId);
-  if (anonymizeError) {
-    console.error('delete-account listing anonymization failed', anonymizeError);
-    return json({ error: 'Could not remove account contact details. Please try again.' }, 500);
+  if (listingsDeleteError) {
+    console.error('delete-account listing deletion failed', listingsDeleteError);
+    return json({ error: 'Could not delete your listings. Please try again.' }, 500);
   }
 
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
