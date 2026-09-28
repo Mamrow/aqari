@@ -117,6 +117,8 @@ surface on that first run:
   `app.json`'s `locales` (`assets/locales/en.json`, `ar.json`): an
   English-locale iPhone shows "Aqari" and English prompts, an Arabic one
   "عقاري" and Arabic prompts. The Arabic strings in the `expo-location` /
-  `expo-image-picker` plugin config are only the fallback. iOS only — Android
-  permission dialogs carry no app-supplied text, and its launcher label is
-  `expo.name`.
+  `expo-image-picker` plugin config are only the fallback. Keep the iOS keys
+  under each file's `"ios"` section: SDK 54 copies top-level keys into
+  Android's strings.xml too, where a key with no default-locale value fails
+  `lintVitalRelease` and with it the release build (it did, once). The
+  `"android"` section only overrides `app_name`, whose default is `expo.name`.
