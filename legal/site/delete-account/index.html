@@ -21,13 +21,13 @@
           <path d="M10 20v-5h4v5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </span>
-      <span>Aqari</span>
+      <span data-ar="عقاري">Aqari</span>
     </a>
     <nav class="nav-links" aria-label="Legal pages">
-      <a href="/privacy/">Privacy</a>
-      <a href="/terms/">Terms</a>
-      <a href="/delete-account/" aria-current="page">Delete Account</a>
-      <a href="/support/">Support</a>
+      <a href="/privacy/" data-ar="الخصوصية">Privacy</a>
+      <a href="/terms/" data-ar="الشروط">Terms</a>
+      <a href="/delete-account/" aria-current="page" data-ar="حذف الحساب">Delete Account</a>
+      <a href="/support/" data-ar="الدعم">Support</a>
     </nav>
     <div class="lang-toggle" role="group" aria-label="Language">
       <button type="button" id="btnEn" aria-pressed="true" onclick="aqariSetLang('en')">EN</button>
@@ -152,18 +152,18 @@
 
       <section>
         <h2>لا تستطيع استخدام التطبيق؟ اطلب منا الحذف</h2>
-        <p>إذا حذفت التطبيق أو لم تتمكن من تسجيل الدخول، أرسل لنا طلب حذف. يفتح الزر أدناه تطبيق البريد لديك برسالة جاهزة موجّهة إلى <strong>aaqaaryy@gmail.com</strong>، راجعها ثم اضغط إرسال.</p>
+        <p>إذا حذفت التطبيق أو لم تتمكن من تسجيل الدخول، أرسل لنا طلب حذف. يفتح الزر أدناه تطبيق البريد لديك برسالة جاهزة موجّهة إلى <strong><bdi>aaqaaryy@gmail.com</bdi></strong>، راجعها ثم اضغط إرسال.</p>
 
         <form class="request-card" id="delete-form-ar" onsubmit="return false;">
           <h2>طلب حذف الحساب</h2>
           <p>سنستخدم رقم هاتفك للعثور على حسابك والتأكد من أنه لك قبل حذفه.</p>
           <div class="field">
             <label for="phone-ar">رقم الهاتف المسجّل في حسابك *</label>
-            <input type="tel" id="phone-ar" required placeholder="+218 9XX XXX XXX">
+            <input type="tel" id="phone-ar" required placeholder="+218 9XX XXX XXX" dir="ltr" style="text-align:right">
           </div>
           <div class="field">
             <label for="email-ar">بريد إلكتروني للرد عليك (اختياري)</label>
-            <input type="email" id="email-ar" placeholder="you@example.com">
+            <input type="email" id="email-ar" placeholder="you@example.com" dir="ltr" style="text-align:right">
           </div>
           <div class="field">
             <label for="notes-ar">هل هناك ما تود إضافته؟ (اختياري)</label>
@@ -172,7 +172,7 @@
           <button type="button" class="request-submit" onclick="aqariSubmitDeletion('ar')">
             إرسال طلب الحذف
           </button>
-          <p class="request-note">ننفّذ طلبات الحذف خلال 30 يومًا، ونؤكد لك بالبريد عند الانتهاء. لأي استفسار راسلنا على aaqaaryy@gmail.com.</p>
+          <p class="request-note">ننفّذ طلبات الحذف خلال 30 يومًا، ونؤكد لك بالبريد عند الانتهاء. لأي استفسار راسلنا على <bdi>aaqaaryy@gmail.com</bdi>.</p>
         </form>
       </section>
 
@@ -197,7 +197,7 @@
   </div>
 
   <footer class="page-footer" style="max-width:none;padding-inline:0;margin-top:8px;">
-    <span>Aqari — Tripoli, Libya</span>
+    <span data-ar="عقاري — طرابلس، ليبيا">Aqari — Tripoli, Libya</span>
     <span>aaqaaryy@gmail.com</span>
   </footer>
 </main>
