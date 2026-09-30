@@ -71,7 +71,11 @@ export default function AddListingScreen({ navigation, route }) {
   // explicit — unlike a flex row with an icon (which just visually ends up
   // on the right because the row itself auto-mirrors), a lone full-width
   // Text does NOT auto-align for RTL on its own.
-  const rtlText = { textAlign: isRTL ? 'right' : 'left' };
+  // 'left' is the reading start in both languages: iOS swaps left/right under an
+  // RTL layout and Android treats 'left' as the paragraph start, so Arabic text
+  // lands on the right. isRTL ? 'right' : 'left' comes out backwards on both —
+  // see the RTL note in CLAUDE.md. (TextInputs follow different rules.)
+  const rtlText = { textAlign: 'left' };
   // Sorted by the currently displayed label, not by the fixed key order in
   // districts.js — Arabic and English alphabetical order aren't the same,
   // so this can't be a single hardcoded order.
@@ -483,10 +487,6 @@ export default function AddListingScreen({ navigation, route }) {
             styles.charCount,
             {
               color: description.trim().length < MIN_DESCRIPTION_LENGTH ? colors.danger : colors.textMuted,
-              // RN's Text has no logical 'start'/'end' textAlign — the same
-              // physical-vs-logical gap the rest of this app works around by
-              // checking `language` directly rather than assuming 'left'.
-              textAlign: language === 'ar' ? 'left' : 'right',
             },
           ]}
         >
@@ -891,7 +891,7 @@ export default function AddListingScreen({ navigation, route }) {
 // since they're genuinely optional).
 function RequiredLabel({ children, colors, style, isRTL }) {
   return (
-    <Text style={[styles.label, style, { color: colors.textMuted, textAlign: isRTL ? 'right' : 'left' }]}>
+    <Text style={[styles.label, style, { color: colors.textMuted, textAlign: 'left' }]}>
       {children} <Text style={{ color: colors.danger }}>*</Text>
     </Text>
   );

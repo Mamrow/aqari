@@ -60,7 +60,11 @@ export default function AboutScreen({ navigation }) {
   const colors = useThemeColors();
   const { language } = useAppContext();
   const isRTL = language === 'ar';
-  const align = { textAlign: isRTL ? 'right' : 'left' };
+  // 'left' is the reading start in both languages: iOS swaps left/right under an
+  // RTL layout and Android treats 'left' as the paragraph start, so Arabic text
+  // lands on the right. isRTL ? 'right' : 'left' comes out backwards on both —
+  // see the RTL note in CLAUDE.md. (TextInputs follow different rules.)
+  const align = { textAlign: 'left' };
 
   const handleSocial = (social) => {
     if (!social.url) {

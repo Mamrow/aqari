@@ -57,7 +57,13 @@ export default function ListingDetailScreen({ route, navigation }) {
   const t = useT();
   const colors = useThemeColors();
   const isRTL = language === 'ar';
-  const rtlText = { textAlign: isRTL ? 'right' : 'left' };
+  // 'left' is the reading start in both languages: iOS swaps left/right under an
+  // RTL layout and Android treats 'left' as the paragraph start, so Arabic text
+  // lands on the right. isRTL ? 'right' : 'left' comes out backwards on both —
+  // see the RTL note in CLAUDE.md. (TextInputs follow different rules.)
+  const rtlText = { textAlign: 'left' };
+  // The report note is a TextInput, which keeps the physical side.
+  const inputAlign = { textAlign: isRTL ? 'right' : 'left' };
   const insets = useSafeAreaInsets();
   const [galleryIndex, setGalleryIndex] = useState(null);
   const [reportModalVisible, setReportModalVisible] = useState(false);
@@ -536,7 +542,7 @@ export default function ListingDetailScreen({ route, navigation }) {
             })}
 
             <TextInput
-              style={[styles.reportNoteInput, rtlText, { borderColor: colors.inputBorder, color: colors.text }]}
+              style={[styles.reportNoteInput, inputAlign, { borderColor: colors.inputBorder, color: colors.text }]}
               placeholder={t('reportNotePlaceholder')}
               placeholderTextColor={colors.placeholderText}
               value={reportNote}

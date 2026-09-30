@@ -102,7 +102,7 @@ export default function ListingCard({
               <Text
                 style={[
                   styles.price,
-                  { color: colors.accent, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
+                  { color: colors.accent, textAlign: 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
                 ]}
               >
                 {listing.price.toLocaleString('en-US')} {t('priceCurrency')}
@@ -113,7 +113,7 @@ export default function ListingCard({
               <Text
                 style={[
                   styles.title,
-                  { color: colors.text, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
+                  { color: colors.text, textAlign: 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
                 ]}
                 numberOfLines={1}
                 // Spelled out rather than left to the default: a long Arabic
@@ -133,7 +133,7 @@ export default function ListingCard({
               <Text
                 style={[
                   styles.area,
-                  { color: colors.textMuted, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
+                  { color: colors.textMuted, textAlign: 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
                 ]}
                 numberOfLines={1}
                 ellipsizeMode="tail"
@@ -150,7 +150,7 @@ export default function ListingCard({
                 <Text
                   style={[
                     styles.badge,
-                    { color: colors.accent, textAlign: isRTL ? 'right' : 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
+                    { color: colors.accent, textAlign: 'left', writingDirection: isRTL ? 'rtl' : 'ltr' },
                   ]}
                 >
                   {[

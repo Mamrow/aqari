@@ -90,13 +90,13 @@ export default function LegalInfoScreen({ route }) {
       >
         <View style={styles.titleRow}>
           <View style={[styles.titleBlock, isRTL && styles.titleBlockRTL]}>
-            <Text style={[styles.title, { color: colors.heading, textAlign: isRTL ? 'right' : 'left' }]}>
+            <Text style={[styles.title, { color: colors.heading, textAlign: 'left' }]}>
               {t(page.titleKey)}
             </Text>
             <Text
               style={[
                 styles.subtitle,
-                { color: colors.textMuted, textAlign: isRTL ? 'right' : 'left' },
+                { color: colors.textMuted, textAlign: 'left' },
               ]}
             >
               {t(page.subtitleKey)}
@@ -112,12 +112,12 @@ export default function LegalInfoScreen({ route }) {
         {page.sections.map(([headingKey, bodyKey]) => (
           <View key={headingKey} style={styles.section}>
             <Text
-              style={[styles.sectionHeading, { color: colors.heading, textAlign: isRTL ? 'right' : 'left' }]}
+              style={[styles.sectionHeading, { color: colors.heading, textAlign: 'left' }]}
             >
               {t(headingKey)}
             </Text>
             <Text
-              style={[styles.sectionBody, { color: colors.text, textAlign: isRTL ? 'right' : 'left' }]}
+              style={[styles.sectionBody, { color: colors.text, textAlign: 'left' }]}
             >
               {t(bodyKey)}
             </Text>
@@ -144,10 +144,10 @@ export default function LegalInfoScreen({ route }) {
               <Ionicons name="mail-outline" size={19} color={colors.accent} />
             </View>
             <View style={[styles.contactCopy, isRTL && styles.contactCopyRTL]}>
-              <Text style={[styles.contactTitle, { color: colors.text, textAlign: isRTL ? 'right' : 'left' }]}>
+              <Text style={[styles.contactTitle, { color: colors.text, textAlign: 'left' }]}>
                 {t('supportEmailLabel')}
               </Text>
-              <Text style={[styles.contactEmail, { color: colors.accent, textAlign: isRTL ? 'right' : 'left' }]}>
+              <Text style={[styles.contactEmail, { color: colors.accent, textAlign: 'left' }]}>
                 aaqaaryy@gmail.com
               </Text>
             </View>

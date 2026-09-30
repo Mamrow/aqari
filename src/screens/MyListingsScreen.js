@@ -222,7 +222,7 @@ export default function MyListingsScreen({ navigation }) {
                                   <Text
                                     style={[
                                       styles.expiryText,
-                                      { color: colors.danger, textAlign: language === 'ar' ? 'right' : 'left' },
+                                      { color: colors.danger, textAlign: 'left' },
                                     ]}
                                   >
                                     {isExpired

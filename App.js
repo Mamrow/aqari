@@ -44,6 +44,29 @@ configureForegroundNotifications();
 // through a ref rather than a screen's own navigation prop.
 const navigationRef = createNavigationContainerRef();
 
+// Remembers which language a direction-fixing reload was already tried for,
+// so a reload that somehow doesn't apply the direction can't loop.
+const RTL_RELOAD_KEY = 'rtl-reload-attempted';
+
+// Same tiers as AppContext's setLanguage: expo-updates in release builds,
+// required lazily because a client built without it throws on import;
+// DevSettings in development. Resolves false if neither could reload.
+async function reloadApp() {
+  try {
+    const Updates = require('expo-updates');
+    await Updates.reloadAsync();
+    return true;
+  } catch (error) {
+    console.warn('Updates.reloadAsync unavailable, falling back', error);
+  }
+  const { DevSettings } = require('react-native');
+  if (DevSettings?.reload) {
+    DevSettings.reload();
+    return true;
+  }
+  return false;
+}
+
 function buildNavigationTheme(theme) {
   const base = theme === 'dark' ? DarkTheme : DefaultTheme;
   const colors = theme === 'dark' ? darkColors : lightColors;
@@ -179,6 +202,24 @@ export default Sentry.wrap(function App() {
       // phone is set to", and it applies natively at launch.
       I18nManager.allowRTL(lang === 'ar');
       I18nManager.forceRTL(lang === 'ar');
+
+      // forceRTL only takes effect at the next launch: the native layout
+      // direction is read once, at startup. So on a fresh install (the 'ar'
+      // default just written above) or on a phone whose own language pulls
+      // the other way, this whole session would render Arabic in an LTR
+      // layout — tab bar, rows and headers backwards. setLanguage already
+      // reloads to apply a change; do the same here, once. The flag stops a
+      // loop if a reload ever fails to apply the direction.
+      const wantRTL = lang === 'ar';
+      if (I18nManager.isRTL !== wantRTL) {
+        const attempted = await AsyncStorage.getItem(RTL_RELOAD_KEY);
+        if (attempted !== lang) {
+          await AsyncStorage.setItem(RTL_RELOAD_KEY, lang);
+          if (await reloadApp()) return;
+        }
+      } else {
+        await AsyncStorage.removeItem(RTL_RELOAD_KEY);
+      }
       setReady(true);
     })();
   }, []);

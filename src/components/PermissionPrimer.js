@@ -30,7 +30,11 @@ export default function PermissionPrimer({
   const { language } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
-  const rtlText = { textAlign: language === 'ar' ? 'right' : 'left' };
+  // 'left' is the reading start in both languages: iOS swaps left/right under an
+  // RTL layout and Android treats 'left' as the paragraph start, so Arabic text
+  // lands on the right. isRTL ? 'right' : 'left' comes out backwards on both —
+  // see the RTL note in CLAUDE.md. (TextInputs follow different rules.)
+  const rtlText = { textAlign: 'left' };
 
   return (
     <Modal
