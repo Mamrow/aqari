@@ -145,6 +145,14 @@ h1.title {
 }
 .step-card p { margin: 0; color: var(--muted); font-size: 14px; }
 
+.callout {
+  border-radius: 14px; padding: 18px 22px; margin: 0 0 24px;
+  background: var(--danger-tint); border: 1px solid var(--border);
+}
+.callout h3 { margin: 0 0 8px; font-size: 15px; color: var(--danger); }
+.callout ul { margin: 0; padding-inline-start: 20px; font-size: 14px; color: var(--text); }
+.callout li { margin: 4px 0; }
+
 .request-card {
   border: 1px solid var(--border); border-radius: 16px; padding: 22px; margin-top: 22px;
   background: var(--danger-tint);
