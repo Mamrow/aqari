@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, FlatList, I18nManager, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, I18nManager, Pressable, StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';

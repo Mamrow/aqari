@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import Text from '../components/Text';
 import { useAppContext } from '../context/AppContext';
 import ListingCard from '../components/ListingCard';
 import BoostListingSection from '../components/BoostListingSection';

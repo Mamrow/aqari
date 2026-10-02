@@ -7,10 +7,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
   FlatList,
 } from 'react-native';
+import Text from '../components/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 // Apple Maps on iOS, MapLibre + MapTiler on Android. Metro picks the right

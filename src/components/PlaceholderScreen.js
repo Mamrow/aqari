@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Text from './Text';
 import { useThemeColors } from '../theme/useThemeColors';
 
 export default function PlaceholderScreen({

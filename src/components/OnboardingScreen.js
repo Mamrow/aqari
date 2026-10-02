@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Image as RNImage, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image as RNImage, Pressable, StyleSheet, View } from 'react-native';
+import Text from './Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useT } from '../i18n/useT';

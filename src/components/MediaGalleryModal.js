@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Dimensions, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, FlatList, Modal, Pressable, StyleSheet, View } from 'react-native';
+import Text from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useT } from '../i18n/useT';
 import { isVideoUrl } from '../utils/media';

@@ -9,10 +9,10 @@ import {
   ScrollView,
   Share,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
+import Text from '../components/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SimpleMap from '../components/map/SimpleMap';
 import { Ionicons } from '@expo/vector-icons';

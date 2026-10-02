@@ -4,10 +4,10 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
+import Text from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import parsePhoneNumberFromString from 'libphonenumber-js/min';
 import { COUNTRIES, DEFAULT_COUNTRY, flagEmoji } from '../data/countries';

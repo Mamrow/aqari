@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
+import Text from './Text';
 import { Ionicons } from '@expo/vector-icons';
 
 // Shows the photo if set; otherwise the name's first letter on an accent-tinted

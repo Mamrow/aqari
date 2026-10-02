@@ -10,10 +10,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
+import Text from '../components/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SimpleMap from '../components/map/SimpleMap';
 import * as ImagePicker from 'expo-image-picker';

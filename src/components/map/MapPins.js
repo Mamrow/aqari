@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Text from '../Text';
 import { FEATURED_GOLD } from '../../theme/colors';
 import { BOOST_PURCHASES_ENABLED } from '../../config/features';
 
