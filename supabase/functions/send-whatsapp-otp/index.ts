@@ -27,8 +27,9 @@
 //   WHATSAPP_TOKEN            permanent System User token (never the 24-hour
 //                             temporary one from the API Setup page)
 //   WHATSAPP_PHONE_NUMBER_ID  the sender's numeric id, not the phone number
-//   WHATSAPP_TEMPLATE_NAME    an approved Authentication-category template
+//   WHATSAPP_TEMPLATE_NAME    an approved template carrying the code
 //   WHATSAPP_TEMPLATE_LANG    its language code, e.g. ar / en_US  (default ar)
+//   WHATSAPP_TEMPLATE_KIND    "authentication" (default) or "utility" — see below
 //   WHATSAPP_API_VERSION      optional, defaults below
 //   WHATSAPP_PLAIN_TEXT       optional, "true" only while testing — see below
 //
@@ -43,6 +44,16 @@
 // Never leave it on in production: outside that 24-hour window Meta rejects
 // the send, so real sign-ups from people who have never messaged the business
 // would silently fail.
+//
+// WHATSAPP_TEMPLATE_KIND=utility: Meta keeps the Authentication category
+// locked on a new, unverified business account (template creation fails with
+// code 10 / subcode 2388185). Meta support's instruction for that case
+// (October 2026) is to send the code in a Utility template, with the code as a
+// body variable, until the account reaches the 1,000-a-day messaging tier and
+// completes verification; Authentication then unlocks automatically. A
+// Utility template has a {{1}} in its body and no copy-code button, so it
+// takes only the body parameter. Once an Authentication template is approved,
+// point WHATSAPP_TEMPLATE_NAME at it and drop this secret; no code change.
 
 const GRAPH_HOST = 'https://graph.facebook.com';
 const DEFAULT_API_VERSION = 'v21.0';
@@ -113,6 +124,7 @@ Deno.serve(async (req) => {
   const templateName = Deno.env.get('WHATSAPP_TEMPLATE_NAME');
   const templateLang = Deno.env.get('WHATSAPP_TEMPLATE_LANG') ?? DEFAULT_TEMPLATE_LANG;
   const apiVersion = Deno.env.get('WHATSAPP_API_VERSION') ?? DEFAULT_API_VERSION;
+  const utilityTemplate = Deno.env.get('WHATSAPP_TEMPLATE_KIND') === 'utility';
 
   const plainText = Deno.env.get('WHATSAPP_PLAIN_TEXT') === 'true';
 
@@ -161,15 +173,17 @@ Your Aqari verification code: ${otp}` },
         template: {
           name: templateName,
           language: { code: templateLang },
-          components: [
-            { type: 'body', parameters: [{ type: 'text', text: otp }] },
-            {
-              type: 'button',
-              sub_type: 'url',
-              index: '0',
-              parameters: [{ type: 'text', text: otp }],
-            },
-          ],
+          components: utilityTemplate
+            ? [{ type: 'body', parameters: [{ type: 'text', text: otp }] }]
+            : [
+                { type: 'body', parameters: [{ type: 'text', text: otp }] },
+                {
+                  type: 'button',
+                  sub_type: 'url',
+                  index: '0',
+                  parameters: [{ type: 'text', text: otp }],
+                },
+              ],
         },
       };
 
