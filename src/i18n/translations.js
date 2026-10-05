@@ -283,8 +283,8 @@ export const translations = {
 
     callButton: 'اتصال',
     whatsappButton: 'واتساب',
-    whatsappMessageTemplate: 'مرحبًا، أنا مهتم بعقارك "{title}" على تطبيق عقاري',
-    shareMessageTemplate: 'شاهد هذا العقار على تطبيق عقاري:\n{title}\n{price} {currency}\n{area} {areaUnit}',
+    whatsappMessageTemplate: 'مرحبًا، أنا مهتم بعقارك "{title}" على تطبيق عقاري\n{link}',
+    shareMessageTemplate: 'شاهد هذا العقار على تطبيق عقاري:\n{title}\n{price} {currency}\n{area} {areaUnit}\n{link}',
     adminContactMessageTemplate: 'مرحبًا، بخصوص إعلانك "{title}" على تطبيق عقاري',
 
     adminHeading: 'جميع العقارات',
@@ -812,8 +812,8 @@ export const translations = {
 
     callButton: 'Call',
     whatsappButton: 'WhatsApp',
-    whatsappMessageTemplate: 'Hi, I am interested in your listing "{title}" on Aqari',
-    shareMessageTemplate: 'Check out this property on Aqari:\n{title}\n{price} {currency}\n{area} {areaUnit}',
+    whatsappMessageTemplate: 'Hi, I am interested in your listing "{title}" on Aqari\n{link}',
+    shareMessageTemplate: 'Check out this property on Aqari:\n{title}\n{price} {currency}\n{area} {areaUnit}\n{link}',
     adminContactMessageTemplate: 'Hi, regarding your listing "{title}" on Aqari',
 
     adminHeading: 'All Listings',

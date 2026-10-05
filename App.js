@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { I18nManager } from 'react-native';
+import { I18nManager, Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   NavigationContainer,
@@ -17,6 +17,7 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import OnboardingScreen from './src/components/OnboardingScreen';
 import SplashView from './src/components/SplashView';
 import { LANGUAGE_STORAGE_KEY } from './src/i18n/constants';
+import { listingIdFromUrl } from './src/utils/listingLink';
 import { lightColors, darkColors } from './src/theme/colors';
 import {
   addNotificationTapListener,
@@ -113,6 +114,28 @@ function AppShell() {
   }, []);
 
   useEffect(() => addNotificationTapListener(goToListing), [goToListing]);
+
+  // A shared listing link (aqari://listing/<id>, handed off by the website's
+  // /l/ page) opens that listing, through the same path a notification tap
+  // takes. getInitialURL covers a link that launched the app; the listener
+  // covers one tapped while it was already running.
+  useEffect(() => {
+    let cancelled = false;
+    Linking.getInitialURL()
+      .then((url) => {
+        const listingId = listingIdFromUrl(url);
+        if (!cancelled && listingId) goToListing(listingId);
+      })
+      .catch(() => {});
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      const listingId = listingIdFromUrl(url);
+      if (listingId) goToListing(listingId);
+    });
+    return () => {
+      cancelled = true;
+      subscription.remove();
+    };
+  }, [goToListing]);
 
   const handleNavigationReady = useCallback(() => {
     const listingId = pendingListingIdRef.current;

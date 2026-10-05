@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>عقاري · Aqari</title>
+<meta name="description" content="عقار على تطبيق عقاري · A property on Aqari">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<style>
+  .listing-shell { max-width: 520px; padding-block: 24px 56px; }
+  .listing-card { border: 1px solid var(--border); border-radius: 18px; background: var(--surface); overflow: hidden; }
+  .listing-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--accent-tint); }
+  .listing-body { padding: 18px 20px 20px; }
+  .listing-price { font-size: 24px; font-weight: 800; color: var(--accent); margin: 0 0 4px; }
+  .listing-title { font-size: 18px; font-weight: 700; color: var(--heading); margin: 0 0 6px; }
+  .listing-meta { color: var(--muted); font-size: 14px; margin: 0; }
+  .actions { display: grid; gap: 10px; margin-top: 18px; }
+  .btn-primary, .btn-store {
+    display: block; text-align: center; text-decoration: none; font-weight: 700;
+    border-radius: 12px; padding: 13px 16px; font-size: 15px;
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-store { border: 1px solid var(--border); color: var(--heading); background: var(--surface); }
+  .store-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hint { color: var(--muted); font-size: 13px; text-align: center; margin: 14px 0 0; }
+  .state { text-align: center; color: var(--muted); padding: 48px 12px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="shell topbar-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 11.5L12 4l8 7.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M10 20v-5h4v5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span data-ar="عقاري">Aqari</span>
+    </a>
+    <div class="lang-toggle" role="group" aria-label="Language">
+      <button type="button" id="btnEn" aria-pressed="false" onclick="aqariSetLang('en'); renderListing()">EN</button>
+      <button type="button" id="btnAr" aria-pressed="true" onclick="aqariSetLang('ar'); renderListing()">عربي</button>
+    </div>
+  </div>
+</div>
+
+<main class="shell listing-shell">
+  <div id="state" class="state"></div>
+  <div id="listing" hidden>
+    <div class="listing-card">
+      <img id="photo" class="listing-photo" alt="">
+      <div class="listing-body">
+        <p id="price" class="listing-price"></p>
+        <p id="title" class="listing-title"></p>
+        <p id="meta" class="listing-meta"></p>
+      </div>
+    </div>
+  </div>
+  <div class="actions">
+    <a id="openApp" class="btn-primary" href="#"></a>
+    <div class="store-row">
+      <a class="btn-store" href="https://apps.apple.com/app/id6809884623">App Store</a>
+      <a class="btn-store" href="https://play.google.com/store/apps/details?id=com.mamrow.aqari">Google Play</a>
+    </div>
+    <p id="hint" class="hint"></p>
+  </div>
+</main>
+
+<script src="/script.js"></script>
+<script>
+  // A shared listing link: https://lyaqari.netlify.app/l/<id>. Netlify's
+  // _redirects serves this one page for every /l/ path, so the id comes from
+  // the URL here. The listing is read with the app's public (publishable) key,
+  // which ships in every copy of the app; the database's row rules only ever
+  // return approved listings to it, and its column grants never include the
+  // seller's phone number.
+  var SUPABASE_URL = 'https://dttbszywzdsxntzbzoqu.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_qItKpnaiMS4zMQ1Vbjl5yw_2HLiRFwE';
+  var COLUMNS = 'id,title,price,area,images,listing_type,property_type,city,district,listing_state';
+
+  var listingId = decodeURIComponent((location.pathname.split('/l/')[1] || '').split('/')[0] || '')
+    || new URLSearchParams(location.search).get('id') || '';
+  var listing = null;
+  var loadState = 'loading';
+
+  var TEXT = {
+    ar: {
+      open: 'افتح في تطبيق عقاري',
+      hint: 'ليس لديك التطبيق؟ حمّله من المتجر ثم افتح الرابط مرة أخرى.',
+      loading: 'جارٍ التحميل…',
+      missing: 'هذا العقار لم يعد متاحًا.',
+      sale: 'للبيع', rent: 'للإيجار', currency: 'د.ل', area: 'م²',
+    },
+    en: {
+      open: 'Open in Aqari',
+      hint: "Don't have the app? Get it from the store, then open this link again.",
+      loading: 'Loading…',
+      missing: 'This property is no longer available.',
+      sale: 'For sale', rent: 'For rent', currency: 'LYD', area: 'm²',
+    },
+  };
+
+  function lang() { return document.documentElement.getAttribute('lang') === 'en' ? 'en' : 'ar'; }
+
+  function renderListing() {
+    var t = TEXT[lang()];
+    document.getElementById('openApp').textContent = t.open;
+    document.getElementById('openApp').href = 'aqari://listing/' + encodeURIComponent(listingId);
+    document.getElementById('hint').textContent = t.hint;
+    var state = document.getElementById('state');
+    var box = document.getElementById('listing');
+    if (loadState === 'loading') { state.textContent = t.loading; state.hidden = false; box.hidden = true; return; }
+    if (!listing) { state.textContent = t.missing; state.hidden = false; box.hidden = true; return; }
+    state.hidden = true; box.hidden = false;
+    document.getElementById('price').textContent =
+      Number(listing.price).toLocaleString('en-US') + ' ' + t.currency;
+    document.getElementById('title').textContent = listing.title || '';
+    var bits = [listing.listing_type === 'rent' ? t.rent : t.sale];
+    if (listing.area) bits.push(Number(listing.area).toLocaleString('en-US') + ' ' + t.area);
+    document.getElementById('meta').textContent = bits.join(' · ');
+    var photo = Array.isArray(listing.images)
+      ? listing.images.find(function (u) { return !/\.(mp4|mov)(\?|$)/i.test(u); })
+      : null;
+    var img = document.getElementById('photo');
+    if (photo) { img.src = photo; img.hidden = false; } else { img.hidden = true; }
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    renderListing();
+    if (!/^[0-9a-f-]{36}$/i.test(listingId)) { loadState = 'done'; renderListing(); return; }
+    fetch(SUPABASE_URL + '/rest/v1/listings?select=' + COLUMNS + '&id=eq.' + listingId, {
+      headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY },
+    })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (rows) {
+        var row = rows && rows[0];
+        // Expired and sold listings are hidden in the app too.
+        listing = row && row.listing_state !== 'expired' && row.listing_state !== 'sold' ? row : null;
+      })
+      .catch(function () { listing = null; })
+      .then(function () { loadState = 'done'; renderListing(); });
+  });
+</script>
+</body>
+</html>

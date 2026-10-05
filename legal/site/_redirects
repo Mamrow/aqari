@@ -1,0 +1,3 @@
+# A shared listing link, /l/<id>, always serves the one listing page;
+# it reads the id from the URL. 200 = rewrite, so the URL stays as shared.
+/l/*  /l/index.html  200

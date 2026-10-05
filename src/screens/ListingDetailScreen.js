@@ -30,6 +30,8 @@ import {
 } from '../data/propertyTypes';
 import { REPORT_REASONS, REPORT_REASON_LABEL_KEYS } from '../data/reportReasons';
 import { callAgent, whatsappAgent } from '../utils/contactActions';
+import { listingWebLink } from '../utils/listingLink';
+import StatusScreen from '../components/StatusScreen';
 import { isVideoUrl } from '../utils/media';
 import MediaGalleryModal from '../components/MediaGalleryModal';
 import GalleryImageItem from '../components/GalleryImageItem';
@@ -53,6 +55,7 @@ export default function ListingDetailScreen({ route, navigation }) {
     blockSeller,
     unblockSeller,
     language,
+    dataLoading,
   } = useAppContext();
   const t = useT();
   const colors = useThemeColors();
@@ -87,6 +90,13 @@ export default function ListingDetailScreen({ route, navigation }) {
       cancelled = true;
     };
   }, [sellerId, fetchSellerProfile]);
+
+  // A shared link or a notification can open this screen on a cold start,
+  // before the listings have loaded: wait for them rather than flashing
+  // "not found" for a listing that's about to appear.
+  if (!listing && dataLoading) {
+    return <StatusScreen variant="loading" />;
+  }
 
   if (!listing) {
     return <PlaceholderScreen title={t('listingNotFoundTitle')} subtitle={t('listingNotFoundSubtitle')} />;
@@ -162,7 +172,9 @@ export default function ListingDetailScreen({ route, navigation }) {
   const handleWhatsapp = () => {
     requireAuth(async () => {
       const contact = await resolveContact();
-      const message = t('whatsappMessageTemplate').replace('{title}', listing.title);
+      const message = t('whatsappMessageTemplate')
+        .replace('{title}', listing.title)
+        .replace('{link}', listingWebLink(listing.id));
       whatsappAgent(contact?.agentPhone, message, handleContactError);
     });
   };
@@ -174,7 +186,8 @@ export default function ListingDetailScreen({ route, navigation }) {
       .replace('{price}', listing.price.toLocaleString('en-US'))
       .replace('{currency}', t('priceCurrency'))
       .replace('{area}', listing.area.toLocaleString('en-US'))
-      .replace('{areaUnit}', t('areaUnit'));
+      .replace('{areaUnit}', t('areaUnit'))
+      .replace('{link}', listingWebLink(listing.id));
     Share.share({ message }).catch(() => {});
   };
 
