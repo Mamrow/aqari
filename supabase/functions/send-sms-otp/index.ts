@@ -106,7 +106,11 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify([{ phone, $1: otp }]),
+      // { records: [...] }, per Resala's integration instructions. Their
+      // dashboard page shows a bare array instead; if sends fail with a 422
+      // InputValidation, that's the first thing to check. Never retried: a
+      // retry would send, and charge for, a second SMS.
+      body: JSON.stringify({ records: [{ phone, $1: otp }] }),
     }
   );
 
