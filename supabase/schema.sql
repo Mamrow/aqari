@@ -4,9 +4,9 @@
 -- Auth note: accounts are phone + password on Supabase's native phone
 -- provider. A one-time code proves the number at sign-up and again for
 -- "forgot password"; day-to-day sign-in is password only, so the per-message
--- cost stays off the common path. Delivery is not Twilio: a Send SMS Hook
--- hands every code to the send-whatsapp-otp Edge Function, which sends it
--- over WhatsApp via Meta's Cloud API — no messaging credentials in the app.
+-- cost stays off the common path. Delivery is through a Send SMS Hook that
+-- hands every code to the send-sms-otp Edge Function, which sends it by SMS
+-- through Resala, a Libyan gateway — no messaging credentials in the app.
 -- No email address is used for auth or recovery anywhere (profiles.email
 -- further down is an optional contact field the user types in themselves).
 -- auth.uid() is a real, stable per-account identity — RLS below enforces

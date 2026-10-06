@@ -1,12 +1,13 @@
 // Aqari — delivers auth one-time codes by SMS, through Resala (resala.ly), a
 // Libyan SMS gateway.
 //
-// Like send-whatsapp-otp, this is a Supabase **Send SMS Hook**: Supabase
-// generates, stores, expires and verifies the code, and calls this function
-// only to deliver it. No database access, no state. Pointing the hook
-// (Authentication → Hooks → Send SMS) at this function instead of
-// send-whatsapp-otp is the whole switch; the app doesn't change, because its
-// OTP_CHANNEL is already 'sms' and its code screen already says "by SMS".
+// This is a Supabase **Send SMS Hook** (Authentication → Hooks → Send SMS):
+// Supabase generates, stores, expires and verifies the code, and calls this
+// function only to deliver it. No database access, no state. The app's
+// OTP_CHANNEL is 'sms' and its code screen says the code arrives by SMS.
+//
+// It replaced send-whatsapp-otp (WhatsApp via Meta), removed because Meta
+// won't allow login-code templates until the business is verified.
 //
 // Why send-template and not Resala's /pins: /pins generates its *own* code
 // and leaves verifying it to the caller. Supabase only accepts the code it
@@ -15,7 +16,6 @@
 //
 // Secrets (supabase secrets set ...):
 //   SEND_SMS_HOOK_SECRET   the "v1,whsec_..." value Supabase shows for the hook
-//                          (the same secret send-whatsapp-otp checks)
 //   RESALA_TOKEN           the Authorization token from the Resala dashboard
 //   RESALA_TEMPLATE_ID     the id of an SMS template whose text contains $1,
 //                          e.g. "رمز التحقق الخاص بك في عقاري: $1"
@@ -23,8 +23,9 @@
 
 const DEFAULT_API_BASE = 'https://dev.resala.ly/api/v1';
 
-// Standard Webhooks signature check, identical to send-whatsapp-otp's: HMAC-
-// SHA256 over "<id>.<timestamp>.<body>", sent as one or more "v1,<sig>".
+// Supabase signs hook requests with the Standard Webhooks scheme: HMAC-SHA256
+// over "<id>.<timestamp>.<body>", base64, sent as one or more "v1,<sig>"
+// (several during a secret rotation, hence the loop).
 async function isSignatureValid(secret: string, headers: Headers, body: string): Promise<boolean> {
   const id = headers.get('webhook-id');
   const timestamp = headers.get('webhook-timestamp');

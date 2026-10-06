@@ -106,7 +106,7 @@ export default function AddListingScreen({ navigation, route }) {
   // Libya for someone whose account is on a foreign number.
   const seededPhone = fromE164(existing?.agentPhone ?? auth.phone ?? '');
   const [agentPhone, setAgentPhone] = useState(seededPhone.national);
-  const [agentCountry, setAgentCountry] = useState(seededPhone.country);
+  const [agentCountry] = useState(seededPhone.country);
   const [description, setDescription] = useState(existing?.description ?? '');
   const [images, setImages] = useState(existing?.images ?? []);
   const [listingType, setListingType] = useState(existing?.listingType ?? 'sale');
@@ -453,7 +453,6 @@ export default function AddListingScreen({ navigation, route }) {
         value={agentPhone}
         onChangeText={setAgentPhone}
         country={agentCountry}
-        onChangeCountry={setAgentCountry}
         colors={colors}
         placeholder={t('authPhonePlaceholder')}
       />

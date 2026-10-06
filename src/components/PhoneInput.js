@@ -1,20 +1,10 @@
-import { useMemo, useState } from 'react';
-import {
-  FlatList,
-  Modal,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, TextInput, View } from 'react-native';
 import Text from './Text';
-import { Ionicons } from '@expo/vector-icons';
 import parsePhoneNumberFromString from 'libphonenumber-js/min';
 import { COUNTRIES, DEFAULT_COUNTRY, flagEmoji } from '../data/countries';
 import { toEnglishDigits } from '../utils/digits';
-import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
-import { pressedStyle } from '../theme/press';
 
 const COUNTRY_BY_CODE = Object.fromEntries(COUNTRIES.map((c) => [c.code, c]));
 
@@ -63,10 +53,10 @@ export function fromE164(value) {
 }
 
 /**
- * Phone entry with a country selector. Defaults to Libya, because that's who
- * the app is for — but the number someone's WhatsApp is registered against
- * isn't always a Libyan one, and forcing +218 would lock those people out of
- * signing up at all.
+ * Phone entry with a fixed country prefix: +218 for anything new. There was a
+ * country picker here, for people whose WhatsApp number wasn't Libyan; codes
+ * now go out by SMS through a Libyan gateway, so it went. `country` is still a
+ * prop so a number saved earlier with another code keeps showing it.
  *
  * `direction: 'ltr'` is pinned on the row and the input: phone numbers read
  * left-to-right in both languages, so without it both the row order and the
@@ -76,12 +66,10 @@ export default function PhoneInput({
   value,
   onChangeText,
   country = DEFAULT_COUNTRY,
-  onChangeCountry,
   colors,
   placeholder,
 }) {
   const t = useT();
-  const [pickerOpen, setPickerOpen] = useState(false);
   // Local, not lifted — purely about when to start showing the validation
   // message. Waiting for blur means it doesn't yell "invalid" at someone
   // still halfway through typing a perfectly good number.
@@ -91,23 +79,10 @@ export default function PhoneInput({
   return (
     <View style={styles.wrapper}>
       <View style={[styles.row, { direction: 'ltr' }]}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.countryButton,
-            { borderColor: colors.inputBorder },
-            pressed && pressedStyle,
-          ]}
-          onPress={() => onChangeCountry && setPickerOpen(true)}
-          disabled={!onChangeCountry}
-          accessibilityRole="button"
-          accessibilityLabel={t('countryPickerTitle')}
-        >
+        <View style={[styles.countryButton, { borderColor: colors.inputBorder }]}>
           <Text style={styles.flag}>{flagEmoji(country)}</Text>
           <Text style={[styles.prefix, { color: colors.text }]}>+{callingCodeFor(country)}</Text>
-          {onChangeCountry && (
-            <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
-          )}
-        </Pressable>
+        </View>
 
         <TextInput
           style={[
@@ -137,125 +112,7 @@ export default function PhoneInput({
         <Text style={[styles.errorText, { color: colors.danger }]}>{t('invalidPhoneNumber')}</Text>
       )}
 
-      {onChangeCountry && (
-        <CountryPicker
-          visible={pickerOpen}
-          selected={country}
-          colors={colors}
-          onSelect={(code) => {
-            onChangeCountry(code);
-            setPickerOpen(false);
-            // A number valid for the old country usually isn't valid for the
-            // new one, and showing a red error the instant someone switches
-            // country reads as the picker being broken.
-            setTouched(false);
-          }}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
     </View>
-  );
-}
-
-function CountryPicker({ visible, selected, colors, onSelect, onClose }) {
-  const t = useT();
-  const { language } = useAppContext();
-  const [query, setQuery] = useState('');
-
-  // Sorted by the name actually on screen. The generated list is in English
-  // order, which under Arabic names reads as no order at all — أفغانستان,
-  // جزر آلاند, ألبانيا is alphabetical only if you can see the English
-  // underneath it.
-  const sorted = useMemo(() => {
-    const name = (c) => (language === 'ar' ? c.ar : c.en);
-    return [...COUNTRIES].sort((a, b) => name(a).localeCompare(name(b), language));
-  }, [language]);
-
-  const results = useMemo(() => {
-    const q = toEnglishDigits(query).trim().toLowerCase().replace(/^\+/, '');
-    if (!q) return sorted;
-    return sorted.filter(
-      (c) =>
-        c.en.toLowerCase().includes(q) ||
-        c.ar.includes(query.trim()) ||
-        c.calling.startsWith(q) ||
-        c.code.toLowerCase() === q
-    );
-  }, [query, sorted]);
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent
-      navigationBarTranslucent
-    >
-      <View style={[styles.pickerRoot, { backgroundColor: colors.surface }]}>
-        <View style={styles.pickerHeader}>
-          <Text style={[styles.pickerTitle, { color: colors.heading }]}>
-            {t('countryPickerTitle')}
-          </Text>
-          <Pressable
-            style={({ pressed }) => pressed && pressedStyle}
-            onPress={onClose}
-            hitSlop={10}
-            accessibilityRole="button"
-          >
-            <Ionicons name="close" size={22} color={colors.textMuted} />
-          </Pressable>
-        </View>
-
-        <TextInput
-          style={[styles.search, { borderColor: colors.inputBorder, color: colors.text }]}
-          placeholder={t('countryPickerSearch')}
-          placeholderTextColor={colors.placeholderText}
-          value={query}
-          onChangeText={setQuery}
-          autoCorrect={false}
-        />
-
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.code}
-          keyboardShouldPersistTaps="handled"
-          // The list is 245 rows of fixed-height items, so telling FlatList
-          // the height up front skips measuring every one of them.
-          getItemLayout={(_, index) => ({ length: 52, offset: 52 * index, index })}
-          initialNumToRender={20}
-          renderItem={({ item }) => {
-            const isSelected = item.code === selected;
-            return (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.countryRow,
-                  isSelected && { backgroundColor: colors.border },
-                  pressed && pressedStyle,
-                ]}
-                onPress={() => onSelect(item.code)}
-              >
-                <Text style={styles.flag}>{flagEmoji(item.code)}</Text>
-                <Text style={[styles.countryName, { color: colors.text }]} numberOfLines={1}>
-                  {language === 'ar' ? item.ar : item.en}
-                </Text>
-                {/* A leading LRM: '+' is bidi-neutral, so inside an Arabic
-                    paragraph it lands after the digits and renders as "93+".
-                    The mark pins the whole run left-to-right. */}
-                <Text style={[styles.countryCalling, { color: colors.textMuted }]}>
-                  {`‎+${item.calling}`}
-                </Text>
-                {isSelected && <Ionicons name="checkmark" size={18} color={colors.accent} />}
-              </Pressable>
-            );
-          }}
-          ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-              {t('countryPickerEmpty')}
-            </Text>
-          }
-        />
-      </View>
-    </Modal>
   );
 }
 
@@ -296,50 +153,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginTop: 6,
-  },
-  pickerRoot: {
-    flex: 1,
-    paddingTop: 48,
-    paddingHorizontal: 16,
-  },
-  pickerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  pickerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  search: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    marginBottom: 12,
-  },
-  countryRow: {
-    height: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  countryName: {
-    flex: 1,
-    fontSize: 15,
-  },
-  countryCalling: {
-    fontSize: 14,
-    fontWeight: '600',
-    writingDirection: 'ltr',
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 24,
-    fontSize: 14,
   },
 });

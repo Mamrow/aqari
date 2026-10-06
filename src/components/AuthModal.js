@@ -16,7 +16,6 @@ import { useAppContext } from '../context/AppContext';
 import { useT } from '../i18n/useT';
 import { useThemeColors } from '../theme/useThemeColors';
 import { toEnglishDigits } from '../utils/digits';
-import { OTP_CHANNEL } from '../utils/otp';
 import PhoneInput, { DEFAULT_COUNTRY, isValidPhone, toE164 } from './PhoneInput';
 import PasswordInput from './PasswordInput';
 import { pressedStyle } from '../theme/press';
@@ -29,7 +28,7 @@ const OTP_LENGTH = 6;
 // clipped mid-word. The hint line directly above already says what to type, so
 // the placeholder only has to show the shape of what goes in.
 const OTP_PLACEHOLDER = '·'.repeat(OTP_LENGTH);
-// Every resend is a WhatsApp message we pay for, so this is a billing control
+// Every resend is an SMS we pay for, so this is a billing control
 // as much as a UX one: long enough that nobody taps it out of impatience while
 // a message is still in flight, short enough that someone whose code genuinely
 // never arrived isn't stuck. Supabase enforces its own minimum interval per
@@ -114,7 +113,7 @@ export default function AuthModal() {
 
   // Real numbering-plan validation for whichever country is selected, not a
   // digit count — see isValidPhone. Libya is the default, but someone whose
-  // WhatsApp is on a foreign number has to be able to sign up too.
+  // phone is on a foreign number has to be able to sign up too.
   const phoneOk = isValidPhone(country, phone.trim());
   const passwordOk = password.length >= 6 && confirmPassword === password;
   // Only once they've actually typed something in the confirm field —
@@ -373,7 +372,6 @@ export default function AuthModal() {
                   value={phone}
                   onChangeText={setPhone}
                   country={country}
-                  onChangeCountry={setCountry}
                   colors={colors}
                   placeholder={`${t('authPhonePlaceholder')} *`}
                 />
@@ -411,7 +409,7 @@ export default function AuthModal() {
             {onCodeStep && (
               <>
                 <Text style={[styles.hint, { color: colors.textMuted }]}>
-                  {t(OTP_CHANNEL === 'whatsapp' ? 'authOtpSentWhatsapp' : 'authOtpSentSms').replace(
+                  {t('authOtpSentSms').replace(
                     '{phone}',
                     toE164(country, phone)
                   )}

@@ -43,7 +43,7 @@ export default function PersonalInfoScreen() {
 
   const seeded = fromE164(auth.phone);
   const [phone, setPhone] = useState(seeded.national);
-  const [country, setCountry] = useState(seeded.country);
+  const [country] = useState(seeded.country);
   const [phoneCode, setPhoneCode] = useState('');
   const [awaitingPhoneCode, setAwaitingPhoneCode] = useState(false);
   const [savingPhone, setSavingPhone] = useState(false);
@@ -193,7 +193,6 @@ export default function PersonalInfoScreen() {
             value={phone}
             onChangeText={setPhone}
             country={country}
-            onChangeCountry={setCountry}
             colors={colors}
             placeholder={t('authPhonePlaceholder')}
           />

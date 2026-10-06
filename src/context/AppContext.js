@@ -559,9 +559,8 @@ export function AppProvider({ children }) {
   );
 
   // Redeems the sign-up code and, with the session it establishes, writes the
-  // profile. `type: 'sms'` is correct even for a WhatsApp-delivered code —
-  // Supabase has no separate whatsapp verify type; the channel only affects
-  // how the message is delivered, not how the code is checked.
+  // profile. `type: 'sms'` matches how the code is delivered (see
+  // src/utils/otp.js); the delivery route doesn't change how it's checked.
   const verifySignUpOtp = useCallback(
     async ({ phone, token, name }) => {
       const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
