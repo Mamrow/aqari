@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.mamrow.aqari",
+      "sha256_cert_fingerprints": [
+        "E3:0A:AD:58:FD:BC:82:58:EF:1C:50:44:A2:55:74:A0:41:3E:1F:4A:34:DD:F8:31:34:01:D7:E4:E0:90:EE:48"
+      ]
+    }
+  }
+]

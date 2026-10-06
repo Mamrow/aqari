@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": [
+          "322BHK3VDS.com.mamrow.aqari"
+        ],
+        "components": [
+          {
+            "/": "/l/*"
+          }
+        ],
+        "appID": "322BHK3VDS.com.mamrow.aqari",
+        "paths": [
+          "/l/*"
+        ]
+      }
+    ]
+  }
+}

@@ -1,3 +1,10 @@
 # A shared listing link, /l/<id>, always serves the one listing page;
 # it reads the id from the URL. 200 = rewrite, so the URL stays as shared.
 /l/*  /l/index.html  200
+
+# Universal links (iOS) and app links (Android) look for these two files at
+# fixed /.well-known/ paths. They live in app-links/ because Netlify's
+# drag-and-drop deploy can skip dot-folders; a 200 rewrite serves them at the
+# expected path with no redirect, which Apple requires.
+/.well-known/apple-app-site-association  /app-links/apple-app-site-association.json  200!
+/.well-known/assetlinks.json  /app-links/assetlinks.json  200!

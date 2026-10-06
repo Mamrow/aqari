@@ -63,10 +63,10 @@
     </div>
   </div>
   <div class="actions">
-    <a id="openApp" class="btn-primary" href="#"></a>
+    <a id="openApp" class="btn-store" href="#"></a>
     <div class="store-row">
-      <a class="btn-store" href="https://apps.apple.com/app/id6809884623">App Store</a>
-      <a class="btn-store" href="https://play.google.com/store/apps/details?id=com.mamrow.aqari">Google Play</a>
+      <a id="appStore" class="btn-store" href="https://apps.apple.com/app/id6809884623">App Store</a>
+      <a id="playStore" class="btn-store" href="https://play.google.com/store/apps/details?id=com.mamrow.aqari">Google Play</a>
     </div>
     <p id="hint" class="hint"></p>
   </div>
@@ -131,7 +131,27 @@
     if (photo) { img.src = photo; img.hidden = false; } else { img.hidden = true; }
   }
 
+  // With the app installed, tapping a /l/ link opens it directly (universal
+  // links / app links) and this page never shows. So whoever sees it most
+  // likely doesn't have the app: make their own store the main button.
+  function highlightStore() {
+    var ua = navigator.userAgent || '';
+    var mine = /iPhone|iPad|iPod/i.test(ua) ? 'appStore' : /Android/i.test(ua) ? 'playStore' : null;
+    if (!mine) {
+      // A computer: no store to favour, and no app to open, but keep a main
+      // button for someone forwarding the link to their phone.
+      document.getElementById('openApp').className = 'btn-primary';
+      return;
+    }
+    var el = document.getElementById(mine);
+    el.className = 'btn-primary';
+    var row = el.parentNode;
+    row.parentNode.insertBefore(el, row.parentNode.firstChild);
+    row.style.gridTemplateColumns = '1fr';
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
+    highlightStore();
     renderListing();
     if (!/^[0-9a-f-]{36}$/i.test(listingId)) { loadState = 'done'; renderListing(); return; }
     fetch(SUPABASE_URL + '/rest/v1/listings?select=' + COLUMNS + '&id=eq.' + listingId, {
