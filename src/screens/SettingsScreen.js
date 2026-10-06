@@ -204,6 +204,11 @@ export default function SettingsScreen({ navigation }) {
           setDeletingAccount(true);
           try {
             await deleteAccount();
+            // Settings is a tab, so it stays mounted after the account goes:
+            // leave the delete page, or it keeps showing the spinner over a
+            // signed-out app.
+            setDeletingAccount(false);
+            setShowDeleteAccount(false);
           } catch (error) {
             console.warn('deleteAccount error', error);
             Alert.alert(t('authErrorTitle'), t('deleteAccountError'));

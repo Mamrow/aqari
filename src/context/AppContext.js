@@ -865,10 +865,18 @@ export function AppProvider({ children }) {
   // sign-out here is just cleaning up this device's now-dead session, and the
   // authUid change refetches listings so the deleted ones leave the map.
   const deleteAccount = useCallback(async () => {
-    const { error } = await supabase.functions.invoke('delete-account');
+    // A time limit, so a stalled connection ends in the error alert instead
+    // of a spinner that never stops. Deleting a large account (every photo
+    // and video) still fits well inside it.
+    const { error } = await supabase.functions.invoke('delete-account', { timeout: 60000 });
     if (error) throw error;
     pushRegisteredForRef.current = null;
-    await supabase.auth.signOut();
+    // Local only. A global sign-out calls the server to revoke the session,
+    // but the user it belongs to was just deleted, so that call hung, and
+    // with it this function: the account was gone and the session dropped,
+    // but Settings kept spinning forever. There's nothing left on the server
+    // to sign out of.
+    await supabase.auth.signOut({ scope: 'local' });
     setAuth(initialState.auth);
     setAuthUid(null);
     setIsAdmin(false);
