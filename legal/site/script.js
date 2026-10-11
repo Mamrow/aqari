@@ -26,10 +26,10 @@ function aqariSetLang(lang) {
 (function aqariInitLang() {
   var saved = null;
   try { saved = localStorage.getItem('aqari-legal-lang'); } catch (e) {}
-  if (!saved) {
-    var browserLang = (navigator.language || '').toLowerCase();
-    saved = browserLang.indexOf('ar') === 0 ? 'ar' : 'en';
-  }
+  // First visit: Arabic, whatever the browser's language. The audience is
+  // Libyan, and many phones there are set to English. The toggle remembers
+  // a visitor's own choice after that.
+  if (saved !== 'ar' && saved !== 'en') saved = 'ar';
   document.addEventListener('DOMContentLoaded', function () {
     aqariSetLang(saved);
   });
