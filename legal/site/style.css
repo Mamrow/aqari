@@ -184,3 +184,20 @@ footer.page-footer {
 }
 
 [hidden] { display: none !important; }
+
+/* store badges: drawn after the official black App Store / Google Play
+   badges, and always left-to-right like the originals, even on Arabic pages */
+.store-badges { display: flex; flex-wrap: wrap; gap: 12px; }
+.store-badge {
+  direction: ltr; display: inline-flex; align-items: center; gap: 10px;
+  height: 56px; padding: 0 20px 0 14px; border-radius: 12px;
+  background: #000; color: #fff; text-decoration: none;
+  border: 1px solid #3a3a3a; font-family: -apple-system, 'Plus Jakarta Sans', system-ui, sans-serif;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.store-badge:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.store-badge svg { width: 28px; height: 28px; flex-shrink: 0; }
+.store-badge-text { display: flex; flex-direction: column; text-align: left; }
+.store-badge-small { font-size: 11px; line-height: 1.1; letter-spacing: .02em; }
+.store-badge-big { font-size: 21px; line-height: 1.15; font-weight: 600; letter-spacing: -.01em; }
+.store-badge[aria-disabled="true"] { opacity: .5; pointer-events: none; }

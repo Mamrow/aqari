@@ -8,3 +8,7 @@
 # expected path with no redirect, which Apple requires.
 /.well-known/apple-app-site-association  /app-links/apple-app-site-association.json  200!
 /.well-known/assetlinks.json  /app-links/assetlinks.json  200!
+
+# The marketing link for social bios, posts and QR codes. It serves the home
+# page, whose script sends a phone on to its own store.
+/download  /index.html  200
