@@ -3,7 +3,7 @@
     "name": "Aqari",
     "slug": "aqari",
     "scheme": "aqari",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -102,6 +102,14 @@
         {
           "organization": "aqari-l7",
           "project": "react-native"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true
+          }
         }
       ]
     ],

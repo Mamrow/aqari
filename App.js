@@ -24,6 +24,7 @@ import {
   configureForegroundNotifications,
 } from './src/lib/notifications';
 import * as Sentry from '@sentry/react-native';
+import * as SplashScreen from 'expo-splash-screen';
 
 // Before any component mounts, so a crash during the very first render is
 // still reported. No-op unless EXPO_PUBLIC_SENTRY_DSN was set at build time.
@@ -35,6 +36,12 @@ import * as Sentry from '@sentry/react-native';
 // records the screen), and console logs, in a product whose screens are full
 // of people's phone numbers.
 initCrashReporting();
+
+// Keep the native splash up until SplashView (src/components/SplashView.js)
+// has laid out and hides it. Without this, Android drops the native splash
+// as soon as the window exists, before the JS bundle has even loaded, and
+// shows the bare window (dark grey in dark mode) in between.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Also before any component mounts: a notification can arrive (or have
 // launched the app) before the first render, and without a handler set by

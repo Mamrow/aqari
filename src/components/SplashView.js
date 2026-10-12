@@ -1,4 +1,6 @@
-import { Image, StyleSheet, View } from 'react-native';
+import { useRef } from 'react';
+import { Animated, Platform, StyleSheet } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 
 // The launch screen, continued in JavaScript.
 //
@@ -22,11 +24,38 @@ import { Image, StyleSheet, View } from 'react-native';
 const SPLASH_BACKGROUND = '#0066FF';
 const SPLASH_IMAGE = require('../../assets/aqari-splash.png');
 
+// The native splash can't match that, though. Since Android 12 the system
+// splash is a small centred icon on the background colour, never a
+// full-screen picture, and before expo-splash-screen was installed nothing
+// held it up: Android dropped it as soon as the window existed, before the
+// JS bundle had loaded, and showed the bare window — dark grey in dark mode —
+// until this view arrived. App.js now calls preventAutoHideAsync() at load,
+// so the native splash stays until this view has laid out; then it goes and
+// the full image fades in over the same blue, instead of jumping in.
+//
+// iOS is different: its native launch screen already shows the full image,
+// so there the picture starts visible and the handoff stays invisible.
+//
+// App.js and AppShell each render their own SplashView, one after the other.
+// Only the first fades; the second starts fully visible, or the picture would
+// blink out and fade back in when the first gate opens.
+let revealed = Platform.OS !== 'android';
+const FADE_MS = 300;
+
 export default function SplashView() {
+  const opacity = useRef(new Animated.Value(revealed ? 1 : 0)).current;
+
+  const handleLayout = () => {
+    SplashScreen.hideAsync().catch(() => {});
+    if (revealed) return;
+    revealed = true;
+    Animated.timing(opacity, { toValue: 1, duration: FADE_MS, useNativeDriver: true }).start();
+  };
+
   return (
-    <View style={styles.container}>
-      <Image source={SPLASH_IMAGE} style={styles.image} resizeMode="cover" />
-    </View>
+    <Animated.View style={styles.container} onLayout={handleLayout}>
+      <Animated.Image source={SPLASH_IMAGE} style={[styles.image, { opacity }]} resizeMode="cover" />
+    </Animated.View>
   );
 }
 
