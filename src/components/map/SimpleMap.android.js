@@ -12,6 +12,15 @@ export default function SimpleMap({ latitude, longitude, onPress, theme, colors,
   return (
     <Map
       style={style}
+      // TextureView, not the default GLSurfaceView. This map sits inside a
+      // scrolling screen, and a SurfaceView draws in its own window layer
+      // behind the app's: on a Huawei P30 lite (Mali GPU) everything above
+      // and around it on the listing and add-listing screens rendered solid
+      // black, leaving only the map. A TextureView composites like any other
+      // view. The full-screen browse map keeps the faster SurfaceView, since
+      // nothing scrolls over it. Both renderers ship in the same native
+      // library, so this needs no new build.
+      androidView="texture"
       mapStyle={getMapStyleUrl(theme)}
       onPress={
         onPress
