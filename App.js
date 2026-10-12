@@ -41,6 +41,8 @@ initCrashReporting();
 // has laid out and hides it. Without this, Android drops the native splash
 // as soon as the window exists, before the JS bundle has even loaded, and
 // shows the bare window (dark grey in dark mode) in between.
+// Safe in an update to a build without the native module: the package
+// looks it up with requireOptionalNativeModule, and every call is a no-op.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Also before any component mounts: a notification can arrive (or have
