@@ -69,6 +69,9 @@ export default function ListingDetailScreen({ route, navigation }) {
   const inputAlign = { textAlign: isRTL ? 'right' : 'left' };
   const insets = useSafeAreaInsets();
   const [galleryIndex, setGalleryIndex] = useState(null);
+  // True while a finger is on the small map, so the page doesn't scroll
+  // instead of the map panning (see SimpleMap).
+  const [mapTouched, setMapTouched] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportReason, setReportReason] = useState(null);
   const [reportNote, setReportNote] = useState('');
@@ -244,7 +247,11 @@ export default function ListingDetailScreen({ route, navigation }) {
   };
 
   return (
-    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
+    <ScrollView
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={styles.container}
+      scrollEnabled={!mapTouched}
+    >
       {listing.images?.length > 0 ? (
         <FlatList
           horizontal
@@ -362,6 +369,7 @@ export default function ListingDetailScreen({ route, navigation }) {
         <>
           <Text style={[styles.label, rtlText, { color: colors.textMuted }]}>{t('locationLabel')}</Text>
           <SimpleMap
+            onTouchActiveChange={setMapTouched}
             style={styles.map}
             latitude={listing.latitude}
             longitude={listing.longitude}

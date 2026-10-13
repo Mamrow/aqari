@@ -98,6 +98,9 @@ export default function AddListingScreen({ navigation, route }) {
   const existing = editingId ? listings.find((item) => item.id === editingId) : null;
 
   const [title, setTitle] = useState(existing?.title ?? '');
+  // True while a finger is on the small map, so the page doesn't scroll
+  // instead of the map panning (see SimpleMap).
+  const [mapTouched, setMapTouched] = useState(false);
   const [price, setPrice] = useState(existing ? String(existing.price) : '');
   const [area, setArea] = useState(existing ? String(existing.area) : '');
   // Seeded from whatever's on file — the listing being edited, else the
@@ -398,6 +401,7 @@ export default function AddListingScreen({ navigation, route }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
+        scrollEnabled={!mapTouched}
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={[
           styles.container,
@@ -847,6 +851,7 @@ export default function AddListingScreen({ navigation, route }) {
       </Text>
       <Text style={[styles.hint, rtlText, { color: colors.textMuted }]}>{t('locationHint')}</Text>
       <SimpleMap
+        onTouchActiveChange={setMapTouched}
         style={styles.map}
         latitude={location.latitude}
         longitude={location.longitude}

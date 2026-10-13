@@ -1017,21 +1017,6 @@ export default function HomeMapScreen({ navigation }) {
         />
       )}
 
-      {viewMode === 'map' && filteredListings.length === 0 && (
-        <View
-          style={[
-            styles.mapEmptyBanner,
-            { top: contentTopOffset, backgroundColor: colors.surface },
-          ]}
-        >
-          <Text style={[styles.mapEmptyTitle, { color: colors.text }]}>
-            {t('homeEmptyTitle')}
-          </Text>
-          <Text style={[styles.mapEmptySubtitle, { color: colors.textMuted }]}>
-            {t('homeEmptySubtitle')}
-          </Text>
-        </View>
-      )}
 
       {/* Floating pills over the map. Over the list the whole thing —
           search, segment and the Filters button — becomes one opaque header,
@@ -1634,28 +1619,6 @@ const styles = StyleSheet.create({
   },
   listEmptyContainer: {
     flex: 1,
-  },
-  mapEmptyBanner: {
-    position: 'absolute',
-    start: 16,
-    end: 16,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  mapEmptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  mapEmptySubtitle: {
-    fontSize: 12,
-    marginTop: 4,
-    textAlign: 'center',
   },
   topBar: {
     position: 'absolute',

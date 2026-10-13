@@ -10,23 +10,45 @@ const longitudeDeltaFromZoom = (zoom) => 360 / 2 ** zoom;
  * A single-pin map: read-only on the listing detail screen, tap-to-place on
  * the add-listing screen. Apple Maps implementation.
  */
-export default function SimpleMap({ latitude, longitude, onPress, theme, colors, zoom = DEFAULT_ZOOM, style }) {
+export default function SimpleMap({
+  latitude,
+  longitude,
+  onPress,
+  onTouchActiveChange,
+  theme,
+  colors,
+  zoom = DEFAULT_ZOOM,
+  style,
+}) {
   const delta = longitudeDeltaFromZoom(zoom);
   return (
-    <MapView
-      style={style}
-      initialRegion={{ latitude, longitude, latitudeDelta: delta, longitudeDelta: delta }}
-      onPress={onPress ? (event) => onPress(event.nativeEvent.coordinate) : undefined}
-      userInterfaceStyle={theme}
+    // Same touch reporting as SimpleMap.android.js, so both screens can lock
+    // their scrolling while a finger is on the map on either platform.
+    <View
+      style={[styles.frame, style]}
+      onTouchStart={() => onTouchActiveChange?.(true)}
+      onTouchEnd={() => onTouchActiveChange?.(false)}
+      onTouchCancel={() => onTouchActiveChange?.(false)}
     >
-      <Marker coordinate={{ latitude, longitude }}>
-        <View style={[styles.pin, { backgroundColor: colors.accent }]} />
-      </Marker>
-    </MapView>
+      <MapView
+        style={StyleSheet.absoluteFill}
+        initialRegion={{ latitude, longitude, latitudeDelta: delta, longitudeDelta: delta }}
+        onPress={onPress ? (event) => onPress(event.nativeEvent.coordinate) : undefined}
+        userInterfaceStyle={theme}
+      >
+        <Marker coordinate={{ latitude, longitude }}>
+          <View style={[styles.pin, { backgroundColor: colors.accent }]} />
+        </Marker>
+      </MapView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // The screen's rounded corners are on this wrapper now, so it clips.
+  frame: {
+    overflow: 'hidden',
+  },
   pin: {
     width: 18,
     height: 18,
