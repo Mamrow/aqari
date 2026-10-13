@@ -33,6 +33,13 @@ const SPLASH_IMAGE = require('../../assets/aqari-splash.png');
 // so the native splash stays until this view has laid out; then it goes and
 // the full image fades in over the same blue, instead of jumping in.
 //
+// The Android system splash is deliberately blank — plain #0066FF with an
+// empty icon (app.json's expo-splash-screen `android` block,
+// assets/splash-android-blank.png). Squeezed into the icon slot, the full
+// splash image showed as a rough square with the logo in it, then jumped to
+// the real thing. Blank blue, then this image fading in, reads as one splash.
+// iOS keeps the legacy `expo.splash` config, which shows the full image.
+//
 // iOS is different: its native launch screen already shows the full image,
 // so there the picture starts visible and the handoff stays invisible.
 //

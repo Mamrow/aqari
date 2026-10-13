@@ -105,6 +105,15 @@
         }
       ],
       [
+        "expo-splash-screen",
+        {
+          "android": {
+            "image": "./assets/splash-android-blank.png",
+            "backgroundColor": "#0066FF"
+          }
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
