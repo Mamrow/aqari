@@ -15,9 +15,11 @@ import { friendlyErrorMessage } from '../utils/friendlyError';
 import StatusScreen from '../components/StatusScreen';
 import { pressedStyle } from '../theme/press';
 
-// Only the last day gets a banner — a 30-day-out countdown nagging on every
-// approved listing was more noise than signal.
-const EXPIRING_SOON_DAYS = 1;
+// The last three days get a banner — a 30-day-out countdown nagging on every
+// approved listing was more noise than signal. Three, not one, because
+// notify-listing-expiry pushes "expires in 3 days" and its tap lands here:
+// the banner and its Renew button have to be showing when it does.
+const EXPIRING_SOON_DAYS = 3;
 
 // Whole days between now and the given ISO timestamp, rounded up so
 // "expires in a few hours" still reads as 1 day left, not 0.

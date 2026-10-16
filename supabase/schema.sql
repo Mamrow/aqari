@@ -299,6 +299,10 @@ alter table listings add column if not exists listing_state text not null defaul
 alter table listings add column if not exists expires_at timestamptz not null default (now() + interval '30 days');
 alter table listings add column if not exists renewed_at timestamptz;
 alter table listings add column if not exists featured_until timestamptz;
+-- Which expiry each reminder was sent for, and the approval trigger that
+-- restarts the 30 days: migration_listing_expiry_reminders.sql.
+alter table listings add column if not exists expiry_warned_for timestamptz;
+alter table listings add column if not exists expiry_notified_for timestamptz;
 
 -- Column-level lockdown: "owner or admin can update listings" above is a
 -- row-level policy — it lets an owner set ANY column on their own row,

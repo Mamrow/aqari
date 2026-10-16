@@ -106,12 +106,18 @@ function AppShell() {
   }, [isAdmin]);
 
   // A tap that launched the app resolves before the navigator exists, so it's
-  // parked here and replayed from onReady below.
+  // parked here ({ listingId, open }) and replayed from onReady below.
   const pendingListingIdRef = useRef(null);
 
-  const goToListing = useCallback((listingId) => {
+  const goToListing = useCallback((listingId, open = null) => {
     if (!navigationRef.isReady()) {
-      pendingListingIdRef.current = listingId;
+      pendingListingIdRef.current = { listingId, open };
+      return;
+    }
+    // An expiry notice lands on My Listings, where Renew is. Admins have no
+    // My Listings tab, so they get the listing like any other notice.
+    if (open === 'myListings' && !isAdminRef.current) {
+      navigationRef.navigate('MyListings', { screen: 'MyListingsHome' });
       return;
     }
     // ListingDetail exists in both tab trees, under a different parent in
@@ -147,9 +153,9 @@ function AppShell() {
   }, [goToListing]);
 
   const handleNavigationReady = useCallback(() => {
-    const listingId = pendingListingIdRef.current;
+    const pending = pendingListingIdRef.current;
     pendingListingIdRef.current = null;
-    if (listingId) goToListing(listingId);
+    if (pending) goToListing(pending.listingId, pending.open);
   }, [goToListing]);
 
   // Onboarding lives inside AppProvider (it needs theme + translations) but

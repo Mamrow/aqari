@@ -46,8 +46,17 @@ function listingIdFrom(response) {
   return typeof listingId === 'string' && listingId ? listingId : null;
 }
 
+// Where a tap should land beyond "this listing", if the sender said:
+// notify-listing-expiry sends `open: 'myListings'`, because the thing to do
+// about an expiring listing (Renew) is on My Listings, not on the listing.
+function openTargetFrom(response) {
+  const open = response?.notification?.request?.content?.data?.open;
+  return typeof open === 'string' ? open : null;
+}
+
 /**
- * Calls `onListing(listingId)` when a notification is tapped. Covers both
+ * Calls `onListing(listingId, open)` when a notification is tapped.
+ * `open` is the sender's optional landing hint (see openTargetFrom). Covers both
  * cases: the app was already running (the subscription), and the app was
  * launched by the tap itself (getLastNotificationResponseAsync — the
  * subscription never fires for that one, which is the usual reason a
@@ -64,13 +73,13 @@ export function addNotificationTapListener(onListing) {
   Notifications.getLastNotificationResponseAsync()
     .then((response) => {
       const listingId = listingIdFrom(response);
-      if (!cancelled && listingId) onListing(listingId);
+      if (!cancelled && listingId) onListing(listingId, openTargetFrom(response));
     })
     .catch((error) => console.warn('getLastNotificationResponseAsync failed', error));
 
   const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
     const listingId = listingIdFrom(response);
-    if (listingId) onListing(listingId);
+    if (listingId) onListing(listingId, openTargetFrom(response));
   });
 
   return () => {
