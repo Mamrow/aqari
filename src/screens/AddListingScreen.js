@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -17,13 +18,14 @@ import Text from '../components/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SimpleMap from '../components/map/SimpleMap';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '../context/AppContext';
 import BoostListingSection from '../components/BoostListingSection';
 import { BOOST_PURCHASES_ENABLED } from '../config/features';
 import StatusScreen from '../components/StatusScreen';
 import { friendlyErrorMessage } from '../utils/friendlyError';
-import { TRIPOLI_CENTER } from '../data/constants';
+import { TRIPOLI_CENTER, isInLibya } from '../data/constants';
 import { CITIES, DISTRICTS, PRIORITY_CITY_KEYS } from '../data/districts';
 import {
   LISTING_TYPES,
@@ -154,6 +156,16 @@ export default function AddListingScreen({ navigation, route }) {
   const [location, setLocation] = useState(
     existing ? { latitude: existing.latitude, longitude: existing.longitude } : TRIPOLI_CENTER
   );
+  // The small map takes its camera from initialViewState, once, so moving it
+  // to the device's position means remounting it: bumping mapKey does that,
+  // at street zoom. A city-wide 11 is right for "somewhere in Tripoli", too
+  // far out to pick a building once we know where the person is standing.
+  const [mapKey, setMapKey] = useState(0);
+  const [mapZoom, setMapZoom] = useState(existing ? 15 : 11);
+  const [locating, setLocating] = useState(false);
+  // Once the person has tapped a spot, a GPS fix that lands late must not
+  // drag the pin away from it.
+  const pickedByHandRef = useRef(Boolean(existing));
   const [submitting, setSubmitting] = useState(false);
   const [submittedListing, setSubmittedListing] = useState(null);
   const [submitError, setSubmitError] = useState(null);
@@ -162,6 +174,79 @@ export default function AddListingScreen({ navigation, route }) {
   useEffect(() => {
     navigation.setOptions({ title: editingId ? t('editListingTitle') : t('addListingTitle') });
   }, [navigation, editingId, t]);
+
+  const handleMapPress = useCallback((coords) => {
+    pickedByHandRef.current = true;
+    setLocation(coords);
+  }, []);
+
+  // Puts the pin (and the map) on where the phone is. Most people add a
+  // listing while standing in it, so this saves hunting for the street.
+  // The automatic attempt when the screen opens stays quiet if location was
+  // refused; the "My location" button (fromButton) asks again, and if
+  // location is refused for good it offers the system settings instead.
+  const goToDeviceLocation = useCallback(
+    async ({ fromButton }) => {
+      try {
+        let { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
+        // The button may always ask. The automatic attempt only asks a phone
+        // that has never been asked: after one "no", asking again on every
+        // new listing is nagging, and on Android a second "no" is permanent.
+        if (status !== 'granted' && canAskAgain && (fromButton || status === 'undetermined')) {
+          ({ status } = await Location.requestForegroundPermissionsAsync());
+        }
+        if (status !== 'granted') {
+          // Only when the system can't ask any more: right after someone
+          // taps "Don't allow" in the system dialog, a second dialog
+          // pointing them to settings would just argue with their answer.
+          if (fromButton && !canAskAgain) {
+            Alert.alert(t('locationDeniedTitle'), t('locationDeniedMessage'), [
+              { text: t('cancel'), style: 'cancel' },
+              { text: t('openSettingsLabel'), onPress: () => Linking.openSettings() },
+            ]);
+          }
+          return;
+        }
+        setLocating(true);
+        let position = null;
+        try {
+          position = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+            mayShowUserSettingsDialog: true,
+          });
+        } catch {
+          // Indoors or with location services off for a moment: the last
+          // known fix is usually close enough to start from.
+          position = await Location.getLastKnownPositionAsync().catch(() => null);
+        }
+        if (!position) return;
+        const coords = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        // Same rule as the browse map: a phone outside Libya keeps the
+        // default, rather than pinning a Libyan listing in another country.
+        if (!isInLibya(coords)) return;
+        if (!fromButton && pickedByHandRef.current) return;
+        if (fromButton) pickedByHandRef.current = true;
+        setLocation(coords);
+        setMapZoom(16);
+        setMapKey((key) => key + 1);
+      } catch {
+        // Location is a convenience here; the map still works by tapping.
+      } finally {
+        setLocating(false);
+      }
+    },
+    [t]
+  );
+
+  // A new listing opens on the device's position. Editing keeps the saved
+  // pin: the person may well not be at the property now.
+  useEffect(() => {
+    if (!existing) goToDeviceLocation({ fromButton: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Explicit target rather than goBack(): this screen can be reached with no
   // history underneath it (e.g. via the center "+" tab, which redirects
@@ -179,6 +264,27 @@ export default function AddListingScreen({ navigation, route }) {
       { text: t('discardLabel'), style: 'destructive', onPress: goToMyListings },
     ]);
   };
+
+  // A close button in the header, through the same discard check as the
+  // Cancel button at the bottom of the form. Reached from the "+" tab this
+  // screen is the root of its stack and had no way out at the top at all;
+  // reached from My Listings, the plain back arrow skipped the check and
+  // threw away whatever had been typed.
+  useEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <Pressable
+          onPress={handleCancel}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={t('cancel')}
+          style={({ pressed }) => [styles.headerClose, pressed && pressedStyle]}
+        >
+          <Ionicons name="close" size={26} color={colors.text} />
+        </Pressable>
+      ),
+    });
+  });
 
   const isChalet = propertyType === CHALET_PROPERTY_TYPE;
   const isChaletRental = isChalet && listingType === 'rent';
@@ -850,16 +956,36 @@ export default function AddListingScreen({ navigation, route }) {
         {t('locationLabel')}
       </Text>
       <Text style={[styles.hint, rtlText, { color: colors.textMuted }]}>{t('locationHint')}</Text>
-      <SimpleMap
-        onTouchActiveChange={setMapTouched}
-        style={styles.map}
-        latitude={location.latitude}
-        longitude={location.longitude}
-        zoom={11}
-        onPress={setLocation}
-        theme={theme}
-        colors={colors}
-      />
+      <View style={styles.mapWrap}>
+        <SimpleMap
+          key={mapKey}
+          onTouchActiveChange={setMapTouched}
+          style={styles.map}
+          latitude={location.latitude}
+          longitude={location.longitude}
+          zoom={mapZoom}
+          onPress={handleMapPress}
+          theme={theme}
+          colors={colors}
+        />
+        <Pressable
+          onPress={() => goToDeviceLocation({ fromButton: true })}
+          disabled={locating}
+          accessibilityRole="button"
+          accessibilityLabel={t('myLocationLabel')}
+          style={({ pressed }) => [
+            styles.myLocationButton,
+            { backgroundColor: colors.surface },
+            pressed && pressedStyle,
+          ]}
+        >
+          {locating ? (
+            <ActivityIndicator size="small" color={colors.accent} />
+          ) : (
+            <Ionicons name="locate" size={22} color={colors.accent} />
+          )}
+        </Pressable>
+      </View>
 
       <Pressable
         style={({ pressed }) => [
@@ -1111,11 +1237,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  mapWrap: {
+    marginBottom: 20,
+  },
   map: {
     width: '100%',
     height: 340,
     borderRadius: 12,
-    marginBottom: 20,
+  },
+  myLocationButton: {
+    position: 'absolute',
+    top: 12,
+    end: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  headerClose: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
   },
   locationPin: {
     width: 22,

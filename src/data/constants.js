@@ -1,5 +1,16 @@
 export const TRIPOLI_CENTER = { latitude: 32.8872, longitude: 13.1913 };
 
+// A generous box around Libya. A device fix outside it (browsing from
+// overseas) is ignored rather than moving a map to another country — see
+// AddListingScreen.js. HomeMapScreen.js still keeps its own copy of the box.
+export const LIBYA_BOUNDS = { minLat: 19.5, maxLat: 33.2, minLon: 9.3, maxLon: 25.2 };
+
+export const isInLibya = ({ latitude, longitude }) =>
+  latitude >= LIBYA_BOUNDS.minLat &&
+  latitude <= LIBYA_BOUNDS.maxLat &&
+  longitude >= LIBYA_BOUNDS.minLon &&
+  longitude <= LIBYA_BOUNDS.maxLon;
+
 // Opening frame for the listings map. Deliberately *not* TRIPOLI_CENTER at a
 // city-wide zoom: Tripoli's built-up area is a wide coastal strip (roughly
 // 35km east-west, 13km north-south), so on a portrait phone any zoom wide
